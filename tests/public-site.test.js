@@ -72,16 +72,26 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   const css = read("styles.css");
   const headers = read("_headers");
 
+  assert.match(appJs, /renderShellGate/);
+  assert.match(appJs, /Open Shell/);
+  assert.match(appJs, /Create Shell/);
+  assert.match(appJs, /Open Local Shell/);
+  assert.match(appJs, /A Shell is your private PostSnail workspace/);
+  assert.match(appJs, /Your identity is a signature key, not a profile login/);
+  assert.match(appJs, /No account\. No email\. No backend login\./);
+  assert.match(appJs, /Your Shell stays private\. Your Website ZIP is public\./);
   assert.match(appJs, /renderAppFooter/);
   assert.match(appJs, /postsnail-icon\.png/);
   assert.match(appJs, /src="\.\.\/btc-wallet-qr\.svg"/);
-  assert.match(appJs, /Export Workspace/);
-  assert.match(appJs, /Import Workspace/);
+  assert.match(appJs, /Export Shell/);
+  assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Import Legacy Backup JSON/);
   assert.match(appJs, /Export Website ZIP/);
   assert.match(appJs, /Show Powered by PostSnail/);
   assert.match(appJs, /Show tracker credit/);
   assert.match(appJs, /Notify Forest/);
+  assert.match(appJs, /Upload ZIP contents to your live host/);
+  assert.match(appJs, /Forest is waiting for your live site to show the new fingerprint/);
   assert.match(appJs, /https:\/\/forest\.postsnail\.org\/api\/announce/);
   assert.match(appJs, /\.postsnail/);
   assert.match(appJs, /\.zip/);
@@ -90,6 +100,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.doesNotMatch(appJs, /src="\.\/btc-wallet-qr\.svg"/);
   assert.doesNotMatch(appJs, /Export backup/);
   assert.doesNotMatch(appJs, /Import backup/);
+  assert.doesNotMatch(appJs, /Export Workspace/);
+  assert.doesNotMatch(appJs, /Import Workspace/);
   assert.doesNotMatch(appJs, /aria-label="Hilazon6 home"/);
 
   assert.match(css, /--page:\s*#fffdf7/);
@@ -98,6 +110,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /--line:\s*#16163c/);
   assert.match(css, /\.app-footer/);
   assert.match(css, /image-rendering:\s*pixelated/);
+  assert.match(css, /\.notify-forest-attention/);
+  assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
+  assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
 
   assert.match(headers, /connect-src 'self' https:\/\/forest\.postsnail\.org/);
 });

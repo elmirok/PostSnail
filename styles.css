@@ -87,6 +87,10 @@ textarea:disabled {
   background: rgba(255, 253, 247, 0.86);
 }
 
+.app-shell.shell-locked {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
 .boot {
   grid-row: 1 / 4;
   display: grid;
@@ -216,6 +220,10 @@ textarea:disabled {
   font-size: 0.78rem;
 }
 
+.notify-forest-attention {
+  animation: notifyForestBlink 0.42s steps(2, end) 5;
+}
+
 .app-workbench,
 .app-panel {
   min-height: 0;
@@ -258,6 +266,31 @@ textarea:disabled {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 16px;
+}
+
+.shell-workbench {
+  display: grid;
+}
+
+.shell-gate {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.shell-intro h1 {
+  margin: 0 0 10px;
+  font-size: clamp(2rem, 8vw, 4.8rem);
+  line-height: 0.92;
+}
+
+.shell-intro p {
+  max-width: 60ch;
+  color: var(--muted);
+  line-height: 1.48;
 }
 
 .grid-2,
@@ -609,6 +642,24 @@ code {
   }
 }
 
+@keyframes notifyForestBlink {
+  0%,
+  100% {
+    box-shadow: 3px 3px 0 rgba(8, 10, 47, 0.14);
+    transform: translate(0, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(47, 122, 85, 0.28), 3px 3px 0 rgba(8, 10, 47, 0.14);
+    transform: translate(-1px, -1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notify-forest-attention {
+    animation: none;
+  }
+}
+
 @media (max-width: 900px) {
   .app-header {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -621,6 +672,7 @@ code {
   .grid-2,
   .grid-3,
   .info-layout,
+  .shell-gate,
   .remote-shell {
     grid-template-columns: 1fr;
   }

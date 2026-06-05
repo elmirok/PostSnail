@@ -46,6 +46,11 @@ const defaultSettings = {
 };
 
 const state = {
+  shellMode: "locked",
+  hasLocalShell: false,
+  pendingLocalState: null,
+  localShellNotice: false,
+  notifyForestAttention: false,
   activeTab: "write",
   status: "Ready.",
   profile: { ...defaultProfile },
@@ -73,8 +78,11 @@ init().catch((error) => {
 
 async function init() {
   const loaded = await loadAppState();
-  applyLoadedState(loaded);
-  state.status = "Local library loaded.";
+  state.pendingLocalState = loaded;
+  state.hasLocalShell = hasLocalShell(loaded);
+  state.status = state.hasLocalShell
+    ? "Open your local Shell, open a .postsnail vault, or create a new Shell."
+    : "Open a .postsnail Shell or create a new one.";
   render();
 }
 
@@ -123,8 +131,15 @@ app.addEventListener("change", async (event) => {
     await importWorkspaceFile(input.files?.[0]);
     input.value = "";
   }
+  if (input.id === "shell-file") {
+    setStatus(input.files?.[0] ? "Shell file selected. Enter the passphrase and choose Open Shell." : "Choose a .postsnail Shell file.");
+  }
   if (input.id === "legacy-backup-import") {
     await importLegacyBackupFile(input.files?.[0]);
+    input.value = "";
+  }
+  if (input.id === "shell-legacy-import") {
+    await importLegacyBackupFile(input.files?.[0], shellPassphrase());
     input.value = "";
   }
   if (input.id === "verify-upload") {
@@ -135,6 +150,18 @@ app.addEventListener("change", async (event) => {
 
 async function handleAction(button) {
   const action = button.dataset.action;
+  if (action === "open-shell") {
+    await openShellFromGate();
+    return;
+  }
+  if (action === "create-shell") {
+    await createShell();
+    return;
+  }
+  if (action === "open-local-shell") {
+    await openLocalShell();
+    return;
+  }
   if (action === "tab") {
     state.activeTab = button.dataset.tab;
     render();
@@ -216,32 +243,18 @@ async function handleAction(button) {
     render();
     return;
   }
-  if (action === "export-workspace") {
+  if (action === "export-shell" || action === "export-workspace") {
     await exportWorkspaceFile();
     return;
   }
   if (action === "clear-local") {
     if (window.confirm("Clear all local PostSnail posts, images, profile settings, and encrypted keys?")) {
       await clearAppState();
-      state.profile = { ...defaultProfile };
-      state.identity = null;
-      state.settings = { ...defaultSettings };
-      state.commitHistory = [];
-      state.plugins = { installed: [], lock: {}, state: {} };
-      state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
-      state.trackerUrls = [];
-      state.exportHistory = [];
-      state.posts = [];
-      state.assets = [];
-      state.form = emptyPostForm();
-      state.secretKey = null;
-      state.lastManifest = null;
-      state.lastExportVerification = null;
-      state.lastAnnouncePayload = null;
-      state.lastAnnounceStatus = null;
-      state.verifyResult = null;
-      state.activeTab = "write";
-      setStatus("Local data cleared.");
+      resetEditableState();
+      state.shellMode = "locked";
+      state.hasLocalShell = false;
+      state.pendingLocalState = null;
+      setStatus("Local data cleared. Open Shell or Create Shell to continue.");
       render();
     }
     return;
@@ -255,6 +268,47 @@ async function handleAction(button) {
       blinkDonate();
     }, 40);
   }
+}
+
+async function openShellFromGate() {
+  const file = document.getElementById("shell-file")?.files?.[0];
+  const passphrase = shellPassphrase();
+  if (!file) {
+    setStatus("Choose a .postsnail Shell file first.");
+    return;
+  }
+  if (passphrase.length < 10) {
+    setStatus("Enter the Shell passphrase before opening a .postsnail file.");
+    return;
+  }
+  await importWorkspaceFile(file, passphrase, { fromGate: true });
+}
+
+async function createShell() {
+  if (state.hasLocalShell && !window.confirm("Create a new Shell and replace browser-local data? Export Shell first if you need the current local data.")) {
+    return;
+  }
+  resetEditableState();
+  await replaceAppState(snapshotState());
+  state.pendingLocalState = await loadAppState();
+  state.hasLocalShell = true;
+  state.shellMode = "unlocked";
+  state.activeTab = "identity";
+  setStatus("Shell created. Create your signature key in Identity; it is not an account.");
+  render();
+}
+
+async function openLocalShell() {
+  if (!state.hasLocalShell || !state.pendingLocalState) {
+    setStatus("No browser-local Shell was found.");
+    return;
+  }
+  applyLoadedState(state.pendingLocalState);
+  state.shellMode = "unlocked";
+  state.localShellNotice = true;
+  state.secretKey = null;
+  setStatus("Local Shell opened. Export Shell to save a private .postsnail vault.");
+  render();
 }
 
 async function saveCurrentPost() {
@@ -321,7 +375,7 @@ async function generateKey() {
 
 async function unlockKey() {
   if (!state.identity?.encryptedSecretKey) {
-    setStatus("Generate or import an identity first.");
+    setStatus("Create or open a Shell with a signature key first.");
     return;
   }
   const passphrase = document.getElementById("identity-passphrase")?.value || "";
@@ -363,6 +417,7 @@ async function generateSiteZip() {
   state.commitHistory = result.commitHistory;
   state.lastAnnouncePayload = result.announcePayload;
   state.lastAnnounceStatus = null;
+  state.notifyForestAttention = true;
   state.lastExportVerification = verification;
   await saveCommitHistory(state.commitHistory);
   setStatus(
@@ -371,6 +426,7 @@ async function generateSiteZip() {
       : `ZIP generated, but local verification found ${verification.errors.length} issue(s).`,
   );
   render();
+  window.setTimeout(blinkNotifyForest, 40);
 }
 
 async function notifyForest() {
@@ -398,7 +454,7 @@ async function notifyForest() {
         result.status === "current"
           ? "Forest already has this fingerprint."
           : result.status === "pending_live_site"
-            ? "Forest is waiting for the announced fingerprint to appear on your live site."
+            ? "Forest is waiting for your live site to show the new fingerprint."
             : "Forest refresh queued. Search will update after verification.",
       );
     } else {
@@ -408,6 +464,7 @@ async function notifyForest() {
     state.lastAnnounceStatus = { ok: false, status: "", message: "Forest could not be reached.", submissionId: "" };
     setStatus("Forest could not be reached.");
   }
+  state.notifyForestAttention = false;
   render();
 }
 
@@ -439,43 +496,45 @@ async function verifyZipFile(file) {
 async function exportWorkspaceFile() {
   const passphrase = workspacePassphrase();
   if (passphrase.length < 10) {
-    setStatus("Enter a workspace passphrase of at least 10 characters before exporting a .postsnail file.");
+    setStatus("Enter a Shell passphrase of at least 10 characters before exporting a .postsnail file.");
     return;
   }
-  setStatus("Encrypting private workspace vault...");
+  setStatus("Encrypting private Shell vault...");
   await nextFrame();
   try {
     const result = await exportWorkspaceVault(snapshotState(), passphrase);
     downloadText(result.text, result.filename, "application/postsnail+json");
-    setStatus(`Encrypted .postsnail workspace exported. Fingerprint: ${result.envelope.workspaceFingerprint}`);
-  } catch (error) {
-    setStatus(error.message);
-  }
-}
-
-async function importWorkspaceFile(file) {
-  if (!file) return;
-  const passphrase = workspacePassphrase();
-  if (passphrase.length < 10) {
-    setStatus("Enter the workspace passphrase before importing a .postsnail file.");
-    return;
-  }
-  try {
-    const text = await file.text();
-    const imported = await importWorkspaceVault(text, passphrase);
-    await restoreImportedState(imported.state);
-    setStatus("Encrypted workspace imported. Unlock the publisher key before exporting a new public Website ZIP.");
+    state.localShellNotice = false;
+    setStatus(`Encrypted .postsnail Shell exported. Fingerprint: ${result.envelope.workspaceFingerprint}`);
     render();
   } catch (error) {
     setStatus(error.message);
   }
 }
 
-async function importLegacyBackupFile(file) {
+async function importWorkspaceFile(file, passphrase = workspacePassphrase(), options = {}) {
   if (!file) return;
-  const passphrase = workspacePassphrase();
   if (passphrase.length < 10) {
-    setStatus("Enter a workspace passphrase before migrating a legacy backup JSON file.");
+    setStatus("Enter the Shell passphrase before opening a .postsnail file.");
+    return;
+  }
+  try {
+    const text = await file.text();
+    const imported = await importWorkspaceVault(text, passphrase);
+    await restoreImportedState(imported.state);
+    state.shellMode = "unlocked";
+    state.localShellNotice = false;
+    setStatus(options.fromGate ? "Shell opened. Unlock the publisher key before exporting a new public Website ZIP." : "Encrypted Shell opened. Unlock the publisher key before exporting a new public Website ZIP.");
+    render();
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function importLegacyBackupFile(file, passphrase = workspacePassphrase()) {
+  if (!file) return;
+  if (passphrase.length < 10) {
+    setStatus("Enter a Shell passphrase before migrating a legacy backup JSON file.");
     return;
   }
   try {
@@ -484,7 +543,9 @@ async function importLegacyBackupFile(file) {
     await restoreImportedState(imported.state);
     const migratedVault = await exportWorkspaceVault(imported.state, passphrase);
     downloadText(migratedVault.text, migratedVault.filename, "application/postsnail+json");
-    setStatus("Legacy backup JSON imported and migrated. An encrypted .postsnail workspace was downloaded.");
+    state.shellMode = "unlocked";
+    state.localShellNotice = false;
+    setStatus("Legacy backup JSON imported and migrated. An encrypted .postsnail Shell was downloaded.");
     render();
   } catch (error) {
     setStatus(error.message);
@@ -495,15 +556,29 @@ async function restoreImportedState(nextState) {
   await replaceAppState(nextState);
   const loaded = await loadAppState();
   applyLoadedState(loaded);
+  state.pendingLocalState = loaded;
+  state.hasLocalShell = hasLocalShell(loaded);
   state.secretKey = null;
   state.lastManifest = null;
   state.lastExportVerification = null;
   state.lastAnnouncePayload = null;
   state.lastAnnounceStatus = null;
+  state.notifyForestAttention = false;
   state.verifyResult = null;
 }
 
 function render() {
+  app.classList.toggle("shell-locked", state.shellMode === "locked");
+  if (state.shellMode === "locked") {
+    app.innerHTML = `
+      ${renderHeader()}
+      <section class="app-workbench shell-workbench">
+        <div class="panel-scroll">${renderShellGate()}</div>
+      </section>
+      ${renderAppFooter()}
+    `;
+    return;
+  }
   app.innerHTML = `
     ${renderHeader()}
     ${renderTabs()}
@@ -520,6 +595,7 @@ function render() {
 }
 
 function renderHeader() {
+  const locked = state.shellMode === "locked";
   return `
     <header class="app-header">
       <a class="brand" href="../" aria-label="PostSnail home">
@@ -529,8 +605,10 @@ function renderHeader() {
       <div class="status-line" id="status-line">${escapeHtml(state.status)}</div>
       <div class="header-actions">
         <a class="btn ghost" href="../features-qa.html">Features</a>
-        <button class="btn ghost" type="button" data-action="tab" data-tab="generate">Generate</button>
-        <a class="btn donate-link" href="#donate" data-action="donate">Donate</a>
+        ${locked ? `<a class="btn ghost" href="../docs/">Docs</a>` : `
+          <button class="btn ghost" type="button" data-action="tab" data-tab="generate">Generate</button>
+          <a class="btn donate-link" href="#donate" data-action="donate">Donate</a>
+        `}
       </div>
     </header>
   `;
@@ -565,6 +643,55 @@ function renderTabs() {
         )
         .join("")}
     </nav>
+  `;
+}
+
+function renderShellGate() {
+  return `
+    <div class="shell-gate">
+      <section class="panel-box shell-intro">
+        <p class="kicker">Private vault / Local-first / No login</p>
+        <h1>Open your PostSnail Shell</h1>
+        <p>A Shell is your private PostSnail workspace. It contains your editable blog, drafts, settings, assets, and encrypted signing identity.</p>
+        <div class="notice good">
+          <strong>Not an account</strong>
+          <p>Your identity is a signature key, not a profile login. No account. No email. No backend login.</p>
+        </div>
+        <div class="notice warning">
+          <strong>Private source, public output</strong>
+          <p>Your Shell stays private. Your Website ZIP is public.</p>
+        </div>
+      </section>
+      <section class="panel-box fields">
+        <h2 class="panel-title">Open Shell</h2>
+        <p class="help">Choose an encrypted <code>.postsnail</code> vault and unlock it locally with the Shell passphrase.</p>
+        <label class="field">
+          <span>Shell file</span>
+          <input id="shell-file" type="file" accept=".postsnail,application/postsnail+json,application/json">
+        </label>
+        <label class="field">
+          <span>Shell passphrase</span>
+          <input id="shell-passphrase" type="password" autocomplete="current-password" placeholder="Used only in this browser">
+        </label>
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="open-shell">Open Shell</button>
+          <button class="btn" type="button" data-action="create-shell">Create Shell</button>
+          ${state.hasLocalShell ? `<button class="btn" type="button" data-action="open-local-shell">Open Local Shell</button>` : ""}
+        </div>
+        ${state.hasLocalShell ? `
+          <div class="notice warning">
+            <strong>Local Shell found</strong>
+            <p>This browser already has PostSnail data in IndexedDB. Open Local Shell, then Export Shell to save it as a private <code>.postsnail</code> vault.</p>
+          </div>
+        ` : ""}
+        <div class="notice">
+          <strong>Import Legacy Backup JSON</strong>
+          <p>Only use this for older PostSnail backups. It restores the data and downloads a migrated encrypted Shell.</p>
+          <label class="btn small" for="shell-legacy-import">Import Legacy Backup JSON</label>
+          <input id="shell-legacy-import" type="file" accept="application/json,.json" hidden>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -655,7 +782,7 @@ function renderIdentity() {
           <h2 class="panel-title">Publisher identity</h2>
           <div class="notice ${unlocked ? "good" : "warning"}">
             <strong>${unlocked ? "Unlocked" : hasIdentity ? "Locked" : "No key yet"}</strong>
-            <p>${unlocked ? "The private signing key is available in memory for this browser session." : "Generate or unlock your encrypted ML-DSA-65 key before publishing."}</p>
+            <p>${unlocked ? "The private signing key is available in memory for this browser session." : "Generate or unlock the Shell signing key before publishing."}</p>
           </div>
           <label class="field">
             <span>Passphrase</span>
@@ -663,11 +790,11 @@ function renderIdentity() {
             <input id="identity-passphrase" type="password" autocomplete="current-password" placeholder="Used only in this browser">
           </label>
           <div class="actions">
-            <button class="btn primary" type="button" data-action="generate-key">Generate encrypted key</button>
+            <button class="btn primary" type="button" data-action="generate-key">Create signature key</button>
             <button class="btn" type="button" data-action="unlock-key" ${hasIdentity ? "" : "disabled"}>Unlock key</button>
             <button class="btn" type="button" data-action="copy-public-key" ${hasIdentity ? "" : "disabled"}>Copy public key</button>
           </div>
-          <p class="help">The private key is encrypted with your passphrase before it is stored in IndexedDB. PostSnail never sends keys to a backend.</p>
+          <p class="help">Your identity is a signature key, not a profile login. The private key is encrypted with your passphrase before it is stored in IndexedDB. PostSnail never sends keys to a backend.</p>
         </form>
       </section>
       <section class="panel-box">
@@ -678,7 +805,7 @@ function renderIdentity() {
             <div class="metric"><span>Created</span><b>${formatDateTime(state.identity.createdAt)}</b></div>
             <div class="metric"><span>Public key</span><b class="hash-cell">${escapeHtml(state.identity.publicKey)}</b></div>
           </div>
-        ` : `<div class="empty-state"><span>No public key</span><p>Generate an identity to sign posts and manifests.</p></div>`}
+        ` : `<div class="empty-state"><span>No public key</span><p>Create a signature key to sign posts and manifests.</p></div>`}
       </section>
     </div>
   `;
@@ -691,6 +818,12 @@ function renderGenerate() {
     <div class="grid-2">
       <section class="panel-box fields">
         <h2 class="panel-title">Site settings</h2>
+        ${state.localShellNotice ? `
+          <div class="notice warning">
+            <strong>Save this browser-local Shell</strong>
+            <p>This Shell came from existing browser storage. Export Shell to create a private <code>.postsnail</code> vault you can move, back up, and reopen later.</p>
+          </div>
+        ` : ""}
         <label class="field">
           <span>Site title</span>
           <input data-profile-field="siteTitle" value="${escapeAttr(state.profile.siteTitle)}">
@@ -745,18 +878,18 @@ function renderGenerate() {
           </label>
         </div>
         <label class="field">
-          <span>Workspace passphrase</span>
-          <input id="workspace-passphrase" type="password" autocomplete="new-password" placeholder="Encrypt or unlock .postsnail workspace files">
+          <span>Shell passphrase</span>
+          <input id="workspace-passphrase" type="password" autocomplete="new-password" placeholder="Encrypt or open .postsnail Shell files">
         </label>
         <div class="notice warning">
           <strong>Two exports, two meanings</strong>
-          <p><code>.postsnail</code> is your private encrypted editable workspace. <code>.zip</code> is the public static Website ZIP for publishing. Losing the workspace or passphrase can prevent future editing, and the Website ZIP is not the full project source.</p>
+          <p><code>.postsnail</code> is your private encrypted editable Shell. <code>.zip</code> is the public static Website ZIP for publishing. Losing the Shell or passphrase can prevent future editing, and the Website ZIP is not the full project source.</p>
         </div>
         <div class="actions">
           <button class="btn primary" type="button" data-action="generate-site" ${canGenerate ? "" : "disabled"}>Export Website ZIP</button>
           <button class="btn" type="button" data-action="go-verify">Verify a ZIP</button>
-          <button class="btn" type="button" data-action="export-workspace">Export Workspace</button>
-          <label class="btn" for="workspace-import">Import Workspace</label>
+          <button class="btn" type="button" data-action="export-shell">Export Shell</button>
+          <label class="btn" for="workspace-import">Open Shell</label>
           <input id="workspace-import" type="file" accept=".postsnail,application/postsnail+json,application/json" hidden>
           <label class="btn" for="legacy-backup-import">Import Legacy Backup JSON</label>
           <input id="legacy-backup-import" type="file" accept="application/json,.json" hidden>
@@ -765,6 +898,11 @@ function renderGenerate() {
       </section>
       <section class="panel-box">
         <h2 class="panel-title">Export readiness</h2>
+        <div class="steps export-steps">
+          <div class="step-box"><strong>Export Website ZIP.</strong><p>Download and verify the signed public site bundle.</p></div>
+          <div class="step-box"><strong>Upload ZIP contents to your live host.</strong><p>Forest checks the live <code>.well-known/postsnail.json</code> fingerprint first.</p></div>
+          <div class="step-box"><strong>Click Notify Forest.</strong><p>Forest queues a crawl only after the live fingerprint changes.</p></div>
+        </div>
         <div class="grid-3">
           <div class="metric"><span>Published</span><b>${publishedCount}</b></div>
           <div class="metric"><span>Images</span><b>${state.assets.length}</b></div>
@@ -782,10 +920,11 @@ function renderGenerate() {
               <button class="btn small" type="button" data-action="copy-fingerprint">Copy fingerprint</button>
               <button class="btn small" type="button" data-action="copy-manifest-signature">Copy manifest signature</button>
               <button class="btn small" type="button" data-action="copy-announce-payload">Copy announce payload</button>
-              <button class="btn small primary" type="button" data-action="notify-forest">Notify Forest</button>
+              <button id="notify-forest-button" class="btn small primary ${state.notifyForestAttention ? "notify-forest-attention" : ""}" type="button" data-action="notify-forest">Notify Forest</button>
               <button class="btn small" type="button" data-action="go-verify">Verify this ZIP</button>
             </div>
-            <p>After the new ZIP is live on your public host, Notify Forest sends only this signed public announce. It never sends your private key or workspace.</p>
+            <p>After the new ZIP is live on your public host, Notify Forest sends only this signed public announce. It never sends your private key or Shell.</p>
+            <p>If you click before uploading, Forest may reply: Forest is waiting for your live site to show the new fingerprint.</p>
             ${state.lastAnnounceStatus ? `<p>${escapeHtml(state.lastAnnounceStatus.ok ? `Forest response: ${state.lastAnnounceStatus.status || "accepted"}` : state.lastAnnounceStatus.message)}</p>` : ""}
             <p>${state.lastExportVerification?.ok ? "The downloaded ZIP was verified locally immediately after generation." : "Choose the downloaded ZIP in Verify to inspect the proof."}</p>
           </div>
@@ -828,7 +967,7 @@ function renderInfo() {
         <p>PostSnail writes a static microblog, signs posts and the site manifest with ML-DSA-65, and downloads a ZIP you can host on Cloudflare Pages, GitHub Pages, Netlify, or any static host.</p>
         <div class="steps">
           <div class="step-box"><strong>Write locally.</strong><p>Create Markdown micro posts, add tags, and attach local images.</p></div>
-          <div class="step-box"><strong>Unlock identity.</strong><p>Generate or unlock the encrypted publisher key in this browser.</p></div>
+          <div class="step-box"><strong>Unlock signature key.</strong><p>Create or unlock the encrypted publisher key in this browser.</p></div>
           <div class="step-box"><strong>Generate ZIP.</strong><p>Download creator-owned static files with a post-quantum signed fingerprint manifest.</p></div>
           <div class="step-box"><strong>Verify proof.</strong><p>Use the Verify tab to inspect a PostSnail ZIP before publishing or after downloading it from someone else.</p></div>
           <div class="step-box"><strong>Host anywhere.</strong><p>Upload the ZIP contents to a free static host. Registry/search servers can later read <code>.well-known/postsnail.json</code>.</p></div>
@@ -838,7 +977,7 @@ function renderInfo() {
         <h2 class="panel-title">Privacy and support</h2>
         <div class="notice good">
           <strong>No backend</strong>
-          <p>Posts, images, workspace vaults, and private keys stay in your browser unless you export or upload them yourself. PostSnail makes no registry calls in v1.</p>
+          <p>Posts, images, Shell vaults, and private keys stay in your browser unless you export or upload them yourself. PostSnail makes no registry calls in v1.</p>
         </div>
         <div id="donate" class="donate-box" aria-label="Donation options">
           <img class="donate-qr" src="../btc-wallet-qr.svg" width="104" height="104" alt="Bitcoin wallet QR code" loading="lazy" decoding="async">
@@ -990,6 +1129,48 @@ function applyLoadedState(loaded) {
   state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
 }
 
+function resetEditableState() {
+  state.profile = { ...defaultProfile };
+  state.identity = null;
+  state.settings = { ...defaultSettings };
+  state.commitHistory = [];
+  state.plugins = { installed: [], lock: {}, state: {} };
+  state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
+  state.trackerUrls = [];
+  state.exportHistory = [];
+  state.posts = [];
+  state.assets = [];
+  state.form = emptyPostForm();
+  state.secretKey = null;
+  state.lastManifest = null;
+  state.lastExportVerification = null;
+  state.lastAnnouncePayload = null;
+  state.lastAnnounceStatus = null;
+  state.notifyForestAttention = false;
+  state.verifyResult = null;
+  state.localShellNotice = false;
+  state.activeTab = "write";
+}
+
+function hasLocalShell(loaded) {
+  return Boolean(
+    loaded?.profile ||
+      loaded?.identity ||
+      (loaded?.posts || []).length ||
+      (loaded?.assets || []).length ||
+      (loaded?.commitHistory || []).length ||
+      Object.keys(loaded?.settings || {}).length ||
+      (loaded?.plugins?.installed || []).length ||
+      Object.keys(loaded?.plugins?.lock || {}).length ||
+      Object.keys(loaded?.plugins?.state || {}).length ||
+      (loaded?.moderation?.approvedComments || []).length ||
+      (loaded?.moderation?.rejectedComments || []).length ||
+      (loaded?.moderation?.blockedPublicKeys || []).length ||
+      (loaded?.trackerUrls || []).length ||
+      (loaded?.exportHistory || []).length,
+  );
+}
+
 function updateSettingFromInput(input) {
   state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
   saveSettings(state.settings);
@@ -1018,6 +1199,10 @@ function workspacePassphrase() {
   return document.getElementById("workspace-passphrase")?.value || "";
 }
 
+function shellPassphrase() {
+  return document.getElementById("shell-passphrase")?.value || "";
+}
+
 function setStatus(message) {
   state.status = message;
   const statusLine = document.getElementById("status-line");
@@ -1030,6 +1215,28 @@ function blinkDonate() {
   donateBox.classList.remove("blink-attention");
   window.setTimeout(() => donateBox.classList.add("blink-attention"), 20);
   donateBox.addEventListener("animationend", () => donateBox.classList.remove("blink-attention"), { once: true });
+}
+
+function blinkNotifyForest() {
+  const button = document.getElementById("notify-forest-button");
+  if (!button) return;
+  state.notifyForestAttention = true;
+  button.classList.remove("notify-forest-attention");
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    state.notifyForestAttention = false;
+    return;
+  }
+  window.setTimeout(() => {
+    button.classList.add("notify-forest-attention");
+    button.addEventListener(
+      "animationend",
+      () => {
+        button.classList.remove("notify-forest-attention");
+        state.notifyForestAttention = false;
+      },
+      { once: true },
+    );
+  }, 20);
 }
 
 function readFileBase64(file) {
