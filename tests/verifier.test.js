@@ -8,7 +8,7 @@ import { generateSigningKeyPair } from "../src/crypto.js";
 import { buildStaticExport } from "../src/exporter.js";
 import { verifyPostSnailZip } from "../src/verifier.js";
 
-async function buildFixtureZip() {
+async function buildFixtureZip(overrides = {}) {
   const keys = generateSigningKeyPair();
   const post = normalizePost({
     id: "p1",
@@ -25,6 +25,7 @@ async function buildFixtureZip() {
       handle: "verifier",
       siteUrl: "https://example.com",
       about: "About verification.",
+      ...(overrides.profile || {}),
     },
     posts: [post],
     assets: [],
@@ -39,6 +40,14 @@ function replaceManifest(zipBytes, mutate) {
   const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
   mutate(manifest);
   files["postsnail.manifest.json"] = strToU8(JSON.stringify(manifest, null, 2));
+  return zipSync(files, { level: 9 });
+}
+
+function replaceWellKnown(zipBytes, mutate) {
+  const files = unzipSync(zipBytes);
+  const wellKnown = JSON.parse(decodeText(files[".well-known/postsnail.json"]));
+  mutate(wellKnown);
+  files[".well-known/postsnail.json"] = strToU8(JSON.stringify(wellKnown, null, 2));
   return zipSync(files, { level: 9 });
 }
 
@@ -96,6 +105,27 @@ test("verifyPostSnailZip rejects tampered well-known metadata", async () => {
 
   assert.equal(verification.ok, false);
   assert.match(verification.errors.join("\n"), /\.well-known bundle fingerprint mismatch/);
+});
+
+test("verifyPostSnailZip rejects tampered identity signatures", async () => {
+  const result = await buildFixtureZip();
+  const tampered = replaceWellKnown(result.zipBytes, (wellKnown) => {
+    const suffix = wellKnown.identitySignature.slice(8);
+    wellKnown.identitySignature = `base64:${suffix[0] === "A" ? "B" : "A"}${suffix.slice(1)}`;
+  });
+  const verification = await verifyPostSnailZip(tampered);
+
+  assert.equal(verification.ok, false);
+  assert.match(verification.errors.join("\n"), /Identity signature/);
+});
+
+test("verifyPostSnailZip warns but passes when no site URL is declared", async () => {
+  const result = await buildFixtureZip({ profile: { siteUrl: "" } });
+  const verification = await verifyPostSnailZip(result.zipBytes);
+
+  assert.equal(verification.ok, true);
+  assert.equal(verification.summary.domainBinding, "not declared");
+  assert.match(verification.warnings.join("\n"), /domain binding was not checked/i);
 });
 
 test("verifyPostSnailZip rejects unlisted extra files", async () => {
