@@ -19,6 +19,8 @@ export function migrateWorkspace(workspace) {}
 - Migrations are deterministic.
 - Future versions migrate one step at a time, such as `v1 -> v2 -> v3`.
 - Missing v1 containers are defaulted safely.
+- Missing workspace versions are treated as legacy JSON backups and converted to v1.
+- Plugin state and unknown optional plugin data are preserved where possible without interpreting them.
 - Raw private signing keys are rejected.
 - A workspace created by a newer PostSnail version fails with: `This workspace was created by a newer PostSnail version.`
 
@@ -29,3 +31,5 @@ Legacy JSON backups are not the new source format. They remain importable so exi
 ## Developer Notes
 
 Future migrations should include tests for the old input shape, the migrated output shape, and any failure mode that protects private data. Migration code should not make network calls or depend on browser storage.
+
+Protocol-risk migrations should have a PSEP covering new fields, required versus optional features, verifier behavior, security impact, and backward compatibility.

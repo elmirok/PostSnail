@@ -15,10 +15,16 @@ import {
   LATEST_COMMIT_PATH,
   MANIFEST_PATH,
   MANIFEST_VERSION,
-  POSTSNAIL_PROTOCOL,
+  REQUIRED_CORE_FEATURES,
   SIGNATURE_SUITE,
   WELL_KNOWN_PATH,
 } from "./protocol.js";
+import {
+  checkRequiredFeatures,
+  collectCompatibilityWarnings,
+  protocolMatches,
+  protocolVersionFor,
+} from "./compatibility.js";
 
 export async function verifyPostSnailZip(zipBytes) {
   const checks = [];
@@ -52,7 +58,12 @@ export async function verifyPostSnailZip(zipBytes) {
   const latestCommit = parseOptionalJson(latestCommitBytes, checks, errors, "Latest commit", "latest-commit.json is not valid JSON.");
   const commits = parseOptionalJson(commitsBytes, checks, errors, "Commit log", "commits.json is not valid JSON.");
 
-  addCheck(checks, errors, "Manifest version", manifest.manifestVersion === MANIFEST_VERSION, "Unsupported manifest version.");
+  warnings.push(...collectCompatibilityWarnings(manifest));
+  if (wellKnown) warnings.push(...collectCompatibilityWarnings(wellKnown));
+  addCheck(checks, errors, "Manifest protocol", !manifest.protocol || protocolMatches(manifest.protocol), "Manifest protocol mismatch.");
+  addCheck(checks, errors, "Manifest protocol version", protocolVersionFor(manifest) <= MANIFEST_VERSION, "Unsupported manifest protocol version.");
+  addFeatureChecks(manifest, checks, errors, "Manifest");
+  addCheck(checks, errors, "Manifest version", Number(manifest.manifestVersion || MANIFEST_VERSION) === MANIFEST_VERSION, "Unsupported manifest version.");
   addCheck(
     checks,
     errors,
@@ -191,7 +202,9 @@ function parseOptionalJson(bytes, checks, errors, label, error) {
 
 function verifyWellKnown(manifest, wellKnown, checks, errors, warnings) {
   if (!wellKnown) return false;
-  addCheck(checks, errors, ".well-known protocol", wellKnown.protocol === POSTSNAIL_PROTOCOL, ".well-known protocol mismatch.");
+  addCheck(checks, errors, ".well-known protocol", protocolMatches(wellKnown.protocol), ".well-known protocol mismatch.");
+  addCheck(checks, errors, ".well-known protocol version", protocolVersionFor(wellKnown) <= MANIFEST_VERSION, "Unsupported .well-known protocol version.");
+  addFeatureChecks(wellKnown, checks, errors, ".well-known");
   addCheck(
     checks,
     errors,
@@ -298,6 +311,11 @@ function manifestPayload(manifest) {
 function addCheck(checks, errors, label, ok, error) {
   checks.push({ label, ok: Boolean(ok), error: ok ? "" : error });
   if (!ok) errors.push(error);
+}
+
+function addFeatureChecks(record, checks, errors, label) {
+  const features = checkRequiredFeatures(record, REQUIRED_CORE_FEATURES);
+  addCheck(checks, errors, `${label} required features`, features.ok, features.errors.join(" "));
 }
 
 function safeBytes(value) {

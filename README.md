@@ -65,6 +65,19 @@ After a creator publishes a new ZIP, the admin can send Forest a signed public a
 
 Creators remain the source of truth through their own domain and signed proof files. See the public docs at `/docs/architecture/` and the repo notes in [tracker protocol notes](docs/tracker-protocol.md).
 
+## Compatibility Contract
+
+PostSnail uses a stable-core, optional-extension model so old valid Shells and old valid public ZIP exports keep working as the protocol grows.
+
+- Stable protocol records use `protocol: "postsnail"` and `version: 1`.
+- Old `postsnail-v1` proof records remain accepted when their signatures, hashes, and shape are valid.
+- Unknown optional fields and `extensions` are ignored safely.
+- Unknown required features fail clearly.
+- Missing newer optional files, such as commit history or sitemap, produce legacy warnings instead of fatal errors.
+- Workspace upgrades use deterministic migrations, and unsupported future workspace versions fail with a clear newer-version message.
+
+Future protocol-risk changes should go through a PostSnail Enhancement Proposal. See [compatibility](docs/compatibility.md), [protocol](docs/protocol.md), and [PSEP process](docs/psep.md).
+
 ## Privacy and Recovery
 
 - Browser-local editable Shell data is encrypted in IndexedDB and requires the Shell passphrase to reopen.

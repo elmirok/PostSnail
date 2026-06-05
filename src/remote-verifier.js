@@ -6,6 +6,8 @@ import {
   verifyCommitRecord,
   verifyIdentityDocument,
 } from "./proof-documents.js";
+import { checkRequiredFeatures, protocolMatches, protocolVersionFor } from "./compatibility.js";
+import { MANIFEST_VERSION, REQUIRED_CORE_FEATURES } from "./protocol.js";
 
 export async function verifyRemoteSite(siteUrl, fetcher = fetch) {
   const checks = [];
@@ -22,6 +24,10 @@ export async function verifyRemoteSite(siteUrl, fetcher = fetch) {
     add(checks, "Manifest fetched", true);
     const identity = verifyIdentityDocument(wellKnown, { manifest, siteUrl: normalized });
     add(checks, "Identity valid", identity.ok, identity.errors.concat(identity.warnings).join(" "));
+    const featureCheck = checkRequiredFeatures(manifest, REQUIRED_CORE_FEATURES);
+    add(checks, "Manifest protocol valid", !manifest.protocol || protocolMatches(manifest.protocol), "Manifest protocol mismatch.");
+    add(checks, "Manifest version supported", protocolVersionFor(manifest) <= MANIFEST_VERSION, "Unsupported manifest protocol version.");
+    add(checks, "Manifest required features supported", featureCheck.ok, featureCheck.errors.join(" "));
 
     const manifestPayload = { ...manifest };
     const signature = safeBytes(manifestPayload.manifestSignature);

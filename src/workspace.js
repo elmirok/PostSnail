@@ -35,7 +35,7 @@ export function importLegacyBackupJson(text, options = {}) {
     }
     throw error;
   }
-  const workspace = createWorkspaceData(imported, options);
+  const workspace = createWorkspaceData({ ...imported, migratedFromLegacy: true }, options);
   return {
     migrated: true,
     workspace,
@@ -56,5 +56,6 @@ export function workspaceToAppState(workspace) {
     moderation: clean.moderation,
     trackerUrls: clean.trackerUrls,
     exportHistory: clean.exportHistory,
+    extensions: clean.extensions,
   };
 }

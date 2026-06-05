@@ -32,6 +32,12 @@ The public Website ZIP contains published pages, public assets, feeds, sitemap, 
 
 Old JSON backups remain importable through `Import Legacy Backup JSON`. PostSnail validates the backup, rejects raw private keys, converts it into the v1 workspace schema, restores the editable state, and downloads a new encrypted `.postsnail` file.
 
+Legacy backup imports are marked as migrated data. Missing legacy workspace versions are converted to the current workspace schema through deterministic migrations. A workspace made by a newer unsupported PostSnail version fails with `This workspace was created by a newer PostSnail version.`
+
 ## Public Recovery Later
 
 Importing `.postsnail` restores the real project. Importing a public ZIP or public site later can only recover public content. Public recovery cannot restore private keys, drafts, private plugin state, rejected comments, moderation notes, or recovery data.
+
+## Compatibility
+
+The workspace vault header supports protocol feature declarations. Unknown optional extensions are ignored or preserved where practical. Unknown required features fail clearly. New private workspace features should be optional extensions unless older software must refuse to open them for safety.

@@ -3,7 +3,8 @@ import { encodeText } from "../../src/bytes.js";
 import { normalizeTags } from "../../src/content.js";
 import { fingerprintForBytes, sha3Hex, textToBytes, verifyBytes } from "../../src/crypto.js";
 import { verifyIdentityDocument } from "../../src/proof-documents.js";
-import { DIGEST_SUITE, FINGERPRINT_SUITE, MANIFEST_VERSION, POSTSNAIL_PROTOCOL, SIGNATURE_SUITE } from "../../src/protocol.js";
+import { DIGEST_SUITE, FINGERPRINT_SUITE, MANIFEST_VERSION, REQUIRED_CORE_FEATURES, SIGNATURE_SUITE } from "../../src/protocol.js";
+import { checkRequiredFeatures, protocolMatches, protocolVersionFor } from "../../src/compatibility.js";
 import { normalizedSearchText, stableId, tagsText } from "./ids";
 import { sameOriginUrl } from "./url";
 import type { RegistryPost, RegistrySite } from "./types";
@@ -32,7 +33,12 @@ export function verifyProofDocuments(siteUrl: string, wellKnown: unknown, manife
   const publicKeyText = stringValue(manifestRecord.publicKey);
   const publicKey = safeBytes(publicKeyText);
 
-  add(errors, wellKnownRecord.protocol === POSTSNAIL_PROTOCOL, ".well-known protocol mismatch.");
+  add(errors, protocolMatches(wellKnownRecord.protocol), ".well-known protocol mismatch.");
+  add(errors, protocolVersionFor(wellKnownRecord) <= MANIFEST_VERSION, ".well-known protocol version is unsupported.");
+  addFeatureErrors(errors, wellKnownRecord);
+  add(errors, !manifestRecord.protocol || protocolMatches(manifestRecord.protocol), "Manifest protocol mismatch.");
+  add(errors, protocolVersionFor(manifestRecord) <= MANIFEST_VERSION, "Manifest protocol version is unsupported.");
+  addFeatureErrors(errors, manifestRecord);
   add(errors, manifestRecord.manifestVersion === MANIFEST_VERSION, "Unsupported manifest version.");
   add(errors, objectRecord(manifestRecord.algorithm).digest === DIGEST_SUITE, "Manifest does not declare SHA3-512 digests.");
   add(errors, objectRecord(manifestRecord.algorithm).signature === SIGNATURE_SUITE, "Manifest does not declare ML-DSA-65 signatures.");
@@ -172,4 +178,9 @@ function safeBytes(value: string): Uint8Array | null {
 
 function add(errors: string[], ok: boolean, error: string): void {
   if (!ok) errors.push(error);
+}
+
+function addFeatureErrors(errors: string[], record: Record<string, unknown>): void {
+  const features = checkRequiredFeatures(record, REQUIRED_CORE_FEATURES);
+  if (!features.ok) errors.push(...features.errors);
 }

@@ -5,8 +5,10 @@ import { sha3Hex, textToBytes, verifyBytes } from "../../src/crypto.js";
 import {
   ANNOUNCE_TYPE,
   POSTSNAIL_PROTOCOL,
+  REQUIRED_CORE_FEATURES,
   SIGNATURE_SUITE,
 } from "../../src/protocol.js";
+import { checkRequiredFeatures } from "../../src/compatibility.js";
 import {
   manifestHash,
   verifyAnnouncePayload,
@@ -59,6 +61,8 @@ async function handleAnnounce(payload, fetcher) {
   ]);
   const identity = verifyIdentityDocument(wellKnown, { manifest, siteUrl });
   if (!identity.ok) throw new PublicError(400, "Identity proof failed.");
+  const manifestFeatures = checkRequiredFeatures(manifest, REQUIRED_CORE_FEATURES);
+  if (!manifestFeatures.ok) throw new PublicError(400, manifestFeatures.errors.join(" "));
   if (wellKnown.publicKey !== payload.publicKey || manifest.publicKey !== payload.publicKey) throw new PublicError(400, "Public key mismatch.");
   if (wellKnown.bundleFingerprint !== payload.bundleFingerprint || manifest.bundleFingerprint !== payload.bundleFingerprint) throw new PublicError(400, "Bundle fingerprint mismatch.");
 

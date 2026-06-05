@@ -18,9 +18,12 @@ const projectHtmlPages = [
   "docs/publish-cloudflare/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
+  "docs/compatibility/index.html",
+  "docs/protocol/index.html",
   "docs/workspace-vault/index.html",
   "docs/security/index.html",
   "docs/migrations/index.html",
+  "docs/psep/index.html",
   "docs/legal/index.html",
 ];
 
@@ -155,9 +158,12 @@ test("alpha public pages and documentation are present", () => {
     ["docs/publish-cloudflare/index.html", /Publish On Cloudflare Pages/],
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
+    ["docs/compatibility/index.html", /Compatibility Contract/],
+    ["docs/protocol/index.html", /Protocol Reference/],
     ["docs/legal/index.html", /PostSnail Legal/],
     ["docs/workspace-vault/index.html", /Workspace Vault/],
     ["docs/migrations/index.html", /versioned workspace migrations/],
+    ["docs/psep/index.html", /PostSnail Enhancement Proposals/],
     ["docs/security/index.html", /passphrase/],
   ];
 
@@ -168,6 +174,14 @@ test("alpha public pages and documentation are present", () => {
   assert.match(read("docs/index.html"), /Encrypted Workspace/);
   assert.match(read("docs/workspace-vault/index.html"), /\.postsnail/);
   assert.match(read("docs/workspace-vault/index.html"), /public Website ZIP/);
+  assert.match(read("docs/compatibility/index.html"), /Unknown required features fail/);
+  assert.match(read("docs/protocol/index.html"), /requiredFeatures/);
+  assert.match(read("docs/psep/index.html"), /PSEP-0001/);
+  assert.ok(existsSync(join(root, "docs/compatibility.md")));
+  assert.ok(existsSync(join(root, "docs/protocol.md")));
+  assert.ok(existsSync(join(root, "docs/psep.md")));
+  assert.ok(existsSync(join(root, "docs/pseps/PSEP-template.md")));
+  assert.ok(existsSync(join(root, "docs/pseps/PSEP-0001-protocol-compatibility.md")));
   assert.ok(existsSync(join(root, "docs/workspace-vault.md")));
   assert.ok(existsSync(join(root, "docs/migrations.md")));
   assert.ok(existsSync(join(root, "docs/security.md")));
@@ -235,10 +249,18 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "manifesto/index.html")));
   assert.ok(existsSync(join(outDir, "media-kit/index.html")));
   assert.ok(existsSync(join(outDir, "docs/architecture/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/compatibility/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/protocol/index.html")));
   assert.ok(existsSync(join(outDir, "docs/legal/index.html")));
   assert.ok(existsSync(join(outDir, "docs/workspace-vault/index.html")));
   assert.ok(existsSync(join(outDir, "docs/migrations/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/psep/index.html")));
   assert.ok(existsSync(join(outDir, "docs/security/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/compatibility.md")));
+  assert.ok(existsSync(join(outDir, "docs/protocol.md")));
+  assert.ok(existsSync(join(outDir, "docs/psep.md")));
+  assert.ok(existsSync(join(outDir, "docs/pseps/PSEP-template.md")));
+  assert.ok(existsSync(join(outDir, "docs/pseps/PSEP-0001-protocol-compatibility.md")));
   assert.ok(existsSync(join(outDir, "docs/workspace-vault.md")));
   assert.ok(existsSync(join(outDir, "docs/migrations.md")));
   assert.ok(existsSync(join(outDir, "docs/security.md")));

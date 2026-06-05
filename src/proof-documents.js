@@ -21,11 +21,22 @@ import {
   LATEST_COMMIT_PATH,
   MANIFEST_PATH,
   POSTSNAIL_PROTOCOL,
+  POSTSNAIL_PROTOCOL_VERSION,
+  REQUIRED_CORE_FEATURES,
   RSS_PATH,
   SIGNATURE_SUITE,
   SITEMAP_PATH,
   WELL_KNOWN_PATH,
 } from "./protocol.js";
+import {
+  checkRequiredFeatures,
+  protocolMatches,
+  protocolVersionFor,
+} from "./compatibility.js";
+
+const IDENTITY_OPTIONAL_FEATURES = ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker"];
+const COMMIT_OPTIONAL_FEATURES = ["commit-history"];
+const ANNOUNCE_OPTIONAL_FEATURES = ["tracker-announce", "forest-tracker"];
 
 export function normalizeSiteUrl(value) {
   const source = String(value || "").trim();
@@ -155,8 +166,12 @@ export function buildIdentityDocument({
   const discovery = buildDiscovery(profile, settings);
   const payload = {
     protocol: POSTSNAIL_PROTOCOL,
+    version: POSTSNAIL_PROTOCOL_VERSION,
     type: IDENTITY_TYPE,
     identityVersion: IDENTITY_VERSION,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: [...IDENTITY_OPTIONAL_FEATURES],
+    extensions: {},
     domain: domainFromSiteUrl(profile.siteUrl),
     canonicalUrl: canonicalSiteUrl(profile.siteUrl),
     siteTitle: profile.siteTitle,
@@ -189,9 +204,11 @@ export function verifyIdentityDocument(identity, { manifest, siteUrl = "" } = {}
   const manifestRecord = objectRecord(manifest);
   const manifestDiscovery = objectRecord(manifestRecord.discovery);
   const publicKey = stringValue(manifestRecord.publicKey) || stringValue(record.publicKey);
-  add(errors, record.protocol === POSTSNAIL_PROTOCOL, "Identity protocol mismatch.");
+  add(errors, protocolMatches(record.protocol), "Identity protocol mismatch.");
+  add(errors, protocolVersionFor(record) <= IDENTITY_VERSION, "Unsupported identity version.");
   add(errors, record.type === IDENTITY_TYPE, "Identity type mismatch.");
   add(errors, record.identityVersion === IDENTITY_VERSION, "Unsupported identity version.");
+  addFeatureErrors(errors, record);
   add(errors, record.signatureSuite === SIGNATURE_SUITE, "Identity signature suite mismatch.");
   add(errors, record.digestSuite === DIGEST_SUITE, "Identity digest suite mismatch.");
   add(errors, record.fingerprintSuite === FINGERPRINT_SUITE, "Identity fingerprint suite mismatch.");
@@ -235,7 +252,11 @@ export function buildCommitRecord({
   const payload = {
     type: COMMIT_TYPE,
     protocol: POSTSNAIL_PROTOCOL,
+    version: POSTSNAIL_PROTOCOL_VERSION,
     commitVersion: COMMIT_VERSION,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: [...COMMIT_OPTIONAL_FEATURES],
+    extensions: {},
     sequence: Number(previous?.sequence || 0) + 1,
     previousCommit: previous ? commitHash(previous) : null,
     manifestHash: manifestHash(manifest),
@@ -257,7 +278,11 @@ export function buildCommitLog(commits = []) {
   return {
     type: COMMITS_TYPE,
     protocol: POSTSNAIL_PROTOCOL,
+    version: POSTSNAIL_PROTOCOL_VERSION,
     commitVersion: COMMIT_VERSION,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: [...COMMIT_OPTIONAL_FEATURES],
+    extensions: {},
     commits,
   };
 }
@@ -266,8 +291,10 @@ export function verifyCommitRecord(commit, { publicKey, manifestHash: expectedMa
   const errors = [];
   const record = objectRecord(commit);
   add(errors, record.type === COMMIT_TYPE, "Commit type mismatch.");
-  add(errors, record.protocol === POSTSNAIL_PROTOCOL, "Commit protocol mismatch.");
+  add(errors, protocolMatches(record.protocol), "Commit protocol mismatch.");
+  add(errors, protocolVersionFor(record) <= COMMIT_VERSION, "Unsupported commit version.");
   add(errors, record.commitVersion === COMMIT_VERSION, "Unsupported commit version.");
+  addFeatureErrors(errors, record);
   add(errors, Number.isInteger(record.sequence) && record.sequence > 0, "Commit sequence is invalid.");
   if (typeof previousCommit !== "undefined") add(errors, record.previousCommit === previousCommit, "Commit previous hash mismatch.");
   add(errors, stringValue(record.publicKey) === stringValue(publicKey), "Commit public key mismatch.");
@@ -297,6 +324,10 @@ export function buildAnnouncePayload({ identity, manifest, publicKey, secretKey,
   const payload = {
     type: ANNOUNCE_TYPE,
     protocol: POSTSNAIL_PROTOCOL,
+    version: POSTSNAIL_PROTOCOL_VERSION,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: [...ANNOUNCE_OPTIONAL_FEATURES],
+    extensions: {},
     siteUrl: identity.canonicalUrl,
     domain: identity.domain,
     wellKnownUrl: siteUrlForPath(identity.canonicalUrl, WELL_KNOWN_PATH),
@@ -313,7 +344,9 @@ export function verifyAnnouncePayload(payload) {
   const errors = [];
   const record = objectRecord(payload);
   add(errors, record.type === ANNOUNCE_TYPE, "Announce type mismatch.");
-  add(errors, record.protocol === POSTSNAIL_PROTOCOL, "Announce protocol mismatch.");
+  add(errors, protocolMatches(record.protocol), "Announce protocol mismatch.");
+  add(errors, protocolVersionFor(record) <= POSTSNAIL_PROTOCOL_VERSION, "Unsupported announce version.");
+  addFeatureErrors(errors, record);
   add(errors, Boolean(stringValue(record.siteUrl)), "Announce site URL is missing.");
   add(errors, Boolean(stringValue(record.wellKnownUrl)), "Announce well-known URL is missing.");
   add(errors, Boolean(stringValue(record.manifestUrl)), "Announce manifest URL is missing.");
@@ -341,4 +374,9 @@ function safeBytes(value) {
 
 function add(errors, ok, error) {
   if (!ok) errors.push(error);
+}
+
+function addFeatureErrors(errors, record) {
+  const features = checkRequiredFeatures(record, REQUIRED_CORE_FEATURES);
+  if (!features.ok) errors.push(...features.errors);
 }

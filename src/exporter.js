@@ -20,6 +20,8 @@ import {
   MANIFEST_PATH,
   MANIFEST_VERSION,
   POSTSNAIL_PROTOCOL,
+  POSTSNAIL_PROTOCOL_VERSION,
+  REQUIRED_CORE_FEATURES,
   RSS_PATH,
   SIGNATURE_SUITE,
   SITEMAP_PATH,
@@ -100,7 +102,12 @@ export async function buildStaticExport({
   const fileDigests = digestFiles(files);
   const bundleFingerprint = fingerprintForBytes(encodeText(canonicalJson({ files: fileDigests, posts: postProofs })));
   const manifestPayload = {
+    protocol: POSTSNAIL_PROTOCOL,
+    version: POSTSNAIL_PROTOCOL_VERSION,
     manifestVersion: MANIFEST_VERSION,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker"],
+    extensions: {},
     generator: { name: "PostSnail", version: GENERATOR_VERSION },
     generatedAt,
     site: cleanProfile,

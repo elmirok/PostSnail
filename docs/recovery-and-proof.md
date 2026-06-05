@@ -41,6 +41,8 @@ The Verify tab checks:
 
 If any check fails, treat the ZIP as changed, corrupted, or not a PostSnail export from that publisher key.
 
+Older valid exports may lack newer optional proof files or feature declarations. PostSnail verifies them when the required signatures, digests, hashes, and manifest data are valid, then shows legacy compatibility warnings. It still fails on broken signatures, broken hashes, malformed proof files, unsupported future versions, or unknown required features.
+
 ## Image Metadata
 
 PostSnail copies selected images into the exported site as-is. Browser APIs do not reliably remove metadata. Use a trusted image-cleaning tool before importing photos if EXIF/GPS metadata matters.

@@ -33,14 +33,15 @@
             <p class="lede">Alpha 1 is deliberately forkable: a browser admin, static files, signed proofs, and an optional registry Worker.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Architecture sections"><a href="#admin">Admin Modules</a><a href="#workspace">Workspace Format</a><a href="#export">Public ZIP Format</a><a href="#verify">Verification</a><a href="#forest">Forest Worker</a><a href="#extend">Extend</a></nav>
+            <nav class="doc-nav" aria-label="Architecture sections"><a href="#admin">Admin Modules</a><a href="#workspace">Workspace Format</a><a href="#export">Public ZIP Format</a><a href="#verify">Verification</a><a href="#forest">Forest Worker</a><a href="#compatibility">Compatibility Layer</a><a href="#extend">Extend</a></nav>
             <div class="doc-content">
               <section id="admin"><h2>Admin Modules</h2><p>The browser admin uses small ES modules for encrypted local Shell storage, content normalization, Markdown sanitization, signing-key cryptography, encrypted workspace vaults, public ZIP export, legacy backup migration, and ZIP verification.</p></section>
               <section id="workspace"><h2>Workspace Format</h2><p>.postsnail is a JSON envelope with non-secret metadata, AES-256-GCM ciphertext, PBKDF2-SHA-256 parameters, and a SHA3-512 workspace fingerprint. The decrypted payload is versioned workspace data.</p></section>
               <section id="export"><h2>Public ZIP Format</h2><p>The generated ZIP contains HTML pages, assets, RSS, JSON feed, sitemap, .well-known/postsnail.json, post proof records, commit history, and postsnail.manifest.json. It excludes drafts and private workspace state.</p></section>
               <section id="verify"><h2>Verification</h2><p>The admin verifier recomputes SHA3-512 file hashes, canonical post record digests, post signatures, the manifest signature, and bundle fingerprint from a complete ZIP.</p></section>
               <section id="forest"><h2>Forest Worker</h2><p>Forest fetches public proof metadata, verifies signatures and digests, indexes site/post summaries in D1, and exposes search plus registration APIs.</p></section>
-              <section id="extend"><h2>Extend</h2><p>Future tools can build new themes, alternate trackers, local deployment helpers, registry sync, or independent verifiers without changing the creator-owned bundle model.</p></section>
+              <section id="compatibility"><h2>Compatibility Layer</h2><p>Protocol constants and compatibility helpers keep legacy manifests, workspaces, and ZIP exports working while new optional extensions are added safely.</p></section>
+              <section id="extend"><h2>Extend</h2><p>Future tools can build new themes, alternate trackers, local deployment helpers, registry sync, or independent verifiers. Protocol-risk changes should use the PSEP process.</p></section>
             </div>
           </article>
     </main>

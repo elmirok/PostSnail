@@ -8,6 +8,7 @@ export function createWorkspaceData(source = {}, options = {}) {
   return {
     schema: WORKSPACE_SCHEMA,
     version: Number.isInteger(source.version) ? source.version : 1,
+    migratedFromLegacy: Boolean(source.migratedFromLegacy),
     createdAt: String(source.createdAt || now),
     updatedAt: String(options.updatedAt || source.updatedAt || now),
     profile: cleanObject(source.profile),
@@ -20,6 +21,7 @@ export function createWorkspaceData(source = {}, options = {}) {
     moderation: normalizeModeration(source.moderation),
     trackerUrls: normalizeTrackerUrls(source.trackerUrls, settings),
     exportHistory: cleanArray(source.exportHistory),
+    extensions: cleanObject(source.extensions),
   };
 }
 

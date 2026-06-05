@@ -1,10 +1,22 @@
 import { createWorkspaceData, WORKSPACE_SCHEMA } from "./workspaceSchema.js";
+import { CURRENT_WORKSPACE_VERSION as PROTOCOL_WORKSPACE_VERSION } from "./protocol.js";
 
-export const CURRENT_WORKSPACE_VERSION = 1;
+export const CURRENT_WORKSPACE_VERSION = PROTOCOL_WORKSPACE_VERSION;
 
 export function migrateWorkspace(workspace, options = {}) {
   if (!workspace || typeof workspace !== "object") {
     throw new Error("This is not a PostSnail workspace.");
+  }
+  if (!workspace.version || !workspace.schema) {
+    return createWorkspaceData(
+      {
+        ...workspace,
+        schema: WORKSPACE_SCHEMA,
+        version: CURRENT_WORKSPACE_VERSION,
+        migratedFromLegacy: true,
+      },
+      { now: options.now || workspace.updatedAt || workspace.createdAt },
+    );
   }
   if (workspace.schema !== WORKSPACE_SCHEMA) {
     throw new Error("This is not a PostSnail workspace.");

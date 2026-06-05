@@ -118,7 +118,7 @@ const pages = [
         <section><h2>Does The Fingerprint Prove Identity?</h2><p>It proves the bundle matches the manifest and publisher public key. It does not prove legal identity, factual accuracy, or that the JavaScript runtime is FIPS-validated.</p></section>
         <section><h2>Can Forest Index My Site?</h2><p>Yes, if your deployed site exposes <code>.well-known/postsnail.json</code> and <code>postsnail.manifest.json</code>. Forest verifies those public proof files before indexing summaries.</p></section>
         <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Cloudflare Pages, GitHub Pages, Netlify, and similar static hosts.</p></section>
-        <section><h2>Does My Generated Blog Show PostSnail Branding?</h2><p>No. Generated microblogs are creator-owned and do not include visible Hilazon6 or PostSnail branding.</p></section>
+        <section><h2>Does My Generated Blog Show PostSnail Branding?</h2><p>Generated blogs can show a small Powered by PostSnail footer and tracker credit by default. The creator can disable those Generate settings before export.</p></section>
       </section>
     `,
   },
@@ -196,7 +196,10 @@ const pages = [
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/security/"><strong>Security Notes</strong><span>What workspace encryption protects, what proof files prove, and what passphrase loss means.</span></a>
+        <a href="/docs/compatibility/"><strong>Compatibility Contract</strong><span>Stable core, optional extensions, required features, legacy warnings, and migration promises.</span></a>
+        <a href="/docs/protocol/"><strong>Protocol Reference</strong><span>Manifest, well-known identity, commit proofs, Shell vaults, and tracker announce records.</span></a>
         <a href="/docs/migrations/"><strong>Workspace Migrations</strong><span>How versioned workspace migrations keep old editable projects importable.</span></a>
+        <a href="/docs/psep/"><strong>PSEP Process</strong><span>How PostSnail Enhancement Proposals govern protocol-risk changes.</span></a>
         <a href="/docs/legal/"><strong>PostSnail Legal</strong><span>Apache-2.0 license, NOTICE attribution, third-party notices, logo provenance, and Forest cost notes.</span></a>
       </section>
     `,
@@ -257,6 +260,35 @@ const pages = [
     ]),
   },
   {
+    path: "docs/compatibility/index.html",
+    title: "PostSnail Compatibility Contract - Alpha 1",
+    description: "PostSnail compatibility rules for old Shells, old ZIP exports, optional extensions, required features, and migrations.",
+    canonical: "https://postsnail.org/docs/compatibility/",
+    body: docPage("Compatibility sections", "Compatibility Contract", "PostSnail evolves with a stable core, optional extensions, explicit required features, and deterministic workspace migrations.", [
+      ["exports", "Two Artifacts", ".postsnail is the private editable Shell. .zip is the public signed Website artifact. Importing the Shell restores the real project; public ZIP recovery can only recover public content."],
+      ["stable-core", "Stable Core", "Protocol records use protocol postsnail and version 1. The required core features are signed-manifest and file-hashes."],
+      ["optional", "Optional Extensions", "Unknown optional features and extension data are ignored safely. Tools may preserve unknown extension data where practical, but must not interpret it unless they support the feature."],
+      ["required", "Required Features", "Unknown required features fail clearly. A feature should become required only when ignoring it would make verification unsafe or misleading."],
+      ["legacy", "Legacy Exports", "Old valid exports may miss feature declarations or optional files. PostSnail verifies them when signatures, hashes, and required proof data are valid, then shows legacy warnings."],
+      ["migrations", "Workspace Migrations", "Old workspaces migrate step by step. Future unsupported versions fail with This workspace was created by a newer PostSnail version."],
+    ]),
+  },
+  {
+    path: "docs/protocol/index.html",
+    title: "PostSnail Protocol Reference - Alpha 1",
+    description: "PostSnail protocol records, feature declarations, public proof files, workspace vaults, and tracker announces.",
+    canonical: "https://postsnail.org/docs/protocol/",
+    body: docPage("Protocol sections", "Protocol Reference", "PostSnail uses public proof records for publishing and encrypted Shell vaults for editable source.", [
+      ["constants", "Protocol Constants", "Alpha 1 uses POSTSNAIL_PROTOCOL postsnail, POSTSNAIL_PROTOCOL_VERSION 1, and current manifest, identity, commit, and workspace versions of 1."],
+      ["features", "Feature Declarations", "Major records declare protocol, version, requiredFeatures, optionalFeatures, and extensions. Unknown optional fields are ignored; unknown required features fail."],
+      ["manifest", "Public Manifest", "postsnail.manifest.json is the public proof root with file hashes, post proofs, bundle fingerprint, and manifest signature."],
+      ["identity", "Well-Known Identity", ".well-known/postsnail.json points to the manifest, declares the current bundle fingerprint, and is used by trackers before deeper crawls."],
+      ["commits", "Commit Proofs", "latest-commit.json and commits.json are optional commit-history records. Missing commit history is a legacy warning, not a fatal error."],
+      ["workspace", "Workspace Vault", ".postsnail is an encrypted JSON envelope with non-secret header metadata and versioned encrypted workspace payload."],
+      ["announce", "Tracker Announce", "postsnail-announce is a signed public refresh signal. It never carries private keys and is not an account login."],
+    ]),
+  },
+  {
     path: "docs/architecture/index.html",
     title: "PostSnail Architecture - Alpha 1",
     description: "Developer architecture for the PostSnail browser admin, static proof bundle, and Forest registry Worker.",
@@ -267,7 +299,8 @@ const pages = [
       ["export", "Public ZIP Format", "The generated ZIP contains HTML pages, assets, RSS, JSON feed, sitemap, .well-known/postsnail.json, post proof records, commit history, and postsnail.manifest.json. It excludes drafts and private workspace state."],
       ["verify", "Verification", "The admin verifier recomputes SHA3-512 file hashes, canonical post record digests, post signatures, the manifest signature, and bundle fingerprint from a complete ZIP."],
       ["forest", "Forest Worker", "Forest fetches public proof metadata, verifies signatures and digests, indexes site/post summaries in D1, and exposes search plus registration APIs."],
-      ["extend", "Extend", "Future tools can build new themes, alternate trackers, local deployment helpers, registry sync, or independent verifiers without changing the creator-owned bundle model."],
+      ["compatibility", "Compatibility Layer", "Protocol constants and compatibility helpers keep legacy manifests, workspaces, and ZIP exports working while new optional extensions are added safely."],
+      ["extend", "Extend", "Future tools can build new themes, alternate trackers, local deployment helpers, registry sync, or independent verifiers. Protocol-risk changes should use the PSEP process."],
     ]),
   },
   {
@@ -293,6 +326,18 @@ const pages = [
       ["chain", "Future Chains", "Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step."],
       ["future", "Future Version Failure", "If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version."],
       ["legacy", "Legacy JSON", "Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema."],
+    ]),
+  },
+  {
+    path: "docs/psep/index.html",
+    title: "PostSnail Enhancement Proposals - Alpha 1",
+    description: "The PSEP process for PostSnail protocol-risk changes.",
+    canonical: "https://postsnail.org/docs/psep/",
+    body: docPage("PSEP sections", "PostSnail Enhancement Proposals", "PSEPs document protocol-risk changes before they affect creators, verifiers, trackers, or workspace migrations.", [
+      ["meaning", "What PSEP Means", "PSEP means PostSnail Enhancement Proposal. It is required for changes that alter public proof semantics, workspace schema versions, tracker payloads, verifier behavior, or migration rules."],
+      ["sections", "Required Sections", "A PSEP includes title, status, feature name, motivation, files changed, new fields, required versus optional features, migration rules, verifier behavior, compatibility impact, security impact, and tests required."],
+      ["default", "Default To Optional", "New features should be optional extensions unless old software must reject them for safety. Unknown optional fields are ignored; unknown required features fail clearly."],
+      ["baseline", "PSEP-0001", "PSEP-0001 defines the Alpha 1 compatibility baseline: stable protocol core, optional extensions, deterministic workspace migrations, legacy warnings, and strict failures for broken proof data."],
     ]),
   },
   {

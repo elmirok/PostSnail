@@ -6,6 +6,7 @@ import { decodeText } from "../src/bytes.js";
 import { normalizePost } from "../src/content.js";
 import { generateSigningKeyPair } from "../src/crypto.js";
 import { buildStaticExport } from "../src/exporter.js";
+import { POSTSNAIL_PROTOCOL } from "../src/protocol.js";
 import { createTrackerApp } from "../tracker/src/app.js";
 
 async function fixtureSite() {
@@ -59,7 +60,7 @@ test("tracker accepts a valid announce, verifies proof documents, and serves pub
   assert.match(await announced.text(), /accepted/);
 
   const health = await tracker.fetch(new Request("https://tracker.example/health"));
-  assert.deepEqual(await health.json(), { ok: true, service: "postsnail-tracker", protocol: "postsnail-v1" });
+  assert.deepEqual(await health.json(), { ok: true, service: "postsnail-tracker", protocol: POSTSNAIL_PROTOCOL });
 
   const recent = await tracker.fetch(new Request("https://tracker.example/recent.json"));
   const recentJson = await recent.json();

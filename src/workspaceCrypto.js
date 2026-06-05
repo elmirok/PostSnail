@@ -1,6 +1,11 @@
 import { canonicalJson } from "./canonical.js";
 import { decodeBase64, decodeText, encodeBase64, encodeText } from "./bytes.js";
 import { sha3Hex } from "./crypto.js";
+import {
+  POSTSNAIL_PROTOCOL,
+  REQUIRED_CORE_FEATURES,
+} from "./protocol.js";
+import { checkRequiredFeatures, protocolMatches } from "./compatibility.js";
 
 export const WORKSPACE_FORMAT = "postsnail-workspace";
 export const WORKSPACE_VAULT_VERSION = 1;
@@ -22,9 +27,13 @@ export async function encryptWorkspace(workspace, passphrase, options = {}) {
   const header = {
     format: WORKSPACE_FORMAT,
     version: WORKSPACE_VAULT_VERSION,
+    protocol: POSTSNAIL_PROTOCOL,
     app: "PostSnail",
     createdAt,
     updatedAt,
+    requiredFeatures: [...REQUIRED_CORE_FEATURES],
+    optionalFeatures: ["workspace-vault", "plugins", "comments", "forest-tracker", "cloudflare-deploy"],
+    extensions: {},
     kdf: WORKSPACE_KDF,
     cipher: WORKSPACE_CIPHER,
     fingerprintSuite: WORKSPACE_FINGERPRINT_SUITE,
@@ -90,11 +99,18 @@ function validateEnvelope(envelope) {
   if (!envelope || typeof envelope !== "object" || envelope.format !== WORKSPACE_FORMAT || envelope.app !== "PostSnail") {
     throw new Error("This is not a PostSnail workspace vault.");
   }
+  if (envelope.protocol && !protocolMatches(envelope.protocol)) {
+    throw new Error("Unsupported PostSnail workspace protocol.");
+  }
   if (Number(envelope.version) > WORKSPACE_VAULT_VERSION) {
     throw new Error("This workspace was created by a newer PostSnail version.");
   }
   if (Number(envelope.version) !== WORKSPACE_VAULT_VERSION) {
     throw new Error("Unsupported PostSnail workspace vault version.");
+  }
+  const required = checkRequiredFeatures(envelope, REQUIRED_CORE_FEATURES);
+  if (!required.ok) {
+    throw new Error(required.errors.join(" "));
   }
   if (envelope.kdf !== WORKSPACE_KDF || envelope.cipher !== WORKSPACE_CIPHER) {
     throw new Error("Unsupported PostSnail workspace vault algorithms.");

@@ -23,7 +23,7 @@ Accepts a signed JSON payload created by PostSnail after export. The tracker val
 Returns service status:
 
 ```json
-{ "ok": true, "service": "postsnail-tracker", "protocol": "postsnail-v1" }
+{ "ok": true, "service": "postsnail-tracker", "protocol": "postsnail" }
 ```
 
 ### `GET /recent.json`
@@ -45,7 +45,11 @@ The creator signs the canonical JSON payload without `signature` using ML-DSA-65
 ```json
 {
   "type": "postsnail-announce",
-  "protocol": "postsnail-v1",
+  "protocol": "postsnail",
+  "version": 1,
+  "requiredFeatures": ["signed-manifest", "file-hashes"],
+  "optionalFeatures": ["tracker-announce", "forest-tracker"],
+  "extensions": {},
   "siteUrl": "https://creator.example/",
   "domain": "creator.example",
   "wellKnownUrl": "https://creator.example/.well-known/postsnail.json",
