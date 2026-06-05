@@ -2,7 +2,9 @@
 
 ## Workspace Vaults
 
-Use `Export Workspace` after creating your identity, after adding images, and before clearing browser data. The downloaded `.postsnail` file is the private encrypted editable source for the project.
+Use `Export Shell` after creating your identity, after adding images, and before clearing browser data. The downloaded `.postsnail` file is the private encrypted editable source for the project.
+
+Browser-local Shell data is encrypted in IndexedDB too. Use `Unlock Local Shell` with the Shell passphrase to reopen it from the same browser. If an older browser has plaintext local data, use `Migrate Local Data` to lock it before continuing.
 
 PostSnail has two exports:
 
@@ -13,7 +15,7 @@ The `.postsnail` workspace contains posts, drafts, profile settings, images, plu
 
 ## Passphrases
 
-The encrypted signing key is only useful with the passphrase that created it. The encrypted workspace is only useful with the workspace passphrase that created it. PostSnail has no account system and no recovery server.
+The encrypted signing key is only useful with the passphrase that created it. The encrypted Shell is only useful with the Shell passphrase that created it. PostSnail has no account system and no recovery server.
 
 If both browser data and the `.postsnail` workspace/passphrase are lost, PostSnail cannot restore private keys, drafts, plugin state, rejected comments, or editable source history.
 

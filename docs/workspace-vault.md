@@ -5,7 +5,9 @@ PostSnail has two exports:
 1. Encrypted Workspace (`.postsnail`) for the creator.
 2. Public Website ZIP (`.zip`) for publishing.
 
-The `.postsnail` file is the private editable source for a microblog. It is encrypted with a workspace passphrase and should stay with the creator. The Website ZIP is public static output for Cloudflare Pages or another static host. It is not the full project source.
+The `.postsnail` file is the private editable source for a microblog. It is encrypted with a Shell passphrase and should stay with the creator. The Website ZIP is public static output for Cloudflare Pages or another static host. It is not the full project source.
+
+The admin also keeps the browser-local Shell cache encrypted at rest in IndexedDB. Use `Unlock Local Shell` with the Shell passphrase to reopen it. If PostSnail detects old plaintext browser-local data, use `Migrate Local Data` to encrypt it and then `Export Shell` as a portable `.postsnail` backup.
 
 ## What The Workspace Contains
 
@@ -19,10 +21,10 @@ The public Website ZIP contains published pages, public assets, feeds, sitemap, 
 
 ## Moving Computers
 
-1. Export Workspace from the old browser.
+1. Export Shell from the old browser.
 2. Move the `.postsnail` file privately.
 3. Open PostSnail on the new computer.
-4. Import Workspace with the workspace passphrase.
+4. Open Shell with the Shell passphrase.
 5. Unlock the publisher key with its identity passphrase.
 6. Export a new public Website ZIP when ready.
 

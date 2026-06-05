@@ -6,7 +6,7 @@ Do not upload your encrypted `.postsnail` workspace to Cloudflare Pages. The wor
 
 ## Upload Through the Dashboard
 
-1. In PostSnail, click `Export Workspace` and keep the `.postsnail` file private.
+1. In PostSnail, click `Export Shell` and keep the `.postsnail` file private.
 2. Unlock your publisher key and click `Export Website ZIP`.
 3. Unzip the Website ZIP on your computer.
 4. In Cloudflare, create a Pages project.

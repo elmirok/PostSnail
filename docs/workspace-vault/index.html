@@ -30,14 +30,15 @@
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
             <h1>Workspace Vault</h1>
-            <p class="lede">PostSnail has two exports: encrypted Workspace (.postsnail) for the creator and public Website ZIP (.zip) for publishing.</p>
+            <p class="lede">PostSnail has two exports: encrypted Shell (.postsnail) for the creator and public Website ZIP (.zip) for publishing.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Workspace vault sections"><a href="#meaning">Encrypted Workspace</a><a href="#public-zip">Public Website ZIP</a><a href="#move">Move To Another Computer</a><a href="#loss">Passphrase Loss</a><a href="#legacy">Legacy JSON Backups</a><a href="#public-recovery">Public ZIP Recovery Later</a></nav>
+            <nav class="doc-nav" aria-label="Workspace vault sections"><a href="#meaning">Encrypted Workspace</a><a href="#local-cache">Encrypted Local Cache</a><a href="#public-zip">Public Website ZIP</a><a href="#move">Move To Another Computer</a><a href="#loss">Passphrase Loss</a><a href="#legacy">Legacy JSON Backups</a><a href="#public-recovery">Public ZIP Recovery Later</a></nav>
             <div class="doc-content">
               <section id="meaning"><h2>Encrypted Workspace</h2><p>.postsnail is private, encrypted, and editable. It contains profile data, posts, drafts, assets, encrypted identity material, settings, commit history, plugin state, moderation data, tracker URLs, and export history.</p></section>
+              <section id="local-cache"><h2>Encrypted Local Cache</h2><p>Browser-local editable Shell data is encrypted in IndexedDB too. Use Unlock Local Shell with the Shell passphrase to reopen it. If PostSnail detects old plaintext browser data, use Migrate Local Data, then Export Shell.</p></section>
               <section id="public-zip"><h2>Public Website ZIP</h2><p>The public Website ZIP is static output for hosting. It may include published public content, proof files, feeds, sitemap, public assets, and approved public comments. It is not the full project source.</p></section>
-              <section id="move"><h2>Move To Another Computer</h2><p>Export the .postsnail workspace, move it to the new computer, open the admin, import the workspace with the passphrase, unlock the publisher key, and export a new public Website ZIP when ready.</p></section>
+              <section id="move"><h2>Move To Another Computer</h2><p>Export the .postsnail Shell, move it to the new computer, open the admin, open the Shell with the passphrase, unlock the publisher key, and export a new public Website ZIP when ready.</p></section>
               <section id="loss"><h2>Passphrase Loss</h2><p>If both browser storage and the .postsnail passphrase are lost, PostSnail cannot recover private keys, drafts, plugin state, rejected comments, or editable source data.</p></section>
               <section id="legacy"><h2>Legacy JSON Backups</h2><p>Old JSON backups can still be imported. PostSnail validates them, rejects raw private signing keys, restores the workspace, and downloads a migrated encrypted .postsnail file.</p></section>
               <section id="public-recovery"><h2>Public ZIP Recovery Later</h2><p>A published ZIP or deployed site can only recover public content. It cannot restore private keys, drafts, private plugin state, rejected comments, moderation notes, or recovery data.</p></section>

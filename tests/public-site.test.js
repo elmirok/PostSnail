@@ -75,7 +75,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderShellGate/);
   assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Create Shell/);
-  assert.match(appJs, /Open Local Shell/);
+  assert.match(appJs, /Unlock Local Shell/);
+  assert.match(appJs, /Migrate Local Data/);
+  assert.match(appJs, /Close Shell/);
+  assert.match(appJs, /Old browser-local data is not locked yet/);
   assert.match(appJs, /A Shell is your private PostSnail workspace/);
   assert.match(appJs, /Your identity is a signature key, not a profile login/);
   assert.match(appJs, /No account\. No email\. No backend login\./);
@@ -102,6 +105,7 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.doesNotMatch(appJs, /Import backup/);
   assert.doesNotMatch(appJs, /Export Workspace/);
   assert.doesNotMatch(appJs, /Import Workspace/);
+  assert.doesNotMatch(appJs, /Open Local Shell/);
   assert.doesNotMatch(appJs, /aria-label="Hilazon6 home"/);
 
   assert.match(css, /--page:\s*#fffdf7/);

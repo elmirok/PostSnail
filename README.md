@@ -5,7 +5,7 @@ PostSnail Alpha 1 has two public surfaces:
 - `https://postsnail.org/` is the project website, manifesto, media kit, docs, and entry point to the browser admin.
 - `https://forest.postsnail.org/` is PostSnail Forest, the searchable tracker where creators register published PostSnail sites.
 
-The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It stores posts, images, encrypted workspace vaults, and encrypted publisher keys locally in the browser, then downloads a static ZIP that can be hosted on Cloudflare Pages, GitHub Pages, Netlify, or any plain static host.
+The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It keeps editable browser-local Shell data encrypted at rest, stores encrypted workspace vaults and encrypted publisher keys locally, then downloads a static ZIP that can be hosted on Cloudflare Pages, GitHub Pages, Netlify, or any plain static host.
 
 PostSnail has two exports:
 
@@ -44,7 +44,7 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 
 1. Write at least one published post.
 2. Generate or unlock the encrypted ML-DSA-65 publisher key.
-3. Open Generate, enter a workspace passphrase, and export an encrypted `.postsnail` workspace.
+3. Open Generate and export an encrypted `.postsnail` Shell.
 4. Click `Export Website ZIP`.
 5. Open Verify and choose the ZIP to validate it locally.
 6. Unzip the bundle and upload its contents to a static host.
@@ -67,9 +67,10 @@ Creators remain the source of truth through their own domain and signed proof fi
 
 ## Privacy and Recovery
 
-- The private signing key is encrypted with your passphrase before being stored in IndexedDB.
+- Browser-local editable Shell data is encrypted in IndexedDB and requires the Shell passphrase to reopen.
+- The private signing key is separately encrypted with its own passphrase inside the Shell identity object.
 - Losing the passphrase means PostSnail cannot decrypt the signing key.
-- Export an encrypted `.postsnail` workspace after creating your identity and after meaningful publishing sessions.
+- Export an encrypted `.postsnail` Shell after creating your identity and after meaningful publishing sessions.
 - Move to another computer by importing the `.postsnail` workspace in the new browser, unlocking the publisher key, and exporting a new public Website ZIP.
 - A published ZIP or public site can only recover public content. It cannot recover private keys, drafts, private plugin state, rejected comments, or moderation notes.
 - Image files are copied into the ZIP as selected; strip EXIF/GPS metadata before importing images if that matters for your threat model.

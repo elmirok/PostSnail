@@ -1,5 +1,6 @@
 const DB_NAME = "postsnail-v1";
 const DB_VERSION = 1;
+export const LOCAL_SHELL_ENVELOPE_KEY = "localShellEnvelope";
 
 export async function loadAppState() {
   const [profile, identity, settings, commitHistory, plugins, moderation, trackerUrls, exportHistory, posts, assets] = await Promise.all([
@@ -28,50 +29,17 @@ export async function loadAppState() {
   };
 }
 
-export function saveProfile(profile) {
-  return setKv("profile", profile);
+export function loadLocalShellEnvelope() {
+  return getKv(LOCAL_SHELL_ENVELOPE_KEY);
 }
 
-export function saveIdentity(identity) {
-  return setKv("identity", identity);
-}
-
-export function saveSettings(settings) {
-  return setKv("settings", settings);
-}
-
-export function saveCommitHistory(commitHistory) {
-  return setKv("commitHistory", Array.isArray(commitHistory) ? commitHistory : []);
-}
-
-export function savePost(post) {
-  return put("posts", post);
-}
-
-export function deletePost(id) {
-  return remove("posts", id);
-}
-
-export function saveAsset(asset) {
-  return put("assets", asset);
-}
-
-export async function replaceAppState(nextState) {
+export async function replaceWithEncryptedLocalShell(envelopeText) {
   const db = await openDb();
   await transactionDone(db, ["kv", "posts", "assets"], "readwrite", (tx) => {
     tx.objectStore("kv").clear();
     tx.objectStore("posts").clear();
     tx.objectStore("assets").clear();
-    tx.objectStore("kv").put(nextState.profile || null, "profile");
-    tx.objectStore("kv").put(nextState.identity || null, "identity");
-    tx.objectStore("kv").put(nextState.settings || {}, "settings");
-    tx.objectStore("kv").put(Array.isArray(nextState.commitHistory) ? nextState.commitHistory : [], "commitHistory");
-    tx.objectStore("kv").put(normalizePlugins(nextState.plugins), "plugins");
-    tx.objectStore("kv").put(normalizeModeration(nextState.moderation), "moderation");
-    tx.objectStore("kv").put(Array.isArray(nextState.trackerUrls) ? nextState.trackerUrls : [], "trackerUrls");
-    tx.objectStore("kv").put(Array.isArray(nextState.exportHistory) ? nextState.exportHistory : [], "exportHistory");
-    for (const post of nextState.posts || []) tx.objectStore("posts").put(post);
-    for (const asset of nextState.assets || []) tx.objectStore("assets").put(asset);
+    tx.objectStore("kv").put(String(envelopeText || ""), LOCAL_SHELL_ENVELOPE_KEY);
   });
 }
 
@@ -90,31 +58,10 @@ async function getKv(key) {
   return requestToPromise(tx.objectStore("kv").get(key));
 }
 
-async function setKv(key, value) {
-  const db = await openDb();
-  await transactionDone(db, "kv", "readwrite", (tx) => {
-    tx.objectStore("kv").put(value, key);
-  });
-}
-
 async function getAll(storeName) {
   const db = await openDb();
   const tx = db.transaction(storeName, "readonly");
   return requestToPromise(tx.objectStore(storeName).getAll());
-}
-
-async function put(storeName, value) {
-  const db = await openDb();
-  await transactionDone(db, storeName, "readwrite", (tx) => {
-    tx.objectStore(storeName).put(value);
-  });
-}
-
-async function remove(storeName, id) {
-  const db = await openDb();
-  await transactionDone(db, storeName, "readwrite", (tx) => {
-    tx.objectStore(storeName).delete(id);
-  });
 }
 
 function openDb() {

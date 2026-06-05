@@ -4,13 +4,15 @@ PostSnail separates private source protection from public accountability.
 
 ## Workspace Encryption
 
-Encrypted `.postsnail` workspaces use AES-256-GCM through Web Crypto. The encryption key is derived from the workspace passphrase with PBKDF2-SHA-256, a random salt, and a high iteration count. Each vault also uses a random IV and a SHA3-512 workspace fingerprint.
+Encrypted `.postsnail` Shells use AES-256-GCM through Web Crypto. The encryption key is derived from the Shell passphrase with PBKDF2-SHA-256, a random salt, and a high iteration count. Each vault also uses a random IV and a SHA3-512 workspace fingerprint.
+
+Browser-local editable Shell data is encrypted the same way in IndexedDB. Reopening a local Shell from the same browser requires the Shell passphrase. Old plaintext browser data, when detected, must be migrated with `Migrate Local Data`.
 
 The passphrase matters. PostSnail has no account system, no recovery server, and no backend that can reset it.
 
 ## What Encryption Protects
 
-Workspace encryption protects the editable source file at rest when the passphrase is strong and the device/browser is not compromised. It keeps drafts, private plugin state, moderation notes, rejected comments, images, settings, and encrypted identity material out of the public Website ZIP.
+Workspace encryption protects the editable source file and browser-local Shell cache at rest when the passphrase is strong and the device/browser is not compromised. It keeps drafts, private plugin state, moderation notes, rejected comments, images, settings, and encrypted identity material out of the public Website ZIP.
 
 ## What Encryption Does Not Prove
 

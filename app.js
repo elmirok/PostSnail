@@ -11,17 +11,12 @@ import { buildStaticExport } from "./src/exporter.js";
 import { renderMarkdown } from "./src/markdown.js";
 import {
   clearAppState,
-  deletePost,
   loadAppState,
-  replaceAppState,
-  saveAsset,
-  saveCommitHistory,
-  saveIdentity,
-  savePost,
-  saveProfile,
-  saveSettings,
+  loadLocalShellEnvelope,
+  replaceWithEncryptedLocalShell,
 } from "./src/storage.js";
 import { verifyPostSnailZip } from "./src/verifier.js";
+import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell.js";
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
 
 globalThis.DOMPurify = DOMPurify;
@@ -47,9 +42,14 @@ const defaultSettings = {
 
 const state = {
   shellMode: "locked",
-  hasLocalShell: false,
-  pendingLocalState: null,
+  hasEncryptedLocalShell: false,
+  hasLegacyLocalData: false,
+  pendingLegacyState: null,
+  localShellEnvelope: null,
+  shellPassphrase: "",
+  shellSaveTimer: null,
   localShellNotice: false,
+  localShellSaveError: false,
   notifyForestAttention: false,
   activeTab: "write",
   status: "Ready.",
@@ -77,12 +77,16 @@ init().catch((error) => {
 });
 
 async function init() {
-  const loaded = await loadAppState();
-  state.pendingLocalState = loaded;
-  state.hasLocalShell = hasLocalShell(loaded);
-  state.status = state.hasLocalShell
-    ? "Open your local Shell, open a .postsnail vault, or create a new Shell."
-    : "Open a .postsnail Shell or create a new one.";
+  const [legacyState, localShellEnvelope] = await Promise.all([loadAppState(), loadLocalShellEnvelope()]);
+  state.pendingLegacyState = legacyState;
+  state.localShellEnvelope = localShellEnvelope || null;
+  state.hasEncryptedLocalShell = Boolean(localShellEnvelope);
+  state.hasLegacyLocalData = hasLegacyLocalData(legacyState);
+  state.status = state.hasEncryptedLocalShell
+    ? "Unlock Local Shell with your passphrase, open a .postsnail vault, or create a new Shell."
+    : state.hasLegacyLocalData
+      ? "Old browser-local data is not locked yet. Migrate Local Data to encrypt it."
+      : "Open a .postsnail Shell or create a new one.";
   render();
 }
 
@@ -107,7 +111,7 @@ app.addEventListener("input", (event) => {
   }
   if (input.matches("[data-profile-field]")) {
     state.profile[input.dataset.profileField] = input.value;
-    saveProfile(state.profile);
+    scheduleLocalShellSave();
   }
   if (input.matches("[data-settings-field]")) {
     updateSettingFromInput(input);
@@ -158,8 +162,16 @@ async function handleAction(button) {
     await createShell();
     return;
   }
-  if (action === "open-local-shell") {
-    await openLocalShell();
+  if (action === "unlock-local-shell") {
+    await unlockLocalShell();
+    return;
+  }
+  if (action === "migrate-local-data") {
+    await migrateLocalData();
+    return;
+  }
+  if (action === "close-shell") {
+    await closeShell();
     return;
   }
   if (action === "tab") {
@@ -187,9 +199,9 @@ async function handleAction(button) {
   if (action === "delete-post") {
     const post = state.posts.find((item) => item.id === button.dataset.id);
     if (post && window.confirm(`Delete "${post.title || post.slug}" from local storage?`)) {
-      await deletePost(post.id);
       state.posts = state.posts.filter((item) => item.id !== post.id);
       if (state.form.id === post.id) state.form = emptyPostForm();
+      await persistLocalShellNow();
       setStatus("Post deleted.");
       render();
     }
@@ -249,11 +261,15 @@ async function handleAction(button) {
   }
   if (action === "clear-local") {
     if (window.confirm("Clear all local PostSnail posts, images, profile settings, and encrypted keys?")) {
+      clearPendingShellSave();
       await clearAppState();
       resetEditableState();
       state.shellMode = "locked";
-      state.hasLocalShell = false;
-      state.pendingLocalState = null;
+      state.hasEncryptedLocalShell = false;
+      state.hasLegacyLocalData = false;
+      state.pendingLegacyState = null;
+      state.localShellEnvelope = null;
+      state.shellPassphrase = "";
       setStatus("Local data cleared. Open Shell or Create Shell to continue.");
       render();
     }
@@ -285,29 +301,94 @@ async function openShellFromGate() {
 }
 
 async function createShell() {
-  if (state.hasLocalShell && !window.confirm("Create a new Shell and replace browser-local data? Export Shell first if you need the current local data.")) {
+  const passphrase = shellPassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter a Shell passphrase of at least 10 characters before creating a Shell.");
     return;
   }
+  if (
+    (state.hasEncryptedLocalShell || state.hasLegacyLocalData) &&
+    !window.confirm("Create a new Shell and replace browser-local data? Export Shell first if you need the current local data.")
+  ) {
+    return;
+  }
+  clearPendingShellSave();
   resetEditableState();
-  await replaceAppState(snapshotState());
-  state.pendingLocalState = await loadAppState();
-  state.hasLocalShell = true;
   state.shellMode = "unlocked";
+  state.shellPassphrase = passphrase;
   state.activeTab = "identity";
+  await persistLocalShellNow(passphrase);
   setStatus("Shell created. Create your signature key in Identity; it is not an account.");
   render();
 }
 
-async function openLocalShell() {
-  if (!state.hasLocalShell || !state.pendingLocalState) {
-    setStatus("No browser-local Shell was found.");
+async function unlockLocalShell() {
+  if (!state.localShellEnvelope) {
+    setStatus("No encrypted local Shell was found.");
     return;
   }
-  applyLoadedState(state.pendingLocalState);
+  const passphrase = shellPassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter the Shell passphrase to unlock browser-local data.");
+    return;
+  }
+  try {
+    const imported = await decryptLocalShellState(state.localShellEnvelope, passphrase);
+    restoreImportedState(imported.state);
+    state.shellMode = "unlocked";
+    state.shellPassphrase = passphrase;
+    state.localShellNotice = false;
+    state.activeTab = "write";
+    setStatus("Local Shell unlocked. The editable cache stays encrypted in IndexedDB.");
+    render();
+  } catch (error) {
+    state.shellMode = "locked";
+    state.shellPassphrase = "";
+    state.localShellSaveError = false;
+    setStatus(error.message);
+    render();
+  }
+}
+
+async function migrateLocalData() {
+  if (!state.hasLegacyLocalData || !state.pendingLegacyState) {
+    setStatus("No old browser-local data was found.");
+    return;
+  }
+  const passphrase = shellPassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter a new Shell passphrase before migrating old browser-local data.");
+    return;
+  }
+  applyLoadedState(state.pendingLegacyState);
   state.shellMode = "unlocked";
+  state.shellPassphrase = passphrase;
   state.localShellNotice = true;
+  state.localShellSaveError = false;
   state.secretKey = null;
-  setStatus("Local Shell opened. Export Shell to save a private .postsnail vault.");
+  await persistLocalShellNow(passphrase);
+  setStatus("Old browser-local data encrypted. Export Shell to create a portable .postsnail backup.");
+  render();
+}
+
+async function closeShell() {
+  if (state.shellMode !== "unlocked") return;
+  try {
+    await persistLocalShellNow();
+  } catch {
+    return;
+  }
+  clearPendingShellSave();
+  resetEditableState();
+  state.shellMode = "locked";
+  state.shellPassphrase = "";
+  state.secretKey = null;
+  const [legacyState, localShellEnvelope] = await Promise.all([loadAppState(), loadLocalShellEnvelope()]);
+  state.pendingLegacyState = legacyState;
+  state.localShellEnvelope = localShellEnvelope || null;
+  state.hasEncryptedLocalShell = Boolean(localShellEnvelope);
+  state.hasLegacyLocalData = hasLegacyLocalData(legacyState);
+  setStatus("Shell closed. Unlock Local Shell with your passphrase to continue.");
   render();
 }
 
@@ -321,12 +402,12 @@ async function saveCurrentPost() {
   post.slug = uniqueSlug(post.slug, existingSlugs);
   post.updatedAt = new Date().toISOString();
   if (post.status === "published" && !post.publishedAt) post.publishedAt = post.updatedAt;
-  await savePost(post);
   state.posts = [post, ...state.posts.filter((item) => item.id !== post.id)].sort((a, b) =>
     String(b.updatedAt).localeCompare(String(a.updatedAt)),
   );
   state.form = postToForm(post);
   state.activeTab = "library";
+  await persistLocalShellNow();
   setStatus("Post saved locally.");
   render();
 }
@@ -343,10 +424,10 @@ async function addImages(files) {
       dataBase64: await readFileBase64(file),
       createdAt: new Date().toISOString(),
     };
-    await saveAsset(asset);
     state.assets = [asset, ...state.assets];
     state.form.imageIds = Array.from(new Set([...state.form.imageIds, asset.id]));
   }
+  await persistLocalShellNow();
   setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} attached. Originals may contain metadata.`);
   render();
 }
@@ -368,7 +449,7 @@ async function generateKey() {
     createdAt: new Date().toISOString(),
   };
   state.secretKey = keys.secretKey;
-  await saveIdentity(state.identity);
+  await persistLocalShellNow();
   setStatus("Publisher key generated, encrypted, and unlocked for this session.");
   render();
 }
@@ -419,7 +500,7 @@ async function generateSiteZip() {
   state.lastAnnounceStatus = null;
   state.notifyForestAttention = true;
   state.lastExportVerification = verification;
-  await saveCommitHistory(state.commitHistory);
+  await persistLocalShellNow();
   setStatus(
     verification.ok
       ? `ZIP ready and verified locally. Fingerprint: ${result.manifest.bundleFingerprint}`
@@ -494,7 +575,7 @@ async function verifyZipFile(file) {
 }
 
 async function exportWorkspaceFile() {
-  const passphrase = workspacePassphrase();
+  const passphrase = workspacePassphrase() || state.shellPassphrase;
   if (passphrase.length < 10) {
     setStatus("Enter a Shell passphrase of at least 10 characters before exporting a .postsnail file.");
     return;
@@ -505,6 +586,12 @@ async function exportWorkspaceFile() {
     const result = await exportWorkspaceVault(snapshotState(), passphrase);
     downloadText(result.text, result.filename, "application/postsnail+json");
     state.localShellNotice = false;
+    state.shellPassphrase = passphrase;
+    await replaceWithEncryptedLocalShell(result.text);
+    state.localShellEnvelope = result.text;
+    state.hasEncryptedLocalShell = true;
+    state.hasLegacyLocalData = false;
+    state.pendingLegacyState = null;
     setStatus(`Encrypted .postsnail Shell exported. Fingerprint: ${result.envelope.workspaceFingerprint}`);
     render();
   } catch (error) {
@@ -521,9 +608,11 @@ async function importWorkspaceFile(file, passphrase = workspacePassphrase(), opt
   try {
     const text = await file.text();
     const imported = await importWorkspaceVault(text, passphrase);
-    await restoreImportedState(imported.state);
+    restoreImportedState(imported.state);
     state.shellMode = "unlocked";
+    state.shellPassphrase = passphrase;
     state.localShellNotice = false;
+    await persistLocalShellNow(passphrase);
     setStatus(options.fromGate ? "Shell opened. Unlock the publisher key before exporting a new public Website ZIP." : "Encrypted Shell opened. Unlock the publisher key before exporting a new public Website ZIP.");
     render();
   } catch (error) {
@@ -540,11 +629,13 @@ async function importLegacyBackupFile(file, passphrase = workspacePassphrase()) 
   try {
     const text = await file.text();
     const imported = importLegacyBackupJson(text);
-    await restoreImportedState(imported.state);
+    restoreImportedState(imported.state);
+    state.shellMode = "unlocked";
+    state.shellPassphrase = passphrase;
+    state.localShellNotice = false;
+    await persistLocalShellNow(passphrase);
     const migratedVault = await exportWorkspaceVault(imported.state, passphrase);
     downloadText(migratedVault.text, migratedVault.filename, "application/postsnail+json");
-    state.shellMode = "unlocked";
-    state.localShellNotice = false;
     setStatus("Legacy backup JSON imported and migrated. An encrypted .postsnail Shell was downloaded.");
     render();
   } catch (error) {
@@ -552,12 +643,11 @@ async function importLegacyBackupFile(file, passphrase = workspacePassphrase()) 
   }
 }
 
-async function restoreImportedState(nextState) {
-  await replaceAppState(nextState);
-  const loaded = await loadAppState();
-  applyLoadedState(loaded);
-  state.pendingLocalState = loaded;
-  state.hasLocalShell = hasLocalShell(loaded);
+function restoreImportedState(nextState) {
+  applyLoadedState(nextState);
+  state.pendingLegacyState = null;
+  state.hasLegacyLocalData = false;
+  state.localShellSaveError = false;
   state.secretKey = null;
   state.lastManifest = null;
   state.lastExportVerification = null;
@@ -607,6 +697,7 @@ function renderHeader() {
         <a class="btn ghost" href="../features-qa.html">Features</a>
         ${locked ? `<a class="btn ghost" href="../docs/">Docs</a>` : `
           <button class="btn ghost" type="button" data-action="tab" data-tab="generate">Generate</button>
+          <button class="btn ghost" type="button" data-action="close-shell">Close Shell</button>
           <a class="btn donate-link" href="#donate" data-action="donate">Donate</a>
         `}
       </div>
@@ -676,12 +767,19 @@ function renderShellGate() {
         <div class="actions">
           <button class="btn primary" type="button" data-action="open-shell">Open Shell</button>
           <button class="btn" type="button" data-action="create-shell">Create Shell</button>
-          ${state.hasLocalShell ? `<button class="btn" type="button" data-action="open-local-shell">Open Local Shell</button>` : ""}
+          ${state.hasEncryptedLocalShell ? `<button class="btn" type="button" data-action="unlock-local-shell">Unlock Local Shell</button>` : ""}
+          ${state.hasLegacyLocalData ? `<button class="btn warning-btn" type="button" data-action="migrate-local-data">Migrate Local Data</button>` : ""}
         </div>
-        ${state.hasLocalShell ? `
+        ${state.hasEncryptedLocalShell ? `
+          <div class="notice good">
+            <strong>Encrypted local Shell found</strong>
+            <p>Unlock Local Shell with the Shell passphrase. The browser cache stays encrypted at rest.</p>
+          </div>
+        ` : ""}
+        ${state.hasLegacyLocalData ? `
           <div class="notice warning">
-            <strong>Local Shell found</strong>
-            <p>This browser already has PostSnail data in IndexedDB. Open Local Shell, then Export Shell to save it as a private <code>.postsnail</code> vault.</p>
+            <strong>Old browser-local data is not locked yet</strong>
+            <p>This browser has older plaintext PostSnail data in IndexedDB. Migrate Local Data encrypts it with a Shell passphrase, clears plaintext stores, and then you should Export Shell as a private <code>.postsnail</code> backup.</p>
           </div>
         ` : ""}
         <div class="notice">
@@ -822,6 +920,12 @@ function renderGenerate() {
           <div class="notice warning">
             <strong>Save this browser-local Shell</strong>
             <p>This Shell came from existing browser storage. Export Shell to create a private <code>.postsnail</code> vault you can move, back up, and reopen later.</p>
+          </div>
+        ` : ""}
+        ${state.localShellSaveError ? `
+          <div class="notice warning">
+            <strong>Encrypted local save failed</strong>
+            <p>Export Shell before closing this browser. PostSnail could not update the encrypted local Shell cache.</p>
           </div>
         ` : ""}
         <label class="field">
@@ -1149,10 +1253,11 @@ function resetEditableState() {
   state.notifyForestAttention = false;
   state.verifyResult = null;
   state.localShellNotice = false;
+  state.localShellSaveError = false;
   state.activeTab = "write";
 }
 
-function hasLocalShell(loaded) {
+function hasLegacyLocalData(loaded) {
   return Boolean(
     loaded?.profile ||
       loaded?.identity ||
@@ -1173,7 +1278,7 @@ function hasLocalShell(loaded) {
 
 function updateSettingFromInput(input) {
   state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
-  saveSettings(state.settings);
+  scheduleLocalShellSave();
 }
 
 function settingEnabled(field) {
@@ -1201,6 +1306,46 @@ function workspacePassphrase() {
 
 function shellPassphrase() {
   return document.getElementById("shell-passphrase")?.value || "";
+}
+
+function scheduleLocalShellSave() {
+  if (state.shellMode !== "unlocked" || !state.shellPassphrase) return;
+  clearPendingShellSave();
+  state.shellSaveTimer = window.setTimeout(() => {
+    persistLocalShellNow().catch(() => {});
+  }, 500);
+}
+
+function clearPendingShellSave() {
+  if (state.shellSaveTimer) {
+    window.clearTimeout(state.shellSaveTimer);
+    state.shellSaveTimer = null;
+  }
+}
+
+async function persistLocalShellNow(passphrase = state.shellPassphrase) {
+  if (state.shellMode !== "unlocked") return;
+  clearPendingShellSave();
+  if (!passphrase || passphrase.length < 10) {
+    state.localShellSaveError = true;
+    setStatus("Encrypted local Shell save failed. Export Shell before closing.");
+    render();
+    throw new Error("Shell passphrase is required to update encrypted local storage.");
+  }
+  try {
+    const encrypted = await encryptLocalShellState(snapshotState(), passphrase);
+    await replaceWithEncryptedLocalShell(encrypted.envelopeText);
+    state.localShellEnvelope = encrypted.envelopeText;
+    state.hasEncryptedLocalShell = true;
+    state.hasLegacyLocalData = false;
+    state.pendingLegacyState = null;
+    state.localShellSaveError = false;
+  } catch (error) {
+    state.localShellSaveError = true;
+    setStatus("Encrypted local Shell save failed. Export Shell before closing.");
+    render();
+    throw error;
+  }
 }
 
 function setStatus(message) {

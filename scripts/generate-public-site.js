@@ -62,7 +62,7 @@ const pages = [
           <h2 id="what-title">A tiny publishing stack that keeps the creator in charge.</h2>
         </div>
         <div class="copy-block">
-          <p>PostSnail is an admin you open in the browser. Posts, images, encrypted workspace vaults, and encrypted publisher keys stay local. When you are ready, PostSnail exports a public Website ZIP with proof files and no required backend.</p>
+          <p>PostSnail is an admin you open in the browser. Posts, images, encrypted Shell caches, encrypted workspace vaults, and encrypted publisher keys stay local. When you are ready, PostSnail exports a public Website ZIP with proof files and no required backend.</p>
           <p>The generated blog can live on Cloudflare Pages or any static host. Forest is only a tracker: it verifies public proofs and indexes summaries so people can find you.</p>
         </div>
       </section>
@@ -108,7 +108,7 @@ const pages = [
         <p class="lede">Write a static microblog, create a post-quantum signed fingerprint locally, verify the ZIP locally, publish on a free static host, and register public summaries in Forest.</p>
       </section>
       <section class="feature-row" aria-label="Feature summary">
-        <article class="feature-card"><span class="pixel-badge">01</span><h2>Local Admin</h2><p>Posts, images, settings, workspace vaults, and encrypted keys stay local unless you export them.</p></article>
+        <article class="feature-card"><span class="pixel-badge">01</span><h2>Local Admin</h2><p>Posts, images, settings, Shell caches, workspace vaults, and encrypted keys stay local and encrypted unless you export them.</p></article>
         <article class="feature-card"><span class="pixel-badge">02</span><h2>Signed ZIPs</h2><p>Every export includes SHA3-512 file hashes, ML-DSA-65 post signatures, and a signed manifest fingerprint.</p></article>
         <article class="feature-card"><span class="pixel-badge">03</span><h2>Verifier</h2><p>The Verify tab recomputes hashes and signatures from a complete ZIP without calling a backend.</p></article>
         <article class="feature-card forest"><span class="pixel-badge">04</span><h2>Forest</h2><p>Forest verifies public proof metadata and indexes searchable summaries, not full post bodies.</p></article>
@@ -209,10 +209,10 @@ const pages = [
     body: docPage("How to use sections", "How To Use PostSnail", "Use the admin as a local writing desk, proof generator, backup tool, and verifier.", [
       ["identity", "1. Create Your Identity", `Open <a href="/admin/">the admin</a>, go to Identity, add your site title, handle, description, and public URL if you already know it. Generate a publisher key and protect it with a passphrase.`],
       ["write", "2. Write And Publish", "Use Write for Markdown posts and optional local images. Drafts stay local. Published posts are included in generated static bundles."],
-      ["workspace", "3. Export Workspace", "Open Generate, enter a workspace passphrase, and export an encrypted .postsnail file after identity setup and meaningful writing sessions. This file is the private editable source."],
+      ["workspace", "3. Export Shell", "Open Generate and export an encrypted .postsnail Shell after identity setup and meaningful writing sessions. This file is the private editable source."],
       ["generate", "4. Export Website ZIP", "Unlock your key, open Generate, and export the public Website ZIP. Keep the fingerprint and manifest proof summary with your release notes."],
       ["verify", "5. Verify Before Sharing", "Use the Verify tab to drop the ZIP back into PostSnail. Share the bundle fingerprint when you publish so readers and trackers can compare the public proof files."],
-      ["legacy", "6. Migrate Legacy Backups", "Use Import Legacy Backup JSON only for old PostSnail backups. The admin restores the data and downloads a new encrypted .postsnail workspace using your workspace passphrase."],
+      ["legacy", "6. Migrate Legacy Backups", "Use Import Legacy Backup JSON only for old PostSnail backups. The admin restores the data and downloads a new encrypted .postsnail Shell using your Shell passphrase."],
     ]),
   },
   {
@@ -220,10 +220,11 @@ const pages = [
     title: "Workspace Vault - PostSnail Alpha 1",
     description: "PostSnail encrypted .postsnail workspace vaults are the private editable source format for creators.",
     canonical: "https://postsnail.org/docs/workspace-vault/",
-    body: docPage("Workspace vault sections", "Workspace Vault", "PostSnail has two exports: encrypted Workspace (.postsnail) for the creator and public Website ZIP (.zip) for publishing.", [
+    body: docPage("Workspace vault sections", "Workspace Vault", "PostSnail has two exports: encrypted Shell (.postsnail) for the creator and public Website ZIP (.zip) for publishing.", [
       ["meaning", "Encrypted Workspace", ".postsnail is private, encrypted, and editable. It contains profile data, posts, drafts, assets, encrypted identity material, settings, commit history, plugin state, moderation data, tracker URLs, and export history."],
+      ["local-cache", "Encrypted Local Cache", "Browser-local editable Shell data is encrypted in IndexedDB too. Use Unlock Local Shell with the Shell passphrase to reopen it. If PostSnail detects old plaintext browser data, use Migrate Local Data, then Export Shell."],
       ["public-zip", "Public Website ZIP", "The public Website ZIP is static output for hosting. It may include published public content, proof files, feeds, sitemap, public assets, and approved public comments. It is not the full project source."],
-      ["move", "Move To Another Computer", "Export the .postsnail workspace, move it to the new computer, open the admin, import the workspace with the passphrase, unlock the publisher key, and export a new public Website ZIP when ready."],
+      ["move", "Move To Another Computer", "Export the .postsnail Shell, move it to the new computer, open the admin, open the Shell with the passphrase, unlock the publisher key, and export a new public Website ZIP when ready."],
       ["loss", "Passphrase Loss", "If both browser storage and the .postsnail passphrase are lost, PostSnail cannot recover private keys, drafts, plugin state, rejected comments, or editable source data."],
       ["legacy", "Legacy JSON Backups", "Old JSON backups can still be imported. PostSnail validates them, rejects raw private signing keys, restores the workspace, and downloads a migrated encrypted .postsnail file."],
       ["public-recovery", "Public ZIP Recovery Later", "A published ZIP or deployed site can only recover public content. It cannot restore private keys, drafts, private plugin state, rejected comments, moderation notes, or recovery data."],
@@ -235,7 +236,7 @@ const pages = [
     description: "Publish a signed PostSnail static microblog on Cloudflare Pages.",
     canonical: "https://postsnail.org/docs/publish-cloudflare/",
     body: docPage("Cloudflare tutorial sections", "Publish On Cloudflare Pages", "PostSnail exports plain static files, so Cloudflare Pages can host the microblog without a server bill.", [
-      ["workspace", "0. Save Your Workspace", "Before publishing, export an encrypted .postsnail workspace and keep it private. This is your editable source; do not upload it to Cloudflare Pages."],
+      ["workspace", "0. Save Your Shell", "Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Cloudflare Pages."],
       ["export", "1. Export Website ZIP", "In the admin Generate tab, unlock your key and click Export Website ZIP. Use the Verify tab before uploading."],
       ["upload", "2. Upload", "Create a Cloudflare Pages project and upload the unzipped bundle contents. The deployed root should contain index.html, postsnail.manifest.json, and .well-known/postsnail.json."],
       ["check", "3. Check Proof Files", "Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them."],
@@ -248,7 +249,7 @@ const pages = [
     description: "The PostSnail concept: local admin, static microblog, signed proof files, and Forest discovery.",
     canonical: "https://postsnail.org/docs/concept/",
     body: docPage("Concept sections", "PostSnail Concept", "PostSnail separates publishing, proof, hosting, and discovery so each part can stay simple.", [
-      ["admin", "Local Admin", "The admin is a browser-only tool. It stores posts, images, settings, encrypted workspace vaults, and encrypted publisher keys locally and makes no automatic registry calls."],
+      ["admin", "Local Admin", "The admin is a browser-only tool. It stores editable Shell data, posts, images, settings, encrypted workspace vaults, and encrypted publisher keys locally and encrypted, and makes no automatic registry calls."],
       ["source", "Private Source", ".postsnail is the private encrypted editable source. It is for the creator, not for hosting or indexing."],
       ["bundle", "Static Bundle", "Generated blogs are plain files. They can be hosted anywhere static files work and do not display PostSnail or Hilazon6 branding."],
       ["proof", "Proof Files", "The bundle includes public manifest, identity, commit, feed, and sitemap files. SHA3-512 digests and ML-DSA-65 signatures let verifiers check content records and fingerprints."],
@@ -261,7 +262,7 @@ const pages = [
     description: "Developer architecture for the PostSnail browser admin, static proof bundle, and Forest registry Worker.",
     canonical: "https://postsnail.org/docs/architecture/",
     body: docPage("Architecture sections", "PostSnail Architecture", "Alpha 1 is deliberately forkable: a browser admin, static files, signed proofs, and an optional registry Worker.", [
-      ["admin", "Admin Modules", "The browser admin uses small ES modules for storage, content normalization, Markdown sanitization, signing-key cryptography, encrypted workspace vaults, public ZIP export, legacy backup migration, and ZIP verification."],
+      ["admin", "Admin Modules", "The browser admin uses small ES modules for encrypted local Shell storage, content normalization, Markdown sanitization, signing-key cryptography, encrypted workspace vaults, public ZIP export, legacy backup migration, and ZIP verification."],
       ["workspace", "Workspace Format", ".postsnail is a JSON envelope with non-secret metadata, AES-256-GCM ciphertext, PBKDF2-SHA-256 parameters, and a SHA3-512 workspace fingerprint. The decrypted payload is versioned workspace data."],
       ["export", "Public ZIP Format", "The generated ZIP contains HTML pages, assets, RSS, JSON feed, sitemap, .well-known/postsnail.json, post proof records, commit history, and postsnail.manifest.json. It excludes drafts and private workspace state."],
       ["verify", "Verification", "The admin verifier recomputes SHA3-512 file hashes, canonical post record digests, post signatures, the manifest signature, and bundle fingerprint from a complete ZIP."],
@@ -275,7 +276,7 @@ const pages = [
     description: "Security notes for PostSnail workspace encryption, public proof files, passphrases, and recovery limits.",
     canonical: "https://postsnail.org/docs/security/",
     body: docPage("Security sections", "Security Notes", "PostSnail protects editable source data with local encryption and public accountability with signed proof files, but those are different guarantees.", [
-      ["workspace", "Workspace Encryption", ".postsnail files use AES-256-GCM with a key derived from the workspace passphrase using PBKDF2-SHA-256, random salt, and random IV. Use a strong passphrase and keep the file private."],
+      ["workspace", "Workspace Encryption", ".postsnail files and browser-local Shell caches use AES-256-GCM with a key derived from the Shell passphrase using PBKDF2-SHA-256, random salt, and random IV. Use a strong passphrase and keep the file private."],
       ["proof", "Public Proof", "The public Website ZIP uses SHA3-512 digests and ML-DSA-65 signatures so verifiers can check published content against the creator public key. Proof does not prove legal identity or factual truth."],
       ["limits", "Limits", "PostSnail cannot recover lost passphrases, cannot protect a compromised browser/device, and does not make the JavaScript runtime FIPS-validated."],
       ["metadata", "Image Metadata", "Images are copied as selected. Strip EXIF/GPS metadata before importing images if that matters for your threat model."],
