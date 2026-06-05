@@ -70,8 +70,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
 
   assert.match(appJs, /renderAppFooter/);
   assert.match(appJs, /postsnail-icon\.png/);
+  assert.match(appJs, /src="\.\.\/btc-wallet-qr\.svg"/);
   assert.match(appJs, legalFooterPattern);
   assert.doesNotMatch(appJs, /hilazon6-logo\.png/);
+  assert.doesNotMatch(appJs, /src="\.\/btc-wallet-qr\.svg"/);
   assert.doesNotMatch(appJs, /aria-label="Hilazon6 home"/);
 
   assert.match(css, /--page:\s*#fffdf7/);

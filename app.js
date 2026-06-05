@@ -717,7 +717,7 @@ function renderInfo() {
           <p>Posts, images, backups, and private keys stay in your browser unless you export or upload them yourself. PostSnail makes no registry calls in v1.</p>
         </div>
         <div id="donate" class="donate-box" aria-label="Donation options">
-          <img class="donate-qr" src="./btc-wallet-qr.svg" width="104" height="104" alt="Bitcoin wallet QR code" loading="lazy" decoding="async">
+          <img class="donate-qr" src="../btc-wallet-qr.svg" width="104" height="104" alt="Bitcoin wallet QR code" loading="lazy" decoding="async">
           <div class="donate-copy">
             <a class="kofi-button" href="https://ko-fi.com/K1R720HYDL" target="_blank" rel="noopener noreferrer">
               <img height="36" src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" border="0" alt="Buy Me a Coffee at ko-fi.com" loading="lazy" decoding="async">
