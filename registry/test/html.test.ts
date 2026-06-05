@@ -8,6 +8,10 @@ describe("registry homepage", () => {
     expect(html).toContain("PostSnail Forest");
     expect(html).toContain("Register your microblog");
     expect(html).toContain('id="register-form"');
+    expect(html).toContain('id="toggle-register"');
+    expect(html).toContain('aria-controls="register-panel"');
+    expect(html).toContain('id="register-panel"');
+    expect(html).toContain('hidden');
     expect(html).toContain('id="site-url"');
     expect(html).toContain('name="url"');
     expect(html).toContain('placeholder="https://your-blog.example/"');
@@ -18,6 +22,25 @@ describe("registry homepage", () => {
     expect(html).toContain('class="search-box"');
     expect(html).toContain('placeholder="Search microblogs, creators, tags, content"');
     expect(html).toContain("Filter by tag");
+    expect(html).toContain('name="scope"');
+    expect(html).toContain('value="all" checked');
+    expect(html).toContain("Content");
+    expect(html).toContain("Shell");
+    expect(html).toContain("setRegistrationOpen");
+    expect(html).toContain("Hide registration form");
+  });
+
+  test("renders rich result media and details behavior", () => {
+    const html = renderSearchPage();
+
+    expect(html).toContain("result-media");
+    expect(html).toContain("renderMedia");
+    expect(html).toContain("renderDetails");
+    expect(html).toContain("<details");
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain('referrerpolicy="no-referrer"');
+    expect(html).toContain("Shell details");
+    expect(html).toContain("Post details");
   });
 
   test("renders compact PostSnail legal footer links", () => {

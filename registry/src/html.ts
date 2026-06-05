@@ -30,6 +30,10 @@ export function renderSearchPage(): string {
     .forest-search-panel { padding:18px; gap:14px; background:#ffffff; }
     .forest-search-panel h2 { font-size:1.45rem; text-align:center; }
     .forest-search-panel p { text-align:center; max-width:720px; justify-self:center; }
+    .creator-action { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:.92rem; }
+    .register-toggle { background:var(--paper); color:var(--accent); border-color:var(--accent); }
+    .register-toggle[aria-expanded="true"] { background:var(--green-soft); color:var(--ink); }
+    .register-panel[hidden] { display:none; }
     .panel p { margin:0; color:var(--muted); line-height:1.45; }
     form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
     .search-form { width:min(880px, 100%); justify-self:center; grid-template-columns:1fr; gap:10px; }
@@ -39,6 +43,13 @@ export function renderSearchPage(): string {
     .search-box button { min-height:64px; border-width:0 0 0 3px; padding:0 22px; font-size:1.02rem; }
     .tag-row { display:grid; grid-template-columns:auto minmax(160px, 260px); align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:.9rem; }
     .tag-row input { min-height:40px; background:var(--paper); }
+    .scope-control { border:0; padding:0; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+    .scope-control legend { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    .scope-control label { display:inline-flex; align-items:center; gap:0; color:var(--ink); font-size:.92rem; }
+    .scope-control input { position:absolute; opacity:0; pointer-events:none; width:1px; min-height:0; height:1px; }
+    .scope-control span { min-height:36px; min-width:88px; display:inline-flex; align-items:center; justify-content:center; border:2px solid var(--line); background:var(--paper); padding:0 12px; font-weight:900; }
+    .scope-control input:checked + span { background:var(--green-soft); box-shadow:4px 4px 0 rgba(47,122,85,.18); }
+    .scope-control input:focus-visible + span { outline:3px solid var(--coral); outline-offset:2px; }
     label { display:grid; gap:6px; color:var(--muted); font-size:.9rem; }
     label span { color:var(--ink); font-weight:700; }
     input { width:100%; min-height:42px; border:2px solid var(--line); border-radius:0; padding:0 12px; font:inherit; }
@@ -51,18 +62,27 @@ export function renderSearchPage(): string {
     .notice code { color:inherit; }
     .actions { display:flex; gap:8px; flex-wrap:wrap; }
     .results { display:grid; gap:10px; margin-top:14px; }
-    .result { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:8px; }
+    .result { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; grid-template-columns:96px minmax(0, 1fr); gap:14px; align-items:start; }
+    .result-media { width:96px; aspect-ratio:1; border:2px solid var(--line); background:var(--green-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; image-rendering:auto; }
+    .result-media img { width:100%; height:100%; object-fit:cover; display:block; }
+    .result-fallback { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--green-soft), #fff); color:var(--accent); font-weight:1000; font-size:2rem; }
+    .result-body { min-width:0; display:grid; gap:8px; }
     .result h2 { margin:0; font-size:1.1rem; }
     .result p { margin:0; color:var(--muted); line-height:1.45; }
     .meta, .tags { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:.86rem; }
     .tag { color:var(--accent); }
+    details { border-top:1px solid rgba(8,10,47,.18); padding-top:8px; color:var(--muted); }
+    summary { cursor:pointer; color:var(--ink); font-weight:900; }
+    .detail-grid { display:grid; grid-template-columns:minmax(96px, 160px) minmax(0, 1fr); gap:6px 10px; margin-top:8px; font-size:.86rem; }
+    .detail-grid dt { color:var(--ink); font-weight:900; }
+    .detail-grid dd { margin:0; overflow-wrap:anywhere; min-width:0; }
     code { overflow-wrap:anywhere; color:var(--muted); }
     .empty { border:2px dashed var(--line); border-radius:0; padding:20px; color:var(--muted); background:var(--soft); }
     footer { margin-top:24px; color:var(--muted); display:grid; gap:10px; line-height:1.5; border-top:2px solid var(--line); padding-top:18px; }
     footer a { color:var(--ink); font-weight:800; text-decoration-thickness:.08em; }
     .legal-links { display:flex; gap:10px; flex-wrap:wrap; font-size:.9rem; }
     @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
-    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel { padding:14px; } .forest-search-panel h2 { text-align:left; } .forest-search-panel p { text-align:left; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
+    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel { padding:14px; } .forest-search-panel h2 { text-align:left; } .forest-search-panel p { text-align:left; } .creator-action { justify-content:flex-start; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
   </style>
 </head>
 <body>
@@ -89,10 +109,20 @@ export function renderSearchPage(): string {
             <button class="primary" type="submit">Search Forest</button>
           </div>
           <label class="tag-row" for="tag"><span>Filter by tag</span><input id="tag" name="tag" autocomplete="off" placeholder="optional tag"></label>
+          <fieldset class="scope-control" aria-label="Search scope">
+            <legend>Search scope</legend>
+            <label><input type="radio" name="scope" value="all" checked><span>All</span></label>
+            <label><input type="radio" name="scope" value="content"><span>Content</span></label>
+            <label><input type="radio" name="scope" value="shell"><span>Shell</span></label>
+          </fieldset>
         </form>
+        <div class="creator-action">
+          <span>Have a published PostSnail site?</span>
+          <button class="register-toggle" id="toggle-register" type="button" aria-expanded="false" aria-controls="register-panel">Register your microblog</button>
+        </div>
         <div class="status" id="status">Search Forest.</div>
       </section>
-      <section class="panel" aria-labelledby="register-title">
+      <section class="panel register-panel" id="register-panel" aria-labelledby="register-title" hidden>
         <h2 id="register-title">Register your microblog</h2>
         <p>Use the public homepage URL of a PostSnail site. Registration verifies proofs; it does not create an account or transfer ownership.</p>
         <form id="register-form">
@@ -114,6 +144,8 @@ export function renderSearchPage(): string {
   <script>
     const LAST_SUBMISSION_KEY = 'postsnail.registry.lastSubmission.v1';
     const registerForm = document.getElementById('register-form');
+    const registerPanel = document.getElementById('register-panel');
+    const toggleRegister = document.getElementById('toggle-register');
     const siteUrlInput = document.getElementById('site-url');
     const registerButton = document.getElementById('register-button');
     const registrationStatusEl = document.getElementById('registration-status');
@@ -121,9 +153,14 @@ export function renderSearchPage(): string {
     const form = document.getElementById('search-form');
     const qInput = document.getElementById('q');
     const tagInput = document.getElementById('tag');
+    const scopeInputs = Array.from(document.querySelectorAll('input[name="scope"]'));
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
     let pollTimer = 0;
+    toggleRegister.addEventListener('click', () => {
+      setRegistrationOpen(registerPanel.hidden);
+      if (!registerPanel.hidden) siteUrlInput.focus();
+    });
     registerForm.addEventListener('submit', (event) => {
       event.preventDefault();
       registerMicroblog();
@@ -135,12 +172,17 @@ export function renderSearchPage(): string {
     const params = new URLSearchParams(window.location.search);
     const initialQ = params.get('q') || '';
     const initialTag = params.get('tag') || '';
+    const initialScope = ['all', 'content', 'shell'].includes(params.get('scope')) ? params.get('scope') : 'all';
     if (initialQ) qInput.value = initialQ;
     if (initialTag) tagInput.value = initialTag;
+    scopeInputs.forEach((input) => {
+      input.checked = input.value === initialScope;
+    });
     restoreLastSubmission();
     if (initialQ || initialTag) search();
 
     async function registerMicroblog() {
+      setRegistrationOpen(true);
       const url = siteUrlInput.value.trim();
       if (!url) {
         renderRegistrationMessage('Submit a public https URL.', 'bad');
@@ -258,11 +300,19 @@ export function renderSearchPage(): string {
     function restoreLastSubmission() {
       const submission = loadSubmission();
       if (!submission || !submission.submissionId) return;
+      const shouldOpen = submission.status === 'queued' || submission.status === 'crawling' || submission.status === 'failed';
+      setRegistrationOpen(shouldOpen);
       if (submission.siteUrl) siteUrlInput.value = submission.siteUrl;
       renderSubmission(submission);
       if (submission.status === 'queued' || submission.status === 'crawling') {
         checkSubmission(submission.submissionId);
       }
+    }
+
+    function setRegistrationOpen(open) {
+      registerPanel.hidden = !open;
+      toggleRegister.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggleRegister.textContent = open ? 'Hide registration form' : 'Register your microblog';
     }
 
     function saveSubmission(submission) {
@@ -302,16 +352,105 @@ export function renderSearchPage(): string {
       try {
         const response = await fetch('/api/search?' + params.toString());
         const data = await response.json();
-        statusEl.textContent = data.items.length ? data.items.length + ' result(s).' : 'No matching results.';
-        resultsEl.innerHTML = data.items.length ? data.items.map(renderResult).join('') : '<div class="empty">No signed summaries matched this search.</div>';
+        const items = Array.isArray(data.items) ? data.items : [];
+        statusEl.textContent = items.length ? items.length + ' result(s).' : 'No matching results.';
+        resultsEl.innerHTML = items.length ? items.map(renderResult).join('') : '<div class="empty">No signed summaries matched this search.</div>';
       } catch {
         statusEl.textContent = 'Search failed.';
         resultsEl.innerHTML = '<div class="empty">Forest could not be searched right now.</div>';
       }
     }
     function renderResult(item) {
-      const tags = item.post.tags.map((tag) => '<span class="tag">#' + escapeHtml(tag) + '</span>').join('');
-      return '<article class="result"><div class="meta"><span>@' + escapeHtml(item.site.handle) + '</span><span>' + escapeHtml(item.post.publishedAt || '') + '</span></div><h2><a href="' + escapeAttr(item.post.url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(item.post.title) + '</a></h2><p>' + escapeHtml(item.post.excerpt) + '</p><div class="tags">' + tags + '</div><code>' + escapeHtml(item.post.digest) + '</code></article>';
+      return item.type === 'shell' ? renderShellResult(item) : renderContentResult(item);
+    }
+    function renderContentResult(item) {
+      const site = item.site || {};
+      const post = item.post || {};
+      const tags = Array.isArray(post.tags) ? post.tags.map((tag) => '<span class="tag">#' + escapeHtml(tag) + '</span>').join('') : '';
+      const title = post.title || site.title || 'Untitled post';
+      const media = renderMedia(post.thumbnailUrl || site.logoUrl, title);
+      const details = renderDetails('Post details', mergeDetails(post.details, {
+        resultType: 'content',
+        siteUrl: site.url,
+        postUrl: post.url,
+        handle: site.handle,
+        title: post.title,
+        excerpt: post.excerpt,
+        tags: post.tags || [],
+        digest: post.digest,
+        publicKey: site.publicKey,
+        bundleFingerprint: site.bundleFingerprint,
+        manifestUrl: site.manifestUrl,
+        publishedAt: post.publishedAt,
+        generatedAt: site.generatedAt,
+        verifiedAt: site.lastVerifiedAt,
+        crawlStatus: site.latestCrawlStatus,
+        thumbnailUrl: post.thumbnailUrl,
+        logoUrl: site.logoUrl
+      }));
+      return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Content</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(post.publishedAt || '') + '</span></div><h2><a href="' + escapeAttr(post.url || site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2><p>' + escapeHtml(post.excerpt || site.description || '') + '</p><div class="tags">' + tags + '</div><code>' + escapeHtml(post.digest || '') + '</code>' + details + '</div></article>';
+    }
+    function renderShellResult(item) {
+      const site = item.shell || item.site || {};
+      const title = site.title || site.handle || hostFromUrl(site.url) || 'PostSnail Shell';
+      const media = renderMedia(site.logoUrl, title);
+      const details = renderDetails('Shell details', mergeDetails(site.details, {
+        resultType: 'shell',
+        siteUrl: site.url,
+        handle: site.handle,
+        title: site.title,
+        description: site.description,
+        publicKey: site.publicKey,
+        bundleFingerprint: site.bundleFingerprint,
+        manifestUrl: site.manifestUrl,
+        generatedAt: site.generatedAt,
+        verifiedAt: site.lastVerifiedAt,
+        crawlStatus: site.latestCrawlStatus,
+        crawlMessage: site.latestCrawlMessage,
+        logoUrl: site.logoUrl
+      }));
+      return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2><p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
+    }
+    function renderMedia(src, label) {
+      if (src) return '<div class="result-media"><img src="' + escapeAttr(src) + '" alt="' + escapeAttr(label || 'PostSnail result') + '" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>';
+      return '<div class="result-media" aria-hidden="true"><span class="result-fallback">' + escapeHtml(resultInitial(label)) + '</span></div>';
+    }
+    function renderDetails(summary, details) {
+      const rows = Object.entries(details || {})
+        .filter(([key, value]) => isPublicDetail(key, value))
+        .map(([key, value]) => '<dt>' + escapeHtml(prettyKey(key)) + '</dt><dd>' + escapeHtml(formatDetailValue(value)) + '</dd>')
+        .join('');
+      return rows ? '<details><summary>' + escapeHtml(summary) + '</summary><dl class="detail-grid">' + rows + '</dl></details>' : '';
+    }
+    function mergeDetails(details, publicFields) {
+      return { ...scrubDetails(details), ...publicFields };
+    }
+    function scrubDetails(details) {
+      const clean = {};
+      if (!details || typeof details !== 'object' || Array.isArray(details)) return clean;
+      Object.entries(details).forEach(([key, value]) => {
+        if (isPublicDetail(key, value)) clean[key] = value;
+      });
+      return clean;
+    }
+    function isPublicDetail(key, value) {
+      if (value === undefined || value === null || value === '') return false;
+      if (/body|private|secret|passphrase|workspace|vault|rejected|moderation/i.test(key)) return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      return true;
+    }
+    function formatDetailValue(value) {
+      if (Array.isArray(value)) return value.join(', ');
+      if (typeof value === 'object') return JSON.stringify(value);
+      return String(value);
+    }
+    function prettyKey(key) {
+      return String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/^./, (char) => char.toUpperCase());
+    }
+    function resultInitial(value) {
+      const text = String(value || 'PostSnail').trim();
+      return text ? text[0].toUpperCase() : 'P';
     }
     function hostFromUrl(value) {
       try {

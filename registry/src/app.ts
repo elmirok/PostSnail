@@ -8,7 +8,16 @@ import { normalizedSearchText, randomId } from "./ids";
 import { fetchJson } from "./remote";
 import { addMinutes, createRefreshSubmission } from "./scheduler";
 import { normalizeSubmittedUrl, sameOriginUrl } from "./url";
-import type { CrawlMessage, Fetcher, RegistryQueue, RegistryStore, SearchParams, SubmissionRecord } from "./types";
+import type {
+  CrawlMessage,
+  Fetcher,
+  RegistryPost,
+  RegistryQueue,
+  RegistrySite,
+  RegistryStore,
+  SearchParams,
+  SubmissionRecord,
+} from "./types";
 
 const MAX_SUBMIT_BYTES = 8192;
 const MAX_ANNOUNCE_BYTES = 24 * 1024;
@@ -152,14 +161,17 @@ async function handleSearch(url: URL, deps: AppDeps): Promise<Response> {
   const params: SearchParams = {
     q: normalizedSearchText(url.searchParams.get("q") || ""),
     tag,
+    scope: normalizeScope(url.searchParams.get("scope")),
     limit: clampLimit(url.searchParams.get("limit")),
     cursor: url.searchParams.get("cursor"),
   };
   const result = await deps.store.search(params);
   return json({
     items: result.items.map((item) => ({
+      type: item.type || "content",
       site: publicSite(item.site),
-      post: publicPost(item.post),
+      post: item.post ? publicPost(item.post) : undefined,
+      shell: item.shell ? publicShell(item.shell) : undefined,
     })),
     nextCursor: result.nextCursor,
   }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
@@ -236,7 +248,7 @@ function htmlHeaders(): HeadersInit {
   return {
     "content-type": "text/html; charset=utf-8",
     "content-security-policy":
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
@@ -284,20 +296,30 @@ async function constantTimeEqual(a: string, b: string): Promise<boolean> {
   return diff === 0 && a.length === b.length;
 }
 
-function publicSite(site: { id: string; canonicalUrl: string; siteTitle: string; handle: string; description: string; publicKey: string; bundleFingerprint: string; lastVerifiedAt: string }) {
+function publicSite(site: RegistrySite) {
   return {
     id: site.id,
     url: site.canonicalUrl,
     title: site.siteTitle,
     handle: site.handle,
     description: site.description,
+    manifestUrl: site.manifestUrl,
     publicKey: site.publicKey,
     bundleFingerprint: site.bundleFingerprint,
+    logoUrl: site.logoUrl,
+    details: site.details || {},
+    generatedAt: site.generatedAt,
     lastVerifiedAt: site.lastVerifiedAt,
+    latestCrawlStatus: site.latestCrawlStatus,
+    latestCrawlMessage: site.latestCrawlMessage || undefined,
   };
 }
 
-function publicPost(post: { slug: string; title: string; url: string; excerpt: string; tags: string[]; digest: string; publishedAt: string }) {
+function publicShell(site: RegistrySite) {
+  return publicSite(site);
+}
+
+function publicPost(post: RegistryPost) {
   return {
     slug: post.slug,
     title: post.title,
@@ -305,8 +327,15 @@ function publicPost(post: { slug: string; title: string; url: string; excerpt: s
     excerpt: post.excerpt,
     tags: post.tags,
     digest: post.digest,
+    thumbnailUrl: post.thumbnailUrl,
+    details: post.details || {},
     publishedAt: post.publishedAt,
   };
+}
+
+function normalizeScope(value: string | null): SearchParams["scope"] {
+  if (value === "all" || value === "shell" || value === "content") return value;
+  return "content";
 }
 
 function clampLimit(value: string | null): number {

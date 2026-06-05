@@ -97,7 +97,10 @@ function verifyPost(siteUrl: string, post: ManifestPost, publicKey: Uint8Array |
   const excerpt = stringValue(record.excerpt);
   const publishedAt = stringValue(record.publishedAt) || stringValue(record.createdAt) || "";
   const url = new URL(`posts/${encodeURIComponent(slug)}/`, siteUrl).toString();
+  const imageFiles = safeImageFiles(record.imageFiles);
+  const thumbnailUrl = imageFiles[0] ? publicAssetUrl(siteUrl, imageFiles[0]) : "";
   const searchText = normalizedSearchText(`${title} ${excerpt} ${tags.join(" ")}`);
+  const digest = stringValue(post.digest);
   return {
     id: stableId("post", `${siteUrl}\n${slug}`),
     siteId: "",
@@ -106,7 +109,21 @@ function verifyPost(siteUrl: string, post: ManifestPost, publicKey: Uint8Array |
     url,
     excerpt,
     tags,
-    digest: stringValue(post.digest),
+    digest,
+    thumbnailUrl,
+    details: {
+      slug,
+      title,
+      url,
+      excerpt,
+      tags,
+      digest,
+      publishedAt,
+      createdAt: stringValue(record.createdAt),
+      updatedAt: stringValue(record.updatedAt),
+      imageFiles,
+      thumbnailUrl,
+    },
     publishedAt,
     searchText,
     visible: 1,
@@ -117,6 +134,7 @@ function verifyPost(siteUrl: string, post: ManifestPost, publicKey: Uint8Array |
 
 function buildSite(siteUrl: string, manifestUrl: string, site: Record<string, unknown>, publicKey: string, fingerprint: string, generatedAt: string, now: string): RegistrySite {
   const id = stableId("site", `${siteUrl}\n${publicKey}`);
+  const logoUrl = publicLogoUrl(siteUrl, site);
   return {
     id,
     canonicalUrl: siteUrl,
@@ -127,6 +145,19 @@ function buildSite(siteUrl: string, manifestUrl: string, site: Record<string, un
     siteUrl: stringValue(site.siteUrl),
     publicKey,
     bundleFingerprint: fingerprint,
+    logoUrl,
+    details: {
+      title: stringValue(site.siteTitle) || "Untitled Microblog",
+      handle: stringValue(site.handle),
+      description: stringValue(site.description),
+      url: siteUrl,
+      siteUrl: stringValue(site.siteUrl),
+      manifestUrl,
+      publicKey,
+      bundleFingerprint: fingerprint,
+      generatedAt,
+      logoUrl,
+    },
     generatedAt,
     lastVerifiedAt: now,
     hidden: 0,
@@ -166,6 +197,38 @@ function objectRecord(value: unknown): Record<string, unknown> {
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function safeImageFiles(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(String).filter(isSafeAssetFileName);
+}
+
+function isSafeAssetFileName(value: string): boolean {
+  return /^[a-z0-9][a-z0-9._-]*\.(?:png|jpe?g|webp|gif|avif)$/iu.test(value);
+}
+
+function publicAssetUrl(siteUrl: string, fileName: string): string {
+  if (!isSafeAssetFileName(fileName)) return "";
+  return new URL(`assets/${fileName}`, siteUrl).toString();
+}
+
+function publicLogoUrl(siteUrl: string, site: Record<string, unknown>): string {
+  const candidates = [
+    stringValue(site.logoUrl),
+    stringValue(site.logo),
+    stringValue(site.iconUrl),
+    stringValue(site.avatarUrl),
+    stringValue(site.image),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      return sameOriginUrl(siteUrl, candidate).toString();
+    } catch {
+      // Unsupported logo pointers are ignored; fallback badges still render.
+    }
+  }
+  return "";
 }
 
 function safeBytes(value: string): Uint8Array | null {

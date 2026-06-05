@@ -137,22 +137,29 @@ class MemoryStore implements RegistryStore {
     if (site) site.hidden = hidden ? 1 : 0;
   }
 
-  async search({ q, tag }: { q: string; tag: string }): Promise<{ items: any[]; nextCursor: string | null }> {
+  async search({ q, tag, scope = "content" }: { q: string; tag: string; scope?: string }): Promise<{ items: any[]; nextCursor: string | null }> {
     const items = [];
     for (const site of this.sites.values()) {
       if (site.hidden) continue;
+      const siteText = `${site.siteTitle} ${site.description} ${site.handle} ${site.canonicalUrl} ${site.siteUrl}`.toLowerCase();
+      const sitePosts = this.posts.get(site.id) || [];
+      const shellMatchesQ = !q || siteText.includes(q);
+      const shellMatchesTag = !tag || sitePosts.some((post) => post.tags.includes(tag));
+      if ((scope === "all" || scope === "shell") && shellMatchesQ && shellMatchesTag) {
+        items.push({ type: "shell", site, shell: site });
+      }
+      if (scope === "shell") continue;
       for (const post of this.posts.get(site.id) || []) {
-        const siteText = `${site.siteTitle} ${site.description} ${site.handle} ${site.canonicalUrl} ${site.siteUrl}`.toLowerCase();
         const matchesQ = !q || post.searchText.includes(q) || siteText.includes(q);
         const matchesTag = !tag || post.tags.includes(tag);
-        if (matchesQ && matchesTag) items.push({ site, post });
+        if (matchesQ && matchesTag) items.push({ type: "content", site, post });
       }
     }
     return { items, nextCursor: null };
   }
 }
 
-async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSigningKeyPair>; title?: string; body?: string; generatedAt?: string } = {}) {
+async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSigningKeyPair>; title?: string; body?: string; generatedAt?: string; withImage?: boolean } = {}) {
   const keys = options.keys || generateSigningKeyPair();
   const post = normalizePost({
     id: "p1",
@@ -160,8 +167,17 @@ async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSign
     body: options.body || "A useful searchable excerpt.",
     tags: ["Proof"],
     status: "published",
+    imageIds: options.withImage ? ["image-1"] : [],
     createdAt: "2026-06-05T00:00:00.000Z"
   });
+  const assets: any[] = options.withImage ? [{
+    id: "image-1",
+    name: "Search Thumb.png",
+    type: "image/png",
+    dataBase64: "iVBORw0KGgo=",
+    alt: "Search thumbnail",
+    createdAt: "2026-06-05T00:00:00.000Z"
+  }] : [];
   const result = await buildStaticExport({
     profile: {
       siteTitle: "Search Feed",
@@ -172,11 +188,11 @@ async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSign
     },
     settings: { showPoweredBy: false },
     posts: [post],
-    assets: [],
+    assets,
     publicKey: keys.publicKey,
     secretKey: keys.secretKey,
     generatedAt: options.generatedAt || "2026-06-05T00:00:00.000Z"
-  });
+  } as any);
   const files = unzipSync(result.zipBytes, {}) as Record<string, Uint8Array>;
   return {
     wellKnown: decodeText(files[".well-known/postsnail.json"]),
@@ -309,6 +325,66 @@ describe("registry API and crawl flow", () => {
 
     const site = await handleRequest(new Request(`https://registry.example/api/sites/${results.items[0].site.id}`), deps);
     expect(site.headers.get("cache-control")).toBe("public, max-age=60, stale-while-revalidate=300");
+  });
+
+  test("search scopes return content and public Shell results with summary-only rich details", async () => {
+    const documents = await fixtureDocuments({ withImage: true, body: "A private-looking public body should not be in Forest details." });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(documents)
+    };
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages[0], deps);
+
+    const omittedScope = await handleRequest(new Request("https://registry.example/api/search?q=searchable"), deps);
+    const omittedResults = await omittedScope.json() as any;
+    expect(omittedResults.items).toHaveLength(1);
+    expect(omittedResults.items[0]).toMatchObject({ type: "content", post: { title: "Searchable Proof" } });
+
+    const content = await handleRequest(new Request("https://registry.example/api/search?q=searchable&scope=content"), deps);
+    const contentResults = await content.json() as any;
+    expect(contentResults.items).toHaveLength(1);
+    expect(contentResults.items[0]).toMatchObject({
+      type: "content",
+      post: {
+        thumbnailUrl: "https://creator.example/assets/search-thumb.png",
+        details: expect.objectContaining({
+          imageFiles: ["search-thumb.png"],
+          slug: "searchable-proof"
+        })
+      }
+    });
+    expect(JSON.stringify(contentResults.items[0].post.details)).not.toContain("private-looking");
+
+    const shell = await handleRequest(new Request("https://registry.example/api/search?q=creator.example&tag=proof&scope=shell"), deps);
+    const shellResults = await shell.json() as any;
+    expect(shellResults.items).toHaveLength(1);
+    expect(shellResults.items[0]).toMatchObject({
+      type: "shell",
+      shell: {
+        title: "Search Feed",
+        details: expect.objectContaining({
+          manifestUrl: "https://creator.example/postsnail.manifest.json",
+          bundleFingerprint: expect.stringMatching(/^psn1-sha3-512-/)
+        })
+      }
+    });
+
+    const all = await handleRequest(new Request("https://registry.example/api/search?q=search-feed&scope=all"), deps);
+    const allResults = await all.json() as any;
+    expect(allResults.items.map((item: any) => item.type)).toEqual(expect.arrayContaining(["shell", "content"]));
   });
 
   test("failed crawls store safe failure state and do not create search results", async () => {

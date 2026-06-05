@@ -30,6 +30,8 @@ export interface RegistrySite {
   siteUrl: string;
   publicKey: string;
   bundleFingerprint: string;
+  logoUrl: string;
+  details: Record<string, unknown>;
   generatedAt: string;
   lastVerifiedAt: string;
   hidden: number;
@@ -54,6 +56,8 @@ export interface RegistryPost {
   excerpt: string;
   tags: string[];
   digest: string;
+  thumbnailUrl: string;
+  details: Record<string, unknown>;
   publishedAt: string;
   searchText: string;
   visible: number;
@@ -64,15 +68,17 @@ export interface RegistryPost {
 export interface SearchParams {
   q: string;
   tag: string;
+  scope?: "all" | "content" | "shell";
   limit: number;
   cursor: string | null;
 }
 
+export type SearchResultItem =
+  | { type: "content"; site: RegistrySite; post: RegistryPost; shell?: undefined; sortAt?: string }
+  | { type: "shell"; site: RegistrySite; shell: RegistrySite; post?: undefined; sortAt?: string };
+
 export interface SearchResult {
-  items: Array<{
-    site: RegistrySite;
-    post: RegistryPost;
-  }>;
+  items: SearchResultItem[];
   nextCursor: string | null;
 }
 

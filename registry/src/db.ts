@@ -1,4 +1,4 @@
-import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SubmissionRecord } from "./types";
+import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SearchResultItem, SubmissionRecord } from "./types";
 import { tagsText } from "./ids";
 
 interface Row {
@@ -90,10 +90,10 @@ export class D1RegistryStore implements RegistryStore {
       this.db.prepare(
         `INSERT INTO sites (
           id, canonical_url, manifest_url, site_title, handle, description, site_url, public_key,
-          bundle_fingerprint, generated_at, last_verified_at, hidden, created_at, updated_at,
+          bundle_fingerprint, logo_url, details_json, generated_at, last_verified_at, hidden, created_at, updated_at,
           latest_crawl_status, latest_crawl_message, last_checked_at, next_check_at,
           check_interval_minutes, unchanged_check_count, failure_count, pending_fingerprint
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           canonical_url = excluded.canonical_url,
           manifest_url = excluded.manifest_url,
@@ -103,6 +103,8 @@ export class D1RegistryStore implements RegistryStore {
           site_url = excluded.site_url,
           public_key = excluded.public_key,
           bundle_fingerprint = excluded.bundle_fingerprint,
+          logo_url = excluded.logo_url,
+          details_json = excluded.details_json,
           generated_at = excluded.generated_at,
           last_verified_at = excluded.last_verified_at,
           updated_at = excluded.updated_at,
@@ -124,6 +126,8 @@ export class D1RegistryStore implements RegistryStore {
         site.siteUrl,
         site.publicKey,
         site.bundleFingerprint,
+        site.logoUrl,
+        JSON.stringify(site.details || {}),
         site.generatedAt,
         now,
         site.hidden,
@@ -144,9 +148,9 @@ export class D1RegistryStore implements RegistryStore {
       statements.push(
         this.db.prepare(
           `INSERT INTO posts (
-            id, site_id, slug, title, url, excerpt, tags_json, tags_text, digest, published_at,
-            search_text, visible, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            id, site_id, slug, title, url, excerpt, tags_json, tags_text, digest, thumbnail_url,
+            details_json, published_at, search_text, visible, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         ).bind(
           post.id,
           site.id,
@@ -157,6 +161,8 @@ export class D1RegistryStore implements RegistryStore {
           JSON.stringify(post.tags),
           tagsText(post.tags),
           post.digest,
+          post.thumbnailUrl,
+          JSON.stringify(post.details || {}),
           post.publishedAt,
           post.searchText,
           now,
@@ -198,8 +204,9 @@ export class D1RegistryStore implements RegistryStore {
 
   async getPostsForSite(id: string, limit = 100): Promise<RegistryPost[]> {
     const result = await this.db.prepare(
-      `SELECT id AS post_id, site_id, slug, title, url, excerpt, tags_json, digest, published_at,
-        search_text, visible, created_at AS post_created_at, updated_at AS post_updated_at
+      `SELECT id AS post_id, site_id, slug, title, url, excerpt, tags_json, digest, thumbnail_url,
+        details_json AS post_details_json, published_at, search_text, visible,
+        created_at AS post_created_at, updated_at AS post_updated_at
        FROM posts
        WHERE site_id = ? AND visible = 1
        ORDER BY published_at DESC, id DESC
@@ -260,51 +267,110 @@ export class D1RegistryStore implements RegistryStore {
 
   async search(params: SearchParams): Promise<SearchResult> {
     const limit = Math.min(Math.max(params.limit || 20, 1), 50);
+    const scope = params.scope || "content";
+    const rows = [
+      ...(scope === "shell" ? [] : await this.searchContentRows(params, limit + 1)),
+      ...(scope === "content" ? [] : await this.searchShellRows(params, limit + 1)),
+    ].sort(compareSearchRows);
+    const pageRows = rows.slice(0, limit);
+    const items = pageRows.map(searchRowToItem);
+    const nextCursor = rows.length > limit ? makeCursorForItem(items.at(-1)) : null;
+    return {
+      items,
+      nextCursor,
+    };
+  }
+
+  private async searchContentRows(params: SearchParams, limit: number): Promise<Row[]> {
     const conditions = ["s.hidden = 0", "p.visible = 1"];
     const values: unknown[] = [];
-    if (params.q) {
-      const like = `%${escapeLike(params.q)}%`;
-      conditions.push(
-        `(p.search_text LIKE ? ESCAPE '\\'
-          OR s.site_title LIKE ? ESCAPE '\\'
-          OR s.description LIKE ? ESCAPE '\\'
-          OR s.handle LIKE ? ESCAPE '\\'
-          OR s.canonical_url LIKE ? ESCAPE '\\'
-          OR s.site_url LIKE ? ESCAPE '\\')`,
-      );
-      values.push(like, like, like, like, like, like);
-    }
-    if (params.tag) {
-      conditions.push("p.tags_text LIKE ?");
-      values.push(`%|${params.tag}|%`);
-    }
-    const cursor = parseCursor(params.cursor);
-    if (cursor) {
-      conditions.push("(p.published_at < ? OR (p.published_at = ? AND p.id < ?))");
-      values.push(cursor.publishedAt, cursor.publishedAt, cursor.id);
-    }
-    values.push(limit + 1);
+    addContentSearchConditions(conditions, values, params);
+    values.push(limit);
     const result = await this.db.prepare(
       `SELECT
+        'content' AS result_type, p.published_at AS sort_at,
         s.id AS site_id, s.canonical_url, s.manifest_url, s.site_title, s.handle, s.description,
-        s.site_url, s.public_key, s.bundle_fingerprint, s.generated_at, s.last_verified_at,
-        s.hidden, s.created_at AS site_created_at, s.updated_at AS site_updated_at,
-        s.latest_crawl_status, s.latest_crawl_message,
-        p.id AS post_id, p.slug, p.title, p.url, p.excerpt, p.tags_json, p.digest,
-        p.published_at, p.search_text, p.visible, p.created_at AS post_created_at, p.updated_at AS post_updated_at
+        s.site_url, s.public_key, s.bundle_fingerprint, s.logo_url, s.details_json AS site_details_json,
+        s.generated_at, s.last_verified_at, s.hidden, s.created_at AS site_created_at,
+        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message,
+        p.id AS post_id, p.slug, p.title, p.url, p.excerpt, p.tags_json, p.digest, p.thumbnail_url,
+        p.details_json AS post_details_json, p.published_at, p.search_text, p.visible,
+        p.created_at AS post_created_at, p.updated_at AS post_updated_at
        FROM posts p
        JOIN sites s ON s.id = p.site_id
        WHERE ${conditions.join(" AND ")}
        ORDER BY p.published_at DESC, p.id DESC
        LIMIT ?`,
     ).bind(...values).all<Row>();
-    const rows = result.results || [];
-    const pageRows = rows.slice(0, limit);
-    const nextCursor = rows.length > limit ? makeCursor(rowToPost(rows[limit])) : null;
-    return {
-      items: pageRows.map((row) => ({ site: rowToSite(row), post: rowToPost(row) })),
-      nextCursor,
-    };
+    return result.results || [];
+  }
+
+  private async searchShellRows(params: SearchParams, limit: number): Promise<Row[]> {
+    const conditions = ["s.hidden = 0"];
+    const values: unknown[] = [];
+    if (params.q) {
+      const like = `%${escapeLike(params.q)}%`;
+      conditions.push(
+        `(s.site_title LIKE ? ESCAPE '\\'
+          OR s.description LIKE ? ESCAPE '\\'
+          OR s.handle LIKE ? ESCAPE '\\'
+          OR s.canonical_url LIKE ? ESCAPE '\\'
+          OR s.site_url LIKE ? ESCAPE '\\')`,
+      );
+      values.push(like, like, like, like, like);
+    }
+    if (params.tag) {
+      conditions.push(
+        `EXISTS (
+          SELECT 1 FROM posts p2
+          WHERE p2.site_id = s.id AND p2.visible = 1 AND p2.tags_text LIKE ?
+        )`,
+      );
+      values.push(`%|${params.tag}|%`);
+    }
+    const cursor = parseCursor(params.cursor);
+    if (cursor) {
+      conditions.push("((COALESCE(s.last_verified_at, s.generated_at) < ?) OR (COALESCE(s.last_verified_at, s.generated_at) = ? AND s.id < ?))");
+      values.push(cursor.sortAt, cursor.sortAt, cursor.id);
+    }
+    values.push(limit);
+    const result = await this.db.prepare(
+      `SELECT
+        'shell' AS result_type, COALESCE(s.last_verified_at, s.generated_at) AS sort_at,
+        s.id AS site_id, s.canonical_url, s.manifest_url, s.site_title, s.handle, s.description,
+        s.site_url, s.public_key, s.bundle_fingerprint, s.logo_url, s.details_json AS site_details_json,
+        s.generated_at, s.last_verified_at, s.hidden, s.created_at AS site_created_at,
+        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message
+       FROM sites s
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY COALESCE(s.last_verified_at, s.generated_at) DESC, s.id DESC
+       LIMIT ?`,
+    ).bind(...values).all<Row>();
+    return result.results || [];
+  }
+}
+
+function addContentSearchConditions(conditions: string[], values: unknown[], params: SearchParams): void {
+  if (params.q) {
+    const like = `%${escapeLike(params.q)}%`;
+    conditions.push(
+      `(p.search_text LIKE ? ESCAPE '\\'
+        OR s.site_title LIKE ? ESCAPE '\\'
+        OR s.description LIKE ? ESCAPE '\\'
+        OR s.handle LIKE ? ESCAPE '\\'
+        OR s.canonical_url LIKE ? ESCAPE '\\'
+        OR s.site_url LIKE ? ESCAPE '\\')`,
+    );
+    values.push(like, like, like, like, like, like);
+  }
+  if (params.tag) {
+    conditions.push("p.tags_text LIKE ?");
+    values.push(`%|${params.tag}|%`);
+  }
+  const cursor = parseCursor(params.cursor);
+  if (cursor) {
+    conditions.push("(p.published_at < ? OR (p.published_at = ? AND p.id < ?))");
+    values.push(cursor.sortAt, cursor.sortAt, cursor.id);
   }
 }
 
@@ -332,6 +398,8 @@ function rowToSite(row: Row): RegistrySite {
     siteUrl: String(row.site_url || ""),
     publicKey: String(row.public_key || ""),
     bundleFingerprint: String(row.bundle_fingerprint || ""),
+    logoUrl: String(row.logo_url || ""),
+    details: parseDetails(row.site_details_json || row.details_json),
     generatedAt: String(row.generated_at || ""),
     lastVerifiedAt: String(row.last_verified_at || ""),
     hidden: Number(row.hidden || 0),
@@ -358,12 +426,22 @@ function rowToPost(row: Row): RegistryPost {
     excerpt: String(row.excerpt || ""),
     tags: parseTags(row.tags_json),
     digest: String(row.digest || ""),
+    thumbnailUrl: String(row.thumbnail_url || ""),
+    details: parseDetails(row.post_details_json || row.details_json),
     publishedAt: String(row.published_at || ""),
     searchText: String(row.search_text || ""),
     visible: Number(row.visible || 0),
     createdAt: String(row.post_created_at || row.created_at || ""),
     updatedAt: String(row.post_updated_at || row.updated_at || ""),
   };
+}
+
+function searchRowToItem(row: Row): SearchResultItem {
+  const site = rowToSite(row);
+  if (row.result_type === "shell") {
+    return { type: "shell", site, shell: site, sortAt: String(row.sort_at || site.lastVerifiedAt || site.generatedAt || "") };
+  }
+  return { type: "content", site, post: rowToPost(row), sortAt: String(row.sort_at || row.published_at || "") };
 }
 
 function parseTags(value: unknown): string[] {
@@ -375,24 +453,44 @@ function parseTags(value: unknown): string[] {
   }
 }
 
+function parseDetails(value: unknown): Record<string, unknown> {
+  try {
+    const details = JSON.parse(String(value || "{}"));
+    return details && typeof details === "object" && !Array.isArray(details) ? details as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/gu, (match) => `\\${match}`);
 }
 
-function makeCursor(post: RegistryPost): string {
-  return btoa(JSON.stringify({ publishedAt: post.publishedAt, id: post.id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+function makeCursorForItem(item?: SearchResultItem): string | null {
+  if (!item) return null;
+  const id = item.type === "shell" ? item.shell.id : item.post.id;
+  const sortAt = item.sortAt || (item.type === "shell" ? item.shell.lastVerifiedAt || item.shell.generatedAt : item.post.publishedAt);
+  return btoa(JSON.stringify({ sortAt, id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
 }
 
-function parseCursor(value: string | null): { publishedAt: string; id: string } | null {
+function parseCursor(value: string | null): { sortAt: string; id: string } | null {
   if (!value) return null;
   try {
     const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
     const parsed = JSON.parse(atob(padded));
-    if (typeof parsed.publishedAt === "string" && typeof parsed.id === "string") return parsed;
+    if (typeof parsed.sortAt === "string" && typeof parsed.id === "string") return parsed;
+    if (typeof parsed.publishedAt === "string" && typeof parsed.id === "string") return { sortAt: parsed.publishedAt, id: parsed.id };
     return null;
   } catch {
     return null;
   }
+}
+
+function compareSearchRows(left: Row, right: Row): number {
+  const leftSort = String(left.sort_at || left.published_at || left.last_verified_at || "");
+  const rightSort = String(right.sort_at || right.published_at || right.last_verified_at || "");
+  if (leftSort !== rightSort) return rightSort.localeCompare(leftSort);
+  return String(right.post_id || right.site_id || "").localeCompare(String(left.post_id || left.site_id || ""));
 }
 
 function addMinutes(value: string, minutes: number): string {

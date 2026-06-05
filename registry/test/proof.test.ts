@@ -39,6 +39,49 @@ async function proofFixture() {
   };
 }
 
+async function proofFixtureWithImage() {
+  const keys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Illustrated Registry Proof",
+    body: "This full image post body must not be indexed by the registry. PRIVATE_BODY_ONLY_PHRASE.",
+    excerpt: "Public illustrated proof summary.",
+    tags: ["Registry", "Image"],
+    status: "published",
+    imageIds: ["image-1"],
+    createdAt: "2026-06-05T00:00:00.000Z"
+  });
+  const assets: any[] = [{
+    id: "image-1",
+    name: "Proof Photo.png",
+    type: "image/png",
+    dataBase64: "iVBORw0KGgo=",
+    alt: "Proof photo",
+    createdAt: "2026-06-05T00:00:00.000Z"
+  }];
+  const result = await buildStaticExport({
+    profile: {
+      siteTitle: "Illustrated Registry Feed",
+      description: "Signed summary feed with image.",
+      handle: "image-feed",
+      siteUrl: "https://creator.example",
+      about: "About image feed."
+    },
+    settings: { showPoweredBy: false },
+    posts: [post],
+    assets,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z"
+  } as any);
+  const files = unzipSync(result.zipBytes, {}) as Record<string, Uint8Array>;
+  return {
+    wellKnown: JSON.parse(decodeText(files[".well-known/postsnail.json"])),
+    manifest: JSON.parse(decodeText(files["postsnail.manifest.json"])),
+    keys
+  };
+}
+
 describe("remote PostSnail proof verification", () => {
   test("accepts valid proof documents and extracts summary-only posts", async () => {
     const { wellKnown, manifest } = await proofFixture();
@@ -55,6 +98,30 @@ describe("remote PostSnail proof verification", () => {
       url: "https://creator.example/posts/registry-proof/"
     });
     expect("body" in verification.posts[0]).toBe(false);
+  });
+
+  test("extracts public thumbnail and details without indexing post bodies", async () => {
+    const { wellKnown, manifest } = await proofFixtureWithImage();
+    const verification = verifyProofDocuments("https://creator.example/", wellKnown, manifest);
+
+    expect(verification.ok).toBe(true);
+    expect(verification.site).toMatchObject({
+      logoUrl: "",
+      details: expect.objectContaining({
+        manifestUrl: "https://creator.example/postsnail.manifest.json",
+        generatedAt: "2026-06-05T00:00:00.000Z"
+      })
+    });
+    expect(verification.posts[0]).toMatchObject({
+      thumbnailUrl: "https://creator.example/assets/proof-photo.png",
+      details: expect.objectContaining({
+        slug: "illustrated-registry-proof",
+        imageFiles: ["proof-photo.png"],
+        digest: expect.stringMatching(/^[a-f0-9]{128}$/)
+      })
+    });
+    expect(JSON.stringify(verification.posts[0].details)).not.toContain("PRIVATE_BODY_ONLY_PHRASE");
+    expect("body" in verification.posts[0].details).toBe(false);
   });
 
   test("rejects tampered post records", async () => {
