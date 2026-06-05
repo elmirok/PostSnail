@@ -2,6 +2,8 @@ import { canonicalJson } from "../../src/canonical.js";
 import { encodeText } from "../../src/bytes.js";
 import { normalizeTags } from "../../src/content.js";
 import { fingerprintForBytes, sha3Hex, textToBytes, verifyBytes } from "../../src/crypto.js";
+import { verifyIdentityDocument } from "../../src/proof-documents.js";
+import { DIGEST_SUITE, FINGERPRINT_SUITE, MANIFEST_VERSION, POSTSNAIL_PROTOCOL, SIGNATURE_SUITE } from "../../src/protocol.js";
 import { normalizedSearchText, stableId, tagsText } from "./ids";
 import { sameOriginUrl } from "./url";
 import type { RegistryPost, RegistrySite } from "./types";
@@ -30,11 +32,11 @@ export function verifyProofDocuments(siteUrl: string, wellKnown: unknown, manife
   const publicKeyText = stringValue(manifestRecord.publicKey);
   const publicKey = safeBytes(publicKeyText);
 
-  add(errors, wellKnownRecord.protocol === "postsnail-v1", ".well-known protocol mismatch.");
-  add(errors, manifestRecord.manifestVersion === 1, "Unsupported manifest version.");
-  add(errors, objectRecord(manifestRecord.algorithm).digest === "SHA3-512", "Manifest does not declare SHA3-512 digests.");
-  add(errors, objectRecord(manifestRecord.algorithm).signature === "ML-DSA-65", "Manifest does not declare ML-DSA-65 signatures.");
-  add(errors, objectRecord(manifestRecord.algorithm).fingerprint === "psn1-sha3-512", "Manifest does not declare psn1-sha3-512 fingerprints.");
+  add(errors, wellKnownRecord.protocol === POSTSNAIL_PROTOCOL, ".well-known protocol mismatch.");
+  add(errors, manifestRecord.manifestVersion === MANIFEST_VERSION, "Unsupported manifest version.");
+  add(errors, objectRecord(manifestRecord.algorithm).digest === DIGEST_SUITE, "Manifest does not declare SHA3-512 digests.");
+  add(errors, objectRecord(manifestRecord.algorithm).signature === SIGNATURE_SUITE, "Manifest does not declare ML-DSA-65 signatures.");
+  add(errors, objectRecord(manifestRecord.algorithm).fingerprint === FINGERPRINT_SUITE, "Manifest does not declare psn1-sha3-512 fingerprints.");
   add(errors, Boolean(publicKey), "Manifest public key is missing or invalid.");
   add(errors, stringValue(wellKnownRecord.publicKey) === publicKeyText, ".well-known public key mismatch.");
   add(errors, stringValue(wellKnownRecord.bundleFingerprint) === stringValue(manifestRecord.bundleFingerprint), ".well-known bundle fingerprint mismatch.");
@@ -42,6 +44,10 @@ export function verifyProofDocuments(siteUrl: string, wellKnown: unknown, manife
   add(errors, stringValue(wellKnownRecord.handle) === stringValue(siteRecord.handle), ".well-known handle mismatch.");
   add(errors, stringValue(wellKnownRecord.siteUrl) === stringValue(siteRecord.siteUrl), ".well-known site URL mismatch.");
   add(errors, stringValue(wellKnownRecord.generatedAt) === stringValue(manifestRecord.generatedAt), ".well-known generated time mismatch.");
+  if (stringValue(wellKnownRecord.identitySignature)) {
+    const identity = verifyIdentityDocument(wellKnownRecord, { manifest: manifestRecord, siteUrl } as any);
+    add(errors, identity.ok, identity.errors.join(" "));
+  }
 
   if (publicKey) {
     const { manifestSignature, ...payload } = manifestRecord;
@@ -126,7 +132,7 @@ function buildSite(siteUrl: string, manifestUrl: string, site: Record<string, un
 }
 
 function resolveManifestUrl(siteUrl: string, wellKnown: Record<string, unknown>, errors: string[]): string {
-  const pointer = stringValue(wellKnown.manifest);
+  const pointer = stringValue(wellKnown.manifestUrl) || stringValue(wellKnown.manifest);
   try {
     const manifestUrl = sameOriginUrl(siteUrl, pointer || "postsnail.manifest.json");
     return manifestUrl.toString();

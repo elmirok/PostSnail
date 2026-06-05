@@ -16,9 +16,11 @@ import {
   loadAppState,
   replaceAppState,
   saveAsset,
+  saveCommitHistory,
   saveIdentity,
   savePost,
   saveProfile,
+  saveSettings,
 } from "./src/storage.js";
 import { verifyPostSnailZip } from "./src/verifier.js";
 
@@ -40,11 +42,13 @@ const state = {
   posts: [],
   assets: [],
   identity: null,
-  settings: { warnMetadata: true },
+  settings: { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" },
+  commitHistory: [],
   form: emptyPostForm(),
   secretKey: null,
   lastManifest: null,
   lastExportVerification: null,
+  lastAnnouncePayload: null,
   verifyResult: null,
 };
 
@@ -56,7 +60,8 @@ async function init() {
   const loaded = await loadAppState();
   state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
   state.identity = loaded.identity;
-  state.settings = { warnMetadata: true, ...(loaded.settings || {}) };
+  state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
+  state.commitHistory = loaded.commitHistory || [];
   state.posts = loaded.posts;
   state.assets = loaded.assets;
   state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
@@ -87,6 +92,10 @@ app.addEventListener("input", (event) => {
     state.profile[input.dataset.profileField] = input.value;
     saveProfile(state.profile);
   }
+  if (input.matches("[data-settings-field]")) {
+    state.settings[input.dataset.settingsField] = input.value;
+    saveSettings(state.settings);
+  }
 });
 
 app.addEventListener("change", async (event) => {
@@ -94,6 +103,10 @@ app.addEventListener("change", async (event) => {
   if (input.matches("[data-post-field]")) {
     state.form[input.dataset.postField] = input.value;
     updatePreview();
+  }
+  if (input.matches("[data-settings-field]")) {
+    state.settings[input.dataset.settingsField] = input.value;
+    saveSettings(state.settings);
   }
   if (input.id === "image-upload") {
     await addImages(input.files);
@@ -177,6 +190,11 @@ async function handleAction(button) {
     setStatus("Manifest signature copied.");
     return;
   }
+  if (action === "copy-announce-payload") {
+    await copyText(state.lastAnnouncePayload ? JSON.stringify(state.lastAnnouncePayload, null, 2) : "");
+    setStatus("Announce payload copied. It is not sent anywhere by PostSnail.");
+    return;
+  }
   if (action === "go-verify") {
     state.activeTab = "verify";
     setStatus("Choose the ZIP you just downloaded to verify it locally.");
@@ -193,13 +211,15 @@ async function handleAction(button) {
       await clearAppState();
       state.profile = { ...defaultProfile };
       state.identity = null;
-      state.settings = { warnMetadata: true };
+      state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" };
+      state.commitHistory = [];
       state.posts = [];
       state.assets = [];
       state.form = emptyPostForm();
       state.secretKey = null;
       state.lastManifest = null;
       state.lastExportVerification = null;
+      state.lastAnnouncePayload = null;
       state.verifyResult = null;
       state.activeTab = "write";
       setStatus("Local data cleared.");
@@ -313,13 +333,18 @@ async function generateSiteZip() {
     profile: state.profile,
     posts: state.posts,
     assets: state.assets,
+    settings: state.settings,
+    commitHistory: state.commitHistory,
     publicKey: textToBytes(state.identity.publicKey),
     secretKey: state.secretKey,
   });
   const verification = await verifyPostSnailZip(result.zipBytes);
   downloadBytes(result.zipBytes, result.filename, "application/zip");
   state.lastManifest = result.manifest;
+  state.commitHistory = result.commitHistory;
+  state.lastAnnouncePayload = result.announcePayload;
   state.lastExportVerification = verification;
+  await saveCommitHistory(state.commitHistory);
   setStatus(
     verification.ok
       ? `ZIP ready and verified locally. Fingerprint: ${result.manifest.bundleFingerprint}`
@@ -362,12 +387,14 @@ async function importBackupFile(file) {
     const loaded = await loadAppState();
     state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
     state.identity = loaded.identity;
-    state.settings = { warnMetadata: true, ...(loaded.settings || {}) };
+    state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
+    state.commitHistory = loaded.commitHistory || [];
     state.posts = loaded.posts;
     state.assets = loaded.assets;
     state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
     state.secretKey = null;
     state.lastManifest = null;
+    state.lastAnnouncePayload = null;
     setStatus("Backup imported. Unlock the key before generating a site.");
     render();
   } catch (error) {
@@ -575,6 +602,27 @@ function renderGenerate() {
           <span>About page Markdown</span>
           <textarea class="compact" data-profile-field="about">${escapeHtml(state.profile.about)}</textarea>
         </label>
+        <div class="grid-2">
+          <label class="field">
+            <span>Language</span>
+            <input data-settings-field="language" value="${escapeAttr(state.settings.language || "en")}" placeholder="en">
+          </label>
+          <label class="field">
+            <span>Indexing</span>
+            <select data-settings-field="indexingPolicy">
+              <option value="allow" ${(state.settings.indexingPolicy || "allow") === "allow" ? "selected" : ""}>Allow discovery</option>
+              <option value="noindex" ${state.settings.indexingPolicy === "noindex" ? "selected" : ""}>No public indexing</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Topics</span>
+          <input data-settings-field="topics" value="${escapeAttr(state.settings.topics || "")}" placeholder="protocol, notes, research">
+        </label>
+        <label class="field">
+          <span>Preferred trackers</span>
+          <textarea class="compact" data-settings-field="preferredTrackers" placeholder="https://tracker.example/announce">${escapeHtml(state.settings.preferredTrackers || "")}</textarea>
+        </label>
         <div class="actions">
           <button class="btn primary" type="button" data-action="generate-site" ${canGenerate ? "" : "disabled"}>Download signed ZIP</button>
           <button class="btn" type="button" data-action="go-verify">Verify a ZIP</button>
@@ -602,6 +650,7 @@ function renderGenerate() {
             <div class="actions">
               <button class="btn small" type="button" data-action="copy-fingerprint">Copy fingerprint</button>
               <button class="btn small" type="button" data-action="copy-manifest-signature">Copy manifest signature</button>
+              <button class="btn small" type="button" data-action="copy-announce-payload">Copy announce payload</button>
               <button class="btn small" type="button" data-action="go-verify">Verify this ZIP</button>
             </div>
             <p>${state.lastExportVerification?.ok ? "The downloaded ZIP was verified locally immediately after generation." : "Choose the downloaded ZIP in Verify to inspect the proof."}</p>
@@ -730,10 +779,23 @@ function renderVerifyResult(result) {
       <div class="metric"><span>Files</span><b>${result.summary.fileCount || 0}</b></div>
       <div class="metric"><span>Site</span><b>${escapeHtml(result.summary.siteTitle || "Unknown")}</b></div>
     </div>
+    <div class="grid-3">
+      <div class="metric"><span>ZIP</span><b>${result.summary.zipVerified ? "Verified" : "Failed"}</b></div>
+      <div class="metric"><span>Manifest</span><b>${result.summary.manifestSignatureValid ? "Valid" : "Invalid"}</b></div>
+      <div class="metric"><span>Posts</span><b>${result.summary.postSignaturesValid ? "Valid" : "Invalid"}</b></div>
+      <div class="metric"><span>File hashes</span><b>${result.summary.fileHashesValid ? "Valid" : "Invalid"}</b></div>
+      <div class="metric"><span>Identity</span><b>${result.summary.identityValid ? "Valid" : "Invalid"}</b></div>
+      <div class="metric"><span>Domain</span><b>${escapeHtml(result.summary.domainBinding || "unknown")}</b></div>
+      <div class="metric"><span>Commits</span><b>${result.summary.commitHistoryValid ? "Valid" : "Missing/legacy"}</b></div>
+    </div>
     ${result.summary.bundleFingerprint ? `
       <div class="metric">
         <span>Fingerprint</span>
         <b class="hash-cell">${escapeHtml(result.summary.bundleFingerprint)}</b>
+      </div>
+      <div class="metric">
+        <span>Public key</span>
+        <b class="hash-cell">${escapeHtml(result.summary.publicKey || "")}</b>
       </div>
       <div class="actions">
         <button class="btn small" type="button" data-action="copy-fingerprint">Copy fingerprint</button>
@@ -787,6 +849,7 @@ function snapshotState() {
     assets: state.assets,
     identity: state.identity,
     settings: state.settings,
+    commitHistory: state.commitHistory,
   };
 }
 

@@ -3,6 +3,30 @@ import { canonicalJson } from "./canonical.js";
 import { buildExcerpt, slugify } from "./content.js";
 import { decodeBase64, encodeBase64, encodeText } from "./bytes.js";
 import {
+  buildAnnouncePayload,
+  buildCommitLog,
+  buildCommitRecord,
+  buildDiscovery,
+  buildIdentityDocument,
+  normalizeDiscoverySettings,
+  normalizeSiteUrl,
+  siteUrlForPath,
+} from "./proof-documents.js";
+import {
+  DIGEST_SUITE,
+  FEED_PATH,
+  FINGERPRINT_SUITE,
+  LATEST_COMMIT_PATH,
+  MANIFEST_PATH,
+  MANIFEST_VERSION,
+  POSTSNAIL_PROTOCOL,
+  RSS_PATH,
+  SIGNATURE_SUITE,
+  SITEMAP_PATH,
+  WELL_KNOWN_PATH,
+  COMMITS_PATH,
+} from "./protocol.js";
+import {
   fingerprintForBytes,
   publicKeyToText,
   sha3Hex,
@@ -17,11 +41,14 @@ export async function buildStaticExport({
   profile,
   posts,
   assets = [],
+  settings = {},
+  commitHistory = [],
   publicKey,
   secretKey,
   generatedAt = new Date().toISOString(),
 }) {
   const cleanProfile = normalizeProfile(profile);
+  const cleanSettings = normalizeDiscoverySettings(settings);
   const publishedPosts = posts
     .filter((post) => post.status === "published")
     .slice()
@@ -45,6 +72,7 @@ export async function buildStaticExport({
   files["about/index.html"] = htmlBytes(renderAbout(cleanProfile));
   files["feed.json"] = htmlBytes(renderFeedJson(cleanProfile, publishedPosts, postProofs));
   files["rss.xml"] = htmlBytes(renderRss(cleanProfile, publishedPosts));
+  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts));
   for (const post of publishedPosts) {
     files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap));
   }
@@ -58,14 +86,15 @@ export async function buildStaticExport({
   const fileDigests = digestFiles(files);
   const bundleFingerprint = fingerprintForBytes(encodeText(canonicalJson({ files: fileDigests, posts: postProofs })));
   const manifestPayload = {
-    manifestVersion: 1,
+    manifestVersion: MANIFEST_VERSION,
     generator: { name: "PostSnail", version: GENERATOR_VERSION },
     generatedAt,
     site: cleanProfile,
+    discovery: buildDiscovery(cleanProfile, cleanSettings),
     algorithm: {
-      digest: "SHA3-512",
-      signature: "ML-DSA-65",
-      fingerprint: "psn1-sha3-512",
+      digest: DIGEST_SUITE,
+      signature: SIGNATURE_SUITE,
+      fingerprint: FINGERPRINT_SUITE,
     },
     publicKey: publicKeyText,
     posts: postProofs,
@@ -74,28 +103,43 @@ export async function buildStaticExport({
   };
   const manifestSignature = signatureToText(signBytes(encodeText(canonicalJson(manifestPayload)), secretKey));
   const manifest = { ...manifestPayload, manifestSignature };
-  files["postsnail.manifest.json"] = htmlBytes(JSON.stringify(manifest, null, 2));
-  files[".well-known/postsnail.json"] = htmlBytes(
-    JSON.stringify(
-      {
-        protocol: "postsnail-v1",
-        siteTitle: cleanProfile.siteTitle,
-        handle: cleanProfile.handle,
-        siteUrl: cleanProfile.siteUrl,
-        publicKey: publicKeyText,
-        manifest: "postsnail.manifest.json",
-        bundleFingerprint,
-        generatedAt,
-      },
-      null,
-      2,
-    ),
-  );
+  const identity = buildIdentityDocument({
+    profile: cleanProfile,
+    settings: cleanSettings,
+    publicKey: publicKeyText,
+    bundleFingerprint,
+    generatedAt,
+    secretKey,
+  });
+  const latestCommit = buildCommitRecord({
+    commitHistory,
+    manifest,
+    generatedAt,
+    publicKey: publicKeyText,
+    secretKey,
+  });
+  const nextCommitHistory = [...commitHistory, latestCommit];
+  const commitLog = buildCommitLog(nextCommitHistory);
+  const announcePayload = buildAnnouncePayload({
+    identity,
+    manifest,
+    publicKey: publicKeyText,
+    secretKey,
+    generatedAt,
+  });
+  files[MANIFEST_PATH] = htmlBytes(JSON.stringify(manifest, null, 2));
+  files[WELL_KNOWN_PATH] = htmlBytes(JSON.stringify(identity, null, 2));
+  files[LATEST_COMMIT_PATH] = htmlBytes(JSON.stringify(latestCommit, null, 2));
+  files[COMMITS_PATH] = htmlBytes(JSON.stringify(commitLog, null, 2));
 
   return {
     filename: `postsnail-${slugify(cleanProfile.siteTitle)}.zip`,
     zipBytes: zipSync(files, { level: 9 }),
     manifest,
+    wellKnown: identity,
+    latestCommit,
+    commitHistory: nextCommitHistory,
+    announcePayload,
   };
 }
 
@@ -104,7 +148,7 @@ function normalizeProfile(profile = {}) {
     siteTitle: String(profile.siteTitle || "Untitled Microblog").trim(),
     description: String(profile.description || "A signed static microblog.").trim(),
     handle: slugify(profile.handle || profile.siteTitle || "creator"),
-    siteUrl: String(profile.siteUrl || "").trim().replace(/\/+$/u, ""),
+    siteUrl: normalizeSiteUrl(profile.siteUrl),
     about: String(profile.about || "").trim(),
   };
 }
@@ -163,6 +207,7 @@ function extensionForAsset(asset) {
 function renderIndex(profile, posts, proofs, assetMap) {
   return renderPage(profile, {
     title: profile.siteTitle,
+    path: "",
     body: `
       <section class="hero">
         <p class="kicker">@${escapeHtml(profile.handle)}</p>
@@ -179,6 +224,7 @@ function renderIndex(profile, posts, proofs, assetMap) {
 function renderArchive(profile, posts) {
   return renderPage(profile, {
     title: `Archive - ${profile.siteTitle}`,
+    path: "archive/",
     body: `
       <h1>Archive</h1>
       <ol class="archive-list">
@@ -193,6 +239,7 @@ function renderAbout(profile) {
   const body = profile.about ? renderMarkdown(profile.about) : `<p>${escapeHtml(profile.description)}</p>`;
   return renderPage(profile, {
     title: `About - ${profile.siteTitle}`,
+    path: "about/",
     body: `<h1>About</h1>${body}`,
     rootPrefix: "../",
   });
@@ -207,6 +254,9 @@ function renderPost(profile, post, proofs, assetMap) {
     .join("");
   return renderPage(profile, {
     title: `${post.title || post.slug} - ${profile.siteTitle}`,
+    path: `posts/${post.slug}/`,
+    type: "article",
+    post,
     body: `
       <article class="post-full">
         <p class="kicker">${formatDate(post.publishedAt)}</p>
@@ -225,6 +275,7 @@ function renderTag(profile, tag, posts) {
   const tagged = posts.filter((post) => post.tags.includes(tag));
   return renderPage(profile, {
     title: `#${tag} - ${profile.siteTitle}`,
+    path: `tags/${tag}/`,
     body: `<h1>#${escapeHtml(tag)}</h1><section class="feed">${tagged.map((post) => renderPostCard(post, [], new Map())).join("")}</section>`,
     rootPrefix: "../../",
   });
@@ -294,7 +345,30 @@ function renderRss(profile, posts) {
 </rss>`;
 }
 
-function renderPage(profile, { title, body, rootPrefix = "" }) {
+function renderSitemap(profile, posts) {
+  const urls = [
+    ["", latestPostDate(posts)],
+    ["archive/", latestPostDate(posts)],
+    ["about/", ""],
+    [FEED_PATH, latestPostDate(posts)],
+    [RSS_PATH, latestPostDate(posts)],
+    ...posts.map((post) => [`posts/${post.slug}/`, post.updatedAt || post.publishedAt || post.createdAt]),
+    ...tagsForPosts(posts).map((tag) => [`tags/${tag}/`, latestPostDate(posts.filter((post) => post.tags.includes(tag)))]),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls
+  .map(([path, updatedAt]) => `  <url>
+    <loc>${escapeXml(siteUrlForPath(profile.siteUrl, path))}</loc>
+    ${updatedAt ? `<lastmod>${escapeXml(new Date(updatedAt).toISOString())}</lastmod>` : ""}
+  </url>`)
+  .join("\n")}
+</urlset>`;
+}
+
+function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null }) {
+  const canonicalUrl = siteUrlForPath(profile.siteUrl, path);
+  const jsonLd = post ? articleJsonLd(profile, post, canonicalUrl) : siteJsonLd(profile, canonicalUrl);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -302,8 +376,24 @@ function renderPage(profile, { title, body, rootPrefix = "" }) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(profile.description)}">
+  <link rel="canonical" href="${escapeAttr(canonicalUrl)}">
   <link rel="icon" href="data:,">
-  <link rel="alternate" type="application/rss+xml" href="${rootPrefix}rss.xml">
+  <link rel="alternate" type="application/rss+xml" href="${rootPrefix}${RSS_PATH}">
+  <link rel="alternate" type="application/feed+json" href="${rootPrefix}${FEED_PATH}">
+  <link rel="alternate" type="application/postsnail+json" href="${rootPrefix}${MANIFEST_PATH}">
+  <link rel="sitemap" type="application/xml" href="${rootPrefix}${SITEMAP_PATH}">
+  <meta property="og:type" content="${type === "article" ? "article" : "website"}">
+  <meta property="og:title" content="${escapeAttr(title)}">
+  <meta property="og:description" content="${escapeAttr(post?.excerpt || profile.description)}">
+  <meta property="og:url" content="${escapeAttr(canonicalUrl)}">
+  <meta property="og:site_name" content="${escapeAttr(profile.siteTitle)}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeAttr(title)}">
+  <meta name="twitter:description" content="${escapeAttr(post?.excerpt || profile.description)}">
+  ${post ? `<meta property="article:published_time" content="${escapeAttr(post.publishedAt || post.createdAt || "")}">
+  <meta property="article:modified_time" content="${escapeAttr(post.updatedAt || post.publishedAt || post.createdAt || "")}">
+  ${post.tags.map((tag) => `<meta property="article:tag" content="${escapeAttr(tag)}">`).join("\n  ")}` : ""}
+  <script type="application/ld+json">${jsonScript(jsonLd)}</script>
   <style>${publicCss()}</style>
 </head>
 <body>
@@ -314,6 +404,33 @@ function renderPage(profile, { title, body, rootPrefix = "" }) {
   <main>${body}</main>
 </body>
 </html>`;
+}
+
+function siteJsonLd(profile, url) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: profile.siteTitle,
+    description: profile.description,
+    url,
+  };
+}
+
+function articleJsonLd(profile, post, url) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title || post.slug,
+    description: post.excerpt || buildExcerpt(post.body),
+    datePublished: post.publishedAt || post.createdAt,
+    dateModified: post.updatedAt || post.publishedAt || post.createdAt,
+    url,
+    keywords: post.tags,
+    publisher: {
+      "@type": "Organization",
+      name: profile.siteTitle,
+    },
+  };
 }
 
 function publicCss() {
@@ -357,6 +474,14 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 }
 
+function latestPostDate(posts) {
+  return posts
+    .map((post) => post.updatedAt || post.publishedAt || post.createdAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || "";
+}
+
 function htmlBytes(value) {
   return strToU8(String(value));
 }
@@ -370,6 +495,14 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("\n", "&#10;");
+}
+
 function escapeXml(value) {
   return escapeHtml(value);
+}
+
+function jsonScript(value) {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
 }

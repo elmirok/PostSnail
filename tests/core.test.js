@@ -92,7 +92,15 @@ test("backup export and import round trip app state without raw key plaintext", 
 
   const backup = exportBackup(state);
   assert.equal(backup.includes('"secretKey":'), false);
+  assert.match(JSON.parse(backup).backupFingerprint, /^psn1-sha3-512-/);
   assert.deepEqual(importBackup(backup), state);
+  const tampered = JSON.parse(backup);
+  tampered.state.profile.siteTitle = "Changed";
+  assert.throws(() => importBackup(JSON.stringify(tampered)), /backup fingerprint/i);
+
+  const legacyBackup = JSON.parse(backup);
+  delete legacyBackup.backupFingerprint;
+  assert.deepEqual(importBackup(JSON.stringify(legacyBackup)), state);
 });
 
 test("renderMarkdown sanitizes script tags and event attributes", () => {

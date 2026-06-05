@@ -544,6 +544,17 @@ code {
   animation: donateBlink 0.55s ease-in-out 5;
 }
 
+.remote-shell {
+  width: min(980px, 94vw);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 18px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+  gap: 12px;
+  align-items: start;
+}
+
 @keyframes donateBlink {
   0%,
   100% {
@@ -565,7 +576,8 @@ code {
 
   .grid-2,
   .grid-3,
-  .info-layout {
+  .info-layout,
+  .remote-shell {
     grid-template-columns: 1fr;
   }
 }

@@ -2,10 +2,11 @@ const DB_NAME = "postsnail-v1";
 const DB_VERSION = 1;
 
 export async function loadAppState() {
-  const [profile, identity, settings, posts, assets] = await Promise.all([
+  const [profile, identity, settings, commitHistory, posts, assets] = await Promise.all([
     getKv("profile"),
     getKv("identity"),
     getKv("settings"),
+    getKv("commitHistory"),
     getAll("posts"),
     getAll("assets"),
   ]);
@@ -13,6 +14,7 @@ export async function loadAppState() {
     profile: profile || null,
     identity: identity || null,
     settings: settings || {},
+    commitHistory: Array.isArray(commitHistory) ? commitHistory : [],
     posts: posts.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     assets: assets.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
   };
@@ -28,6 +30,10 @@ export function saveIdentity(identity) {
 
 export function saveSettings(settings) {
   return setKv("settings", settings);
+}
+
+export function saveCommitHistory(commitHistory) {
+  return setKv("commitHistory", Array.isArray(commitHistory) ? commitHistory : []);
 }
 
 export function savePost(post) {
@@ -51,6 +57,7 @@ export async function replaceAppState(nextState) {
     tx.objectStore("kv").put(nextState.profile || null, "profile");
     tx.objectStore("kv").put(nextState.identity || null, "identity");
     tx.objectStore("kv").put(nextState.settings || {}, "settings");
+    tx.objectStore("kv").put(Array.isArray(nextState.commitHistory) ? nextState.commitHistory : [], "commitHistory");
     for (const post of nextState.posts || []) tx.objectStore("posts").put(post);
     for (const asset of nextState.assets || []) tx.objectStore("assets").put(asset);
   });
@@ -128,4 +135,3 @@ function transactionDone(db, stores, mode, callback) {
     callback(tx);
   });
 }
-

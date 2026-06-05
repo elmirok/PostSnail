@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostSnail Remote Verifier</title>
+  <meta name="description" content="Verify a public PostSnail microblog by fetching signed proof metadata.">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="remote-shell">
+    <section class="panel-box fields">
+      <p class="kicker">Remote proof check</p>
+      <h1>Verify a PostSnail site URL.</h1>
+      <p class="help">This fetches public proof files from the creator domain. If the host blocks cross-origin fetches, publish CORS headers or verify the ZIP locally instead.</p>
+      <form id="remote-form" class="fields">
+        <label class="field">
+          <span>Site URL</span>
+          <input id="remote-url" type="url" placeholder="https://creator.example/" required>
+        </label>
+        <button class="btn primary" type="submit">Verify remote site</button>
+      </form>
+    </section>
+    <section class="panel-box">
+      <h2 class="panel-title">Result</h2>
+      <div id="remote-result" class="empty-state"><span>No site checked</span><p>Enter a published PostSnail URL to fetch its signed identity, manifest, and latest commit.</p></div>
+    </section>
+  </main>
+  <script type="module" src="./verify-remote.js"></script>
+</body>
+</html>

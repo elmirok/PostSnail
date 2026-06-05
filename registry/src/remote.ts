@@ -59,6 +59,7 @@ async function readBoundedText(response: Response, maxBytes: number): Promise<st
 
 function getManifestPointer(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const pointer = (value as Record<string, unknown>).manifest;
+  const record = value as Record<string, unknown>;
+  const pointer = record.manifestUrl || record.manifest;
   return typeof pointer === "string" ? pointer : "";
 }

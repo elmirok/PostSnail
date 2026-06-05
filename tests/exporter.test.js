@@ -39,6 +39,8 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   assert.deepEqual(
     [
       ".well-known/postsnail.json",
+      ".well-known/postsnail/commits.json",
+      ".well-known/postsnail/latest-commit.json",
       "about/index.html",
       "archive/index.html",
       "feed.json",
@@ -46,6 +48,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
       "posts/hello-postsnail/index.html",
       "postsnail.manifest.json",
       "rss.xml",
+      "sitemap.xml",
       "tags/intro/index.html",
       "tags/signed/index.html",
     ],
