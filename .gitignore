@@ -4,4 +4,5 @@ node_modules/
 postsnail-export-*.zip
 coverage/
 .wrangler/
+dist/
 registry/.dev.vars

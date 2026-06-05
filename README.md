@@ -19,6 +19,17 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173`.
 
+## Deploy The Admin
+
+The repository contains tests, registry code, and development dependencies that must not be uploaded as static assets. Use the committed Wrangler config and package script:
+
+```bash
+npm install
+npm run deploy
+```
+
+For Cloudflare connected deploys, set the deploy command to `npm run deploy`. The script first prepares `dist/postsnail-admin` with only browser assets, then deploys that directory.
+
 ## Publish Flow
 
 1. Write at least one published post.
