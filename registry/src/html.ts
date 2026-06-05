@@ -4,12 +4,12 @@ export function renderSearchPage(): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PostSnail Registry</title>
-  <meta name="description" content="Register and search post-quantum signed static microblogs with PostSnail.">
+  <title>PostSnail Forest</title>
+  <meta name="description" content="Search and register post-quantum signed static microblogs in PostSnail Forest.">
   <style>
-    :root { color-scheme: light; --ink:#15131d; --muted:#625d70; --line:#ded9ea; --accent:#6c42f5; --ok:#18794e; --warn:#9a5b00; --bad:#b42318; --paper:#fff; --soft:#f6f3fb; --green-soft:#edf8f2; --amber-soft:#fff7e5; --red-soft:#fff1f0; }
+    :root { color-scheme: light; --ink:#080a2f; --muted:#4d4b63; --line:#16163c; --accent:#2f7a55; --coral:#ef4056; --ok:#18794e; --warn:#9a5b00; --bad:#b42318; --paper:#fffdf7; --soft:#f4f6ef; --green-soft:#e4f4e9; --amber-soft:#fff7e5; --red-soft:#fff1f0; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #fbfafc; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: linear-gradient(180deg, rgba(47,122,85,.12), transparent 360px), var(--paper); }
     a { color: inherit; }
     .shell { width: min(1040px, calc(100vw - 28px)); margin: 0 auto; padding: 18px 0 42px; }
     header { display:flex; align-items:center; justify-content:space-between; gap:14px; padding: 10px 0 18px; border-bottom:1px solid var(--line); }
@@ -17,24 +17,24 @@ export function renderSearchPage(): string {
     .brand strong { font-size:1.05rem; }
     .brand span { color:var(--muted); font-size:.86rem; }
     nav { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-    .btn, button { border:1px solid var(--line); background:var(--paper); border-radius:8px; min-height:40px; padding:0 14px; font:inherit; color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+    .btn, button { border:2px solid var(--line); background:var(--paper); border-radius:0; min-height:40px; padding:0 14px; font:inherit; font-weight:800; color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .btn.primary, button.primary { background:var(--accent); border-color:var(--accent); color:white; }
     button:disabled { cursor:not-allowed; opacity:.58; }
     .hero { padding: 34px 0 24px; display:grid; gap:10px; }
-    .kicker { color:var(--accent); font-weight:700; text-transform:uppercase; font-size:.76rem; letter-spacing:0; margin:0; }
+    .kicker { color:var(--coral); font-weight:900; text-transform:uppercase; font-size:.76rem; letter-spacing:0; margin:0; }
     h1 { margin:0; font-size: clamp(2rem, 6vw, 4.6rem); line-height:.98; letter-spacing:0; max-width: 900px; }
     h2 { margin:0; font-size:1.16rem; letter-spacing:0; }
     .hero p:last-child { margin:0; color:var(--muted); max-width:760px; font-size:1.05rem; line-height:1.55; }
     .panels { display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(300px, .9fr); gap:14px; align-items:start; }
-    .panel { background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:14px; display:grid; gap:12px; min-width:0; }
+    .panel { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:12px; min-width:0; box-shadow:6px 6px 0 rgba(8,10,47,.11); }
     .panel p { margin:0; color:var(--muted); line-height:1.45; }
     form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
     .search-form { grid-template-columns:minmax(0, 1fr) minmax(120px, 180px) auto; }
     label { display:grid; gap:6px; color:var(--muted); font-size:.9rem; }
     label span { color:var(--ink); font-weight:700; }
-    input { width:100%; min-height:42px; border:1px solid var(--line); border-radius:8px; padding:0 12px; font:inherit; }
+    input { width:100%; min-height:42px; border:2px solid var(--line); border-radius:0; padding:0 12px; font:inherit; }
     .status { color:var(--muted); min-height:1.4em; line-height:1.45; }
-    .notice { border:1px solid var(--line); border-radius:8px; padding:12px; background:var(--soft); display:grid; gap:8px; min-width:0; }
+    .notice { border:2px solid var(--line); border-radius:0; padding:12px; background:var(--soft); display:grid; gap:8px; min-width:0; }
     .notice strong { color:var(--ink); }
     .notice[data-tone="ok"] { background:var(--green-soft); border-color:#bfe6ce; color:var(--ok); }
     .notice[data-tone="warn"] { background:var(--amber-soft); border-color:#f0d49a; color:var(--warn); }
@@ -42,14 +42,16 @@ export function renderSearchPage(): string {
     .notice code { color:inherit; }
     .actions { display:flex; gap:8px; flex-wrap:wrap; }
     .results { display:grid; gap:10px; margin-top:14px; }
-    .result { background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:14px; display:grid; gap:8px; }
+    .result { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:8px; }
     .result h2 { margin:0; font-size:1.1rem; }
     .result p { margin:0; color:var(--muted); line-height:1.45; }
     .meta, .tags { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:.86rem; }
     .tag { color:var(--accent); }
     code { overflow-wrap:anywhere; color:var(--muted); }
-    .empty { border:1px dashed var(--line); border-radius:8px; padding:20px; color:var(--muted); background:var(--soft); }
-    footer { margin-top:24px; color:var(--muted); display:grid; gap:8px; line-height:1.5; }
+    .empty { border:2px dashed var(--line); border-radius:0; padding:20px; color:var(--muted); background:var(--soft); }
+    footer { margin-top:24px; color:var(--muted); display:grid; gap:10px; line-height:1.5; border-top:2px solid var(--line); padding-top:18px; }
+    footer a { color:var(--ink); font-weight:800; text-decoration-thickness:.08em; }
+    .legal-links { display:flex; gap:10px; flex-wrap:wrap; font-size:.9rem; }
     @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
     @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
   </style>
@@ -57,18 +59,18 @@ export function renderSearchPage(): string {
 <body>
   <main class="shell">
     <header>
-      <a class="brand" href="/"><strong>PostSnail Registry</strong><span>Open index for signed static microblogs</span></a>
+      <a class="brand" href="/"><strong>PostSnail Forest</strong><span>Searchable tracker for signed static microblogs</span></a>
       <nav>
-        <a class="btn" href="https://hilazon6.com" target="_blank" rel="noopener noreferrer">Hilazon6</a>
+        <a class="btn" href="https://postsnail.org/" target="_blank" rel="noopener noreferrer">PostSnail</a>
         <a class="btn" href="/api/search">JSON API</a>
       </nav>
     </header>
     <section class="hero">
-      <p class="kicker">Public proof / Searchable summaries / No login</p>
-      <h1>Register and find creator-owned microblogs.</h1>
-      <p>Paste a published PostSnail URL. The central registry verifies its public proof files, then indexes only site metadata plus post titles, tags, excerpts, dates, and digests.</p>
+      <p class="kicker">Forest / Verified public summaries / No login</p>
+      <h1>Find and register creator-owned microblogs.</h1>
+      <p>PostSnail Forest verifies public proof files, then indexes only site metadata plus post titles, tags, excerpts, dates, and digests.</p>
     </section>
-    <section class="panels" aria-label="Registry actions">
+    <section class="panels" aria-label="Forest actions">
       <section class="panel" aria-labelledby="register-title">
         <h2 id="register-title">Register your microblog</h2>
         <p>Use the public homepage URL of a PostSnail site. Registration verifies proofs; it does not create an account or transfer ownership.</p>
@@ -76,24 +78,26 @@ export function renderSearchPage(): string {
           <label for="site-url"><span>Microblog URL</span><input id="site-url" name="url" type="url" inputmode="url" autocomplete="url" required placeholder="https://your-blog.example/"></label>
           <button class="primary" id="register-button" type="submit">Submit microblog</button>
         </form>
-        <div class="notice" id="registration-status" aria-live="polite">Paste a public https PostSnail URL to register it on the central index.</div>
+        <div class="notice" id="registration-status" aria-live="polite">Paste a public https PostSnail URL to register it in Forest.</div>
         <div id="registration-details"></div>
       </section>
       <section class="panel" aria-labelledby="search-title">
-        <h2 id="search-title">Search the registry</h2>
+        <h2 id="search-title">Search Forest</h2>
         <p>Search indexed public summaries. Full bundle verification still belongs in the PostSnail admin verifier.</p>
         <form id="search-form" class="search-form" role="search">
           <input id="q" name="q" autocomplete="off" placeholder="Search titles, tags, excerpts">
           <input id="tag" name="tag" autocomplete="off" placeholder="tag">
-          <button class="primary" type="submit">Search</button>
+          <button class="primary" type="submit">Search Forest</button>
         </form>
-        <div class="status" id="status">Search the open registry.</div>
+        <div class="status" id="status">Search Forest.</div>
       </section>
     </section>
     <section class="results" id="results"></section>
     <footer>
-      <strong>Trust model</strong>
+      <strong>Forest trust model</strong>
       <span>Search results are discoverability hints. Use the creator's manifest and PostSnail ZIP verifier when you need full bundle verification.</span>
+      <span>© 2026 Boaz Alhadeff. PostSnail is Apache-2.0 licensed; redistributed copies must preserve NOTICE attribution.</span>
+      <span class="legal-links"><a href="https://postsnail.org/docs/legal/">Legal</a><a href="https://postsnail.org/LICENSE">License</a><a href="https://postsnail.org/NOTICE">Notice</a><a href="https://postsnail.org/THIRD_PARTY_NOTICES.md">Third-party notices</a></span>
     </footer>
   </main>
   <script>
@@ -105,6 +109,7 @@ export function renderSearchPage(): string {
     const registrationDetailsEl = document.getElementById('registration-details');
     const form = document.getElementById('search-form');
     const qInput = document.getElementById('q');
+    const tagInput = document.getElementById('tag');
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
     let pollTimer = 0;
@@ -116,7 +121,13 @@ export function renderSearchPage(): string {
       event.preventDefault();
       search();
     });
+    const params = new URLSearchParams(window.location.search);
+    const initialQ = params.get('q') || '';
+    const initialTag = params.get('tag') || '';
+    if (initialQ) qInput.value = initialQ;
+    if (initialTag) tagInput.value = initialTag;
     restoreLastSubmission();
+    if (initialQ || initialTag) search();
 
     async function registerMicroblog() {
       const url = siteUrlInput.value.trim();
@@ -127,7 +138,7 @@ export function renderSearchPage(): string {
       }
       clearPollTimer();
       setRegisterBusy(true);
-      renderRegistrationMessage('Submitting microblog to the central registry...', 'warn');
+      renderRegistrationMessage('Submitting microblog to Forest...', 'warn');
       registrationDetailsEl.innerHTML = '';
       try {
         const response = await fetch('/api/submit', {
@@ -150,7 +161,7 @@ export function renderSearchPage(): string {
         renderSubmission(submission);
         checkSubmission(submission.submissionId);
       } catch {
-        renderRegistrationMessage('The registry could not be reached. Please try again.', 'bad');
+        renderRegistrationMessage('Forest could not be reached. Please try again.', 'bad');
       } finally {
         setRegisterBusy(false);
       }
@@ -189,7 +200,7 @@ export function renderSearchPage(): string {
       const status = submission.status || 'queued';
       if (status === 'indexed') {
         renderRegistrationMessage('Your microblog is indexed.', 'ok');
-        registrationDetailsEl.innerHTML = '<div class="notice" data-tone="ok"><strong>Indexed site</strong><code>' + escapeHtml(submission.siteUrl || 'Registered site') + '</code><code>Submission: ' + escapeHtml(submission.submissionId) + '</code><div class="actions">' + siteActionLink(submission) + '<button type="button" id="search-indexed">Search registry</button></div></div>';
+        registrationDetailsEl.innerHTML = '<div class="notice" data-tone="ok"><strong>Indexed site</strong><code>' + escapeHtml(submission.siteUrl || 'Registered site') + '</code><code>Submission: ' + escapeHtml(submission.submissionId) + '</code><div class="actions">' + siteActionLink(submission) + '<button type="button" id="search-indexed">Search Forest</button></div></div>';
         const searchIndexed = document.getElementById('search-indexed');
         if (searchIndexed) searchIndexed.addEventListener('click', () => {
           qInput.value = hostFromUrl(submission.siteUrl);
@@ -199,7 +210,7 @@ export function renderSearchPage(): string {
         return;
       }
       if (status === 'failed') {
-        renderRegistrationMessage('Verification failed. The registry could not verify this PostSnail proof.', 'bad');
+        renderRegistrationMessage('Verification failed. Forest could not verify this PostSnail proof.', 'bad');
         registrationDetailsEl.innerHTML = '<div class="notice" data-tone="bad"><strong>What to check</strong><span>' + escapeHtml(submission.message || 'Publish a fresh PostSnail ZIP and make sure .well-known/postsnail.json is reachable.') + '</span><code>Submission: ' + escapeHtml(submission.submissionId) + '</code></div>';
         return;
       }
@@ -208,7 +219,7 @@ export function renderSearchPage(): string {
       } else {
         renderRegistrationMessage('Queued for verification.', 'warn');
       }
-      registrationDetailsEl.innerHTML = '<div class="notice" data-tone="warn"><strong>' + (status === 'crawling' ? 'Verifying' : 'Queued') + '</strong><span>The central registry will index public summaries after the proof passes.</span><code>' + escapeHtml(submission.siteUrl || 'Submitted site') + '</code><code>Submission: ' + escapeHtml(submission.submissionId) + '</code></div>';
+      registrationDetailsEl.innerHTML = '<div class="notice" data-tone="warn"><strong>' + (status === 'crawling' ? 'Verifying' : 'Queued') + '</strong><span>Forest will index public summaries after the proof passes.</span><code>' + escapeHtml(submission.siteUrl || 'Submitted site') + '</code><code>Submission: ' + escapeHtml(submission.submissionId) + '</code></div>';
     }
 
     function siteActionLink(submission) {
@@ -284,7 +295,7 @@ export function renderSearchPage(): string {
         resultsEl.innerHTML = data.items.length ? data.items.map(renderResult).join('') : '<div class="empty">No signed summaries matched this search.</div>';
       } catch {
         statusEl.textContent = 'Search failed.';
-        resultsEl.innerHTML = '<div class="empty">The registry could not be searched right now.</div>';
+        resultsEl.innerHTML = '<div class="empty">Forest could not be searched right now.</div>';
       }
     }
     function renderResult(item) {

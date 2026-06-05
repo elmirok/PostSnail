@@ -1,27 +1,27 @@
 :root {
-  color: #17151f;
-  background: #f7f7f5;
+  color: #080a2f;
+  background: #fffdf7;
   font-family: Inter, "Avenir Next", "Segoe UI", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --page: #f7f7f5;
+  --page: #fffdf7;
   --surface: #ffffff;
-  --surface-soft: #fafafa;
-  --ink: #17151f;
-  --muted: #6c6875;
-  --quiet: #9b98a5;
-  --line: #e7e4ed;
-  --line-strong: #d7d2df;
-  --brand: #6c42f5;
-  --brand-ink: #3c1aaf;
-  --success: #16a05d;
-  --danger: #c43b58;
-  --warning: #a96d16;
-  --cyan: #147d75;
-  --amber: #d99a21;
-  --radius: 8px;
-  --shadow: 0 22px 55px rgba(44, 35, 71, 0.08);
+  --surface-soft: #f4f6ef;
+  --ink: #080a2f;
+  --muted: #4d4b63;
+  --quiet: #77728a;
+  --line: #16163c;
+  --line-strong: #16163c;
+  --brand: #ef4056;
+  --brand-ink: #cf1e3d;
+  --success: #2f7a55;
+  --danger: #cf1e3d;
+  --warning: #9a5b00;
+  --cyan: #2f7a55;
+  --amber: #ff8f9a;
+  --radius: 0;
+  --shadow: 5px 5px 0 rgba(8, 10, 47, 0.12);
   --mono: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
 }
 
@@ -37,7 +37,9 @@ body {
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--page);
+  background:
+    linear-gradient(180deg, rgba(255, 143, 154, 0.14), transparent 360px),
+    var(--page);
   color: var(--ink);
 }
 
@@ -58,7 +60,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgba(108, 66, 245, 0.28);
+  outline: 3px solid rgba(255, 143, 154, 0.65);
   outline-offset: 3px;
 }
 
@@ -78,17 +80,18 @@ textarea:disabled {
   height: 100dvh;
   margin: 0 auto;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   overflow: hidden;
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.72);
+  border-left: 2px solid var(--line);
+  border-right: 2px solid var(--line);
+  background: rgba(255, 253, 247, 0.86);
 }
 
 .boot {
+  grid-row: 1 / 4;
   display: grid;
   place-items: center;
-  height: 100dvh;
+  min-height: 0;
   color: var(--muted);
   font-weight: 800;
 }
@@ -100,8 +103,8 @@ textarea:disabled {
   gap: 16px;
   min-height: 68px;
   padding: 10px 18px;
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
+  border-bottom: 2px solid var(--line);
+  background: rgba(255, 253, 247, 0.96);
 }
 
 .brand {
@@ -114,9 +117,10 @@ textarea:disabled {
 }
 
 .brand-logo {
-  width: auto;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .brand-copy {
@@ -166,7 +170,7 @@ textarea:disabled {
   align-items: center;
   overflow-x: auto;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   background: var(--surface-soft);
 }
 
@@ -177,7 +181,7 @@ textarea:disabled {
   justify-content: center;
   gap: 7px;
   min-height: 38px;
-  border: 1px solid var(--line-strong);
+  border: 2px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
@@ -193,6 +197,7 @@ textarea:disabled {
   border-color: var(--brand);
   background: var(--brand);
   color: #fff;
+  box-shadow: 3px 3px 0 rgba(8, 10, 47, 0.14);
 }
 
 .btn.danger {
@@ -226,6 +231,27 @@ textarea:disabled {
   display: grid;
 }
 
+.app-footer {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  border-top: 2px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app-footer a {
+  color: var(--ink);
+  font-weight: 850;
+  text-decoration-thickness: 0.08em;
+}
+
 .panel-scroll {
   min-height: 0;
   height: 100%;
@@ -256,10 +282,10 @@ textarea:disabled {
 .donate-box,
 .metric,
 .preview-surface {
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 14px 32px rgba(44, 35, 71, 0.04);
+  box-shadow: var(--shadow);
 }
 
 .panel-box,
@@ -293,7 +319,7 @@ textarea:disabled {
 .field textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--line-strong);
+  border: 2px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
@@ -362,8 +388,8 @@ textarea:disabled {
   align-items: center;
   border-radius: var(--radius);
   padding: 0 8px;
-  background: #eef8f3;
-  color: #0d6b3d;
+  background: #e4f4e9;
+  color: var(--success);
   font-size: 0.72rem;
   font-weight: 850;
 }
@@ -423,13 +449,13 @@ code {
 }
 
 .notice.warning {
-  border-color: rgba(217, 154, 33, 0.35);
+  border-color: #f0d49a;
   background: #fff9ee;
 }
 
 .notice.good {
-  border-color: rgba(22, 160, 93, 0.3);
-  background: #eef8f3;
+  border-color: #bfe6ce;
+  background: #e4f4e9;
 }
 
 .check-row {
@@ -437,7 +463,7 @@ code {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 10px;
   align-items: start;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   padding: 10px;
@@ -450,8 +476,8 @@ code {
   min-width: 44px;
   min-height: 24px;
   border-radius: var(--radius);
-  background: #eef8f3;
-  color: #0d6b3d;
+  background: #e4f4e9;
+  color: var(--success);
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -499,7 +525,7 @@ code {
 
 .step-box {
   position: relative;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   padding: 12px 12px 12px 46px;
@@ -558,10 +584,10 @@ code {
 @keyframes donateBlink {
   0%,
   100% {
-    box-shadow: 0 0 0 rgba(108, 66, 245, 0);
+    box-shadow: 0 0 0 rgba(239, 64, 86, 0);
   }
   50% {
-    box-shadow: 0 0 0 5px rgba(108, 66, 245, 0.18);
+    box-shadow: 0 0 0 5px rgba(239, 64, 86, 0.22);
   }
 }
 
@@ -589,6 +615,7 @@ code {
   }
 
   .brand-logo {
+    width: 32px;
     height: 28px;
   }
 
@@ -607,6 +634,13 @@ code {
   .tab-btn {
     min-height: 40px;
     padding: 0 10px;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
   }
 
   .post-row,

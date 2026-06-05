@@ -233,14 +233,19 @@ describe("registry API and crawl flow", () => {
     expect(await status.json()).toMatchObject({ status: "indexed" });
 
     const search = await handleRequest(new Request("https://registry.example/api/search?q=searchable&tag=proof"), deps);
+    expect(search.headers.get("cache-control")).toBe("public, max-age=30, stale-while-revalidate=120");
     const results = await search.json() as any;
     expect(results.items).toHaveLength(1);
     expect(results.items[0].post).toMatchObject({ title: "Searchable Proof", digest: expect.stringMatching(/^[a-f0-9]{128}$/) });
     expect(results.items[0].post.body).toBeUndefined();
 
     const hostSearch = await handleRequest(new Request("https://registry.example/api/search?q=creator.example"), deps);
+    expect(hostSearch.headers.get("cache-control")).toBe("public, max-age=30, stale-while-revalidate=120");
     const hostResults = await hostSearch.json() as any;
     expect(hostResults.items).toHaveLength(1);
+
+    const site = await handleRequest(new Request(`https://registry.example/api/sites/${results.items[0].site.id}`), deps);
+    expect(site.headers.get("cache-control")).toBe("public, max-age=60, stale-while-revalidate=300");
   });
 
   test("failed crawls store safe failure state and do not create search results", async () => {

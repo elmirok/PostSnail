@@ -1,18 +1,27 @@
 import { cpSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { generatePublicSite } from "./generate-public-site.js";
 
 const outDir = "dist/postsnail-admin";
 const entries = [
+  "LICENSE",
+  "NOTICE",
+  "THIRD_PARTY_NOTICES.md",
   "_headers",
+  "admin",
   "app.js",
+  "assets",
   "btc-wallet-qr.svg",
   "docs",
   "favicon.png",
   "favicon.svg",
   "features-qa.css",
   "features-qa.html",
-  "hilazon6-logo.png",
   "index.html",
+  "manifesto",
+  "media-kit",
+  "site.css",
+  "site.js",
   "src",
   "styles.css",
   "vendor",
@@ -20,6 +29,7 @@ const entries = [
   "verify-remote.js",
 ];
 
+generatePublicSite();
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 

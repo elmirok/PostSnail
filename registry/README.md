@@ -1,8 +1,8 @@
-# PostSnail Registry
+# PostSnail Forest
 
-Reference Cloudflare Worker registry for PostSnail microblogs. It accepts public site URLs, verifies registry-ready PostSnail proof metadata, indexes signed post summaries into D1, and exposes a public search page plus JSON API.
+Reference Cloudflare Worker tracker for PostSnail Forest. It accepts public site URLs, verifies registry-ready PostSnail proof metadata, indexes signed post summaries into D1, and exposes a public search page plus JSON API.
 
-The registry does not verify full ZIP contents. Full bundle verification remains in the PostSnail admin Verify tab.
+Forest does not verify full ZIP contents. Full bundle verification remains in the PostSnail admin Verify tab.
 
 ## Production
 
@@ -61,4 +61,10 @@ npx wrangler deploy
 
 ## Trust Model
 
-The registry stores site metadata and post titles, tags, excerpts, published dates, digests, URLs, public keys, and bundle fingerprints. It does not store full post bodies and does not prove legal identity or factual accuracy.
+Forest stores site metadata and post titles, tags, excerpts, published dates, digests, URLs, public keys, and bundle fingerprints. It does not store full post bodies and does not prove legal identity or factual accuracy.
+
+## Cost And Abuse Surface
+
+Forest JSON API requests can increase Cloudflare usage. Public search and site endpoints use Worker requests and D1 rows read. Submissions use Worker requests, D1 rate-limit reads/writes, submission writes, Queue operations, crawler fetches, and crawl-result writes.
+
+Cloudflare Free plan limits generally fail closed once exhausted, which can cause public errors or delayed indexing. Workers Paid can bill for overages. Keep the built-in submission rate limiting and add Cloudflare dashboard/WAF rate rules for `/api/search` and `/api/submit` before a public launch.

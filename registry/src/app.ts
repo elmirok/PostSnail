@@ -36,7 +36,7 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
   if (request.method === "GET" && url.pathname === "/") {
-    return new Response(renderSearchPage(), { headers: { "content-type": "text/html; charset=utf-8" } });
+    return new Response(renderSearchPage(), { headers: htmlHeaders() });
   }
   try {
     if (request.method === "POST" && url.pathname === "/api/submit") return await handleSubmit(request, deps);
@@ -112,7 +112,7 @@ async function handleSearch(url: URL, deps: AppDeps): Promise<Response> {
       post: publicPost(item.post),
     })),
     nextCursor: result.nextCursor,
-  });
+  }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
 }
 
 async function handleSite(url: URL, deps: AppDeps): Promise<Response> {
@@ -125,7 +125,7 @@ async function handleSite(url: URL, deps: AppDeps): Promise<Response> {
     posts: posts.map((post) => publicPost(post)),
     latestCrawlStatus: site.latestCrawlStatus,
     latestCrawlMessage: site.latestCrawlMessage || undefined,
-  });
+  }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
 async function handleAdmin(request: Request, url: URL, deps: AppDeps): Promise<Response> {
@@ -170,6 +170,17 @@ async function enforceRateLimit(store: RegistryStore, requesterHash: string, now
 function requesterHashFor(request: Request, secret: string): string {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return sha3Hex(encodeText(`${secret}:${ip}`));
+}
+
+function htmlHeaders(): HeadersInit {
+  return {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy":
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+  };
 }
 
 async function readJsonRequest(request: Request): Promise<Record<string, unknown>> {
@@ -236,10 +247,10 @@ function clampLimit(value: string | null): number {
   return Math.min(Math.max(Math.floor(number), 1), 50);
 }
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(data, null, 2), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", ...corsHeaders() },
+    headers: { "content-type": "application/json; charset=utf-8", ...corsHeaders(), ...headers },
   });
 }
 

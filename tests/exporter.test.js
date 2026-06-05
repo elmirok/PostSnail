@@ -78,9 +78,15 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   assert.equal(result.filename, "postsnail-postsnail-test.zip");
 
   const indexHtml = decodeText(files["index.html"]);
+  const postHtml = decodeText(files["posts/hello-postsnail/index.html"]);
   const tagHtml = decodeText(files["tags/intro/index.html"]);
   assert.match(indexHtml, /src="assets\/tiny-proof\.png"/);
   assert.match(indexHtml, /href="posts\/hello-postsnail\/"/);
   assert.match(tagHtml, /href="..\/..\/posts\/hello-postsnail\/"/);
   assert.match(tagHtml, /href="..\/..\/tags\/intro\/"/);
+  for (const html of [indexHtml, postHtml, tagHtml]) {
+    assert.doesNotMatch(html, /© 2026 Boaz Alhadeff/);
+    assert.doesNotMatch(html, /PostSnail is Apache-2\.0 licensed/);
+    assert.doesNotMatch(html, /NOTICE attribution/);
+  }
 });

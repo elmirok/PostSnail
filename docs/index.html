@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Remote Verifier</title>
-    <meta name="description" content="Verify a public PostSnail microblog by fetching signed proof metadata.">
-    <link rel="canonical" href="https://postsnail.org/verify-remote.html">
+    <title>PostSnail Documentation - Alpha 1</title>
+    <meta name="description" content="PostSnail Alpha 1 docs for creators, publishing, concepts, and developer architecture.">
+    <link rel="canonical" href="https://postsnail.org/docs/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -28,19 +28,16 @@
     </header>
     <main>
       <section class="page-hero">
-              <p class="eyebrow">Remote proof check</p>
-              <h1>Verify a PostSnail site URL.</h1>
-              <p class="lede">Fetch public proof files from a creator domain. If the host blocks cross-origin fetches, publish CORS headers or verify the ZIP locally instead.</p>
+              <p class="eyebrow">Creator and developer docs</p>
+              <h1>PostSnail Documentation</h1>
+              <p class="lede">Everything needed to write a microblog, publish it as static files, register it in Forest, and understand the proof architecture.</p>
             </section>
-            <section class="verify-layout">
-              <form id="remote-form" class="kit-card verify-panel">
-                <label for="remote-url"><strong>Site URL</strong><input id="remote-url" type="url" placeholder="https://creator.example/" required></label>
-                <button class="button primary" type="submit">Verify remote site</button>
-              </form>
-              <section class="kit-card verify-panel">
-                <h2>Result</h2>
-                <div id="remote-result" class="empty-state"><span>No site checked</span><p>Enter a published PostSnail URL to fetch its signed identity, manifest, and latest commit.</p></div>
-              </section>
+            <section class="docs-grid link-grid" aria-label="Documentation links">
+              <a href="/docs/how-to-use/"><strong>How To Use PostSnail</strong><span>Create identity, write posts, attach images, export backups, and download a signed ZIP.</span></a>
+              <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the generated static bundle and verify public proof files.</span></a>
+              <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
+              <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
+              <a href="/docs/legal/"><strong>PostSnail Legal</strong><span>Apache-2.0 license, NOTICE attribution, third-party notices, logo provenance, and Forest cost notes.</span></a>
             </section>
     </main>
     <footer class="site-footer">
@@ -50,6 +47,5 @@
         See <a href="/docs/legal/">Legal</a> and <a href="/THIRD_PARTY_NOTICES.md">Third-party notices</a>.
       </p>
     </footer>
-    <script type="module" src="/verify-remote.js"></script>
   </body>
 </html>

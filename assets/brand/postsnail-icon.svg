@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PostSnail" shape-rendering="crispEdges">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
+  <title id="title">PostSnail icon</title>
+  <desc id="desc">Pixel-art snail icon without the PostSnail wordmark.</desc>
   <rect x="76" y="314" width="286" height="28" fill="#080a2f"/>
   <rect x="96" y="286" width="286" height="56" fill="#d3c8bf"/>
   <rect x="382" y="244" width="46" height="98" fill="#d3c8bf"/>

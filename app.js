@@ -53,7 +53,7 @@ const state = {
 };
 
 init().catch((error) => {
-  app.innerHTML = `<div class="boot">PostSnail could not start: ${escapeHtml(error.message)}</div>`;
+  app.innerHTML = `<div class="boot">PostSnail could not start: ${escapeHtml(error.message)}</div>${renderAppFooter()}`;
 });
 
 async function init() {
@@ -414,23 +414,33 @@ function render() {
       ${renderPanel("verify", renderVerify())}
       ${renderPanel("info", renderInfo())}
     </section>
+    ${renderAppFooter()}
   `;
 }
 
 function renderHeader() {
   return `
     <header class="app-header">
-      <a class="brand" href="https://hilazon6.com" target="_blank" rel="noopener noreferrer" aria-label="Hilazon6 home">
-        <img class="brand-logo" src="./hilazon6-logo.png" width="132" height="34" alt="Hilazon6">
+      <a class="brand" href="../" aria-label="PostSnail home">
+        <img class="brand-logo" src="../assets/brand/postsnail-icon.png" width="42" height="42" alt="">
         <span class="brand-copy"><strong>PostSnail</strong><span>Static microblog admin</span></span>
       </a>
       <div class="status-line" id="status-line">${escapeHtml(state.status)}</div>
       <div class="header-actions">
-        <a class="btn ghost" href="./features-qa.html">Features</a>
+        <a class="btn ghost" href="../features-qa.html">Features</a>
         <button class="btn ghost" type="button" data-action="tab" data-tab="generate">Generate</button>
         <a class="btn donate-link" href="#donate" data-action="donate">Donate</a>
       </div>
     </header>
+  `;
+}
+
+function renderAppFooter() {
+  return `
+    <footer class="app-footer">
+      <span>© 2026 Boaz Alhadeff. PostSnail is <a href="../LICENSE">Apache-2.0</a> licensed; redistributed copies must preserve <a href="../NOTICE">NOTICE</a> attribution.</span>
+      <span><a href="../docs/legal/">Legal</a> · <a href="../THIRD_PARTY_NOTICES.md">Third-party notices</a></span>
+    </footer>
   `;
 }
 
