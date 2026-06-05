@@ -1,0 +1,2 @@
+ADMIN_TOKEN=replace-with-a-local-admin-token
+RATE_LIMIT_SECRET=replace-with-a-local-rate-limit-secret

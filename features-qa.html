@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PostSnail Features + Q&A</title>
+    <meta
+      name="description"
+      content="Features and answers for PostSnail, a browser-native static microblog admin with local post-quantum signed ZIP verification."
+    >
+    <link rel="canonical" href="https://postsnail.hilazon6.com/features-qa.html">
+    <meta property="og:title" content="PostSnail Features + Q&A">
+    <meta property="og:description" content="Local-first static microblog publishing with signed manifests and ZIP verification.">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="./favicon.png">
+    <link rel="stylesheet" href="./features-qa.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="PostSnail app">
+        <img src="./hilazon6-logo.png" width="132" height="34" alt="Hilazon6">
+        <span><strong>PostSnail</strong><small>Features + Q&A</small></span>
+      </a>
+      <nav>
+        <a href="./">App</a>
+        <a href="#donate">Donate</a>
+        <a href="https://hilazon6.com" target="_blank" rel="noopener noreferrer">Hilazon6</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <p class="kicker">Browser-native / Local processing / No backend</p>
+        <h1>PostSnail Features + Q&A</h1>
+        <p>Write a static microblog, create a post-quantum signed fingerprint locally, verify the ZIP locally, and host the generated site on Cloudflare Pages or any static host.</p>
+      </section>
+
+      <section class="grid">
+        <article>
+          <h2>Local admin</h2>
+          <p>Posts, images, settings, backups, and encrypted keys stay in IndexedDB unless you export them.</p>
+        </article>
+        <article>
+          <h2>Signed ZIPs</h2>
+          <p>Every export includes SHA3-512 file hashes, ML-DSA-65 post signatures, and a signed manifest fingerprint.</p>
+        </article>
+        <article>
+          <h2>Verifier</h2>
+          <p>The Verify tab recomputes hashes and signatures from a complete ZIP without calling a backend.</p>
+        </article>
+      </section>
+
+      <section class="qa">
+        <h2>Questions</h2>
+        <details open>
+          <summary>Does PostSnail upload my writing?</summary>
+          <p>No. Sprint 2 makes no registry calls and has no backend. You choose when to export, publish, or share files.</p>
+        </details>
+        <details>
+          <summary>Does the fingerprint prove identity?</summary>
+          <p>It proves the bundle matches the manifest and publisher public key. It does not prove legal identity or factual accuracy.</p>
+        </details>
+        <details>
+          <summary>Can a registry index my site later?</summary>
+          <p>Yes. Exported sites include <code>.well-known/postsnail.json</code>, which points to the signed manifest.</p>
+        </details>
+        <details>
+          <summary>Can I host it for free?</summary>
+          <p>Yes. The generated files are static and work on Cloudflare Pages, GitHub Pages, Netlify, and similar static hosts.</p>
+        </details>
+        <details>
+          <summary>Can I remove PostSnail branding from my generated blog?</summary>
+          <p>Generated microblogs are creator-owned and do not include visible Hilazon6 or PostSnail branding.</p>
+        </details>
+      </section>
+    </main>
+    <footer>
+      <section class="footer-card">
+        <div>
+          <h2>PostSnail is part of Hilazon6</h2>
+          <p>Privacy-first microtools for local work, static publishing, and creator ownership.</p>
+        </div>
+        <div id="donate" class="donate-box" aria-label="Donation options">
+          <img class="donate-qr" src="./btc-wallet-qr.svg" width="104" height="104" alt="Bitcoin wallet QR code" loading="lazy" decoding="async">
+          <div>
+            <a class="kofi-button" href="https://ko-fi.com/K1R720HYDL" target="_blank" rel="noopener noreferrer">
+              <img height="36" src="https://storage.ko-fi.com/cdn/kofi6.png?v=6" border="0" alt="Buy Me a Coffee at ko-fi.com" loading="lazy" decoding="async">
+            </a>
+            <p><strong>BTC SegWit:</strong> <a class="btc-link" href="bitcoin:bc1qly9je7swum86lna4wyf337keuypcsshuql3xqxzzreuxgvw7sxhq4guund">bc1qly9je7swum86lna4wyf337keuypcsshuql3xqxzzreuxgvw7sxhq4guund</a></p>
+          </div>
+        </div>
+      </section>
+    </footer>
+  </body>
+</html>

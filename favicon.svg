@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Hilazon6">
+  <rect width="64" height="64" fill="#05060a"/>
+  <rect x="4" y="4" width="56" height="56" fill="#0b1020" stroke="#32e9ff" stroke-width="2"/>
+  <path d="M16 16h8v14h10V16h8v32h-8V36H24v12h-8z" fill="#d8e8ff"/>
+  <path d="M48 22c0-4.4 3.6-8 8-8v8c-2.2 0-4 1.8-4 4s1.8 4 4 4v8c-6.6 0-12-5.4-12-12z" fill="#ff6ae7"/>
+</svg>
