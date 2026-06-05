@@ -18,6 +18,9 @@ const projectHtmlPages = [
   "docs/publish-cloudflare/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
+  "docs/workspace-vault/index.html",
+  "docs/security/index.html",
+  "docs/migrations/index.html",
   "docs/legal/index.html",
 ];
 
@@ -71,9 +74,17 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderAppFooter/);
   assert.match(appJs, /postsnail-icon\.png/);
   assert.match(appJs, /src="\.\.\/btc-wallet-qr\.svg"/);
+  assert.match(appJs, /Export Workspace/);
+  assert.match(appJs, /Import Workspace/);
+  assert.match(appJs, /Import Legacy Backup JSON/);
+  assert.match(appJs, /Export Website ZIP/);
+  assert.match(appJs, /\.postsnail/);
+  assert.match(appJs, /\.zip/);
   assert.match(appJs, legalFooterPattern);
   assert.doesNotMatch(appJs, /hilazon6-logo\.png/);
   assert.doesNotMatch(appJs, /src="\.\/btc-wallet-qr\.svg"/);
+  assert.doesNotMatch(appJs, /Export backup/);
+  assert.doesNotMatch(appJs, /Import backup/);
   assert.doesNotMatch(appJs, /aria-label="Hilazon6 home"/);
 
   assert.match(css, /--page:\s*#fffdf7/);
@@ -108,11 +119,21 @@ test("alpha public pages and documentation are present", () => {
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
     ["docs/legal/index.html", /PostSnail Legal/],
+    ["docs/workspace-vault/index.html", /Workspace Vault/],
+    ["docs/migrations/index.html", /versioned workspace migrations/],
+    ["docs/security/index.html", /passphrase/],
   ];
 
   for (const [path, expected] of pages) {
     assert.match(read(path), expected, path);
   }
+
+  assert.match(read("docs/index.html"), /Encrypted Workspace/);
+  assert.match(read("docs/workspace-vault/index.html"), /\.postsnail/);
+  assert.match(read("docs/workspace-vault/index.html"), /public Website ZIP/);
+  assert.ok(existsSync(join(root, "docs/workspace-vault.md")));
+  assert.ok(existsSync(join(root, "docs/migrations.md")));
+  assert.ok(existsSync(join(root, "docs/security.md")));
 });
 
 test("brand assets and reusable branding skills are committed", () => {
@@ -178,6 +199,12 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "media-kit/index.html")));
   assert.ok(existsSync(join(outDir, "docs/architecture/index.html")));
   assert.ok(existsSync(join(outDir, "docs/legal/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/workspace-vault/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/migrations/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/security/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/workspace-vault.md")));
+  assert.ok(existsSync(join(outDir, "docs/migrations.md")));
+  assert.ok(existsSync(join(outDir, "docs/security.md")));
   assert.ok(existsSync(join(outDir, "verify-remote.html")));
   assert.ok(existsSync(join(outDir, "assets/brand/postsnail-logo.webp")));
   assert.ok(existsSync(join(outDir, "assets/brand/postsnail-logo.png")));

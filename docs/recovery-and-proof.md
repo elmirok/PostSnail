@@ -1,12 +1,27 @@
 # Recovery and Proof Notes
 
-## Backups
+## Workspace Vaults
 
-Use `Export backup` after creating your identity, after adding images, and before clearing browser data. The backup contains posts, profile settings, images, and the encrypted private signing key. It must not contain a raw private key.
+Use `Export Workspace` after creating your identity, after adding images, and before clearing browser data. The downloaded `.postsnail` file is the private encrypted editable source for the project.
+
+PostSnail has two exports:
+
+1. Encrypted Workspace (`.postsnail`) for the creator.
+2. Public Website ZIP (`.zip`) for publishing.
+
+The `.postsnail` workspace contains posts, drafts, profile settings, images, plugin state, moderation data, commit history, and the encrypted private signing key. It must never contain a raw private key and should not be uploaded to public hosting.
 
 ## Passphrases
 
-The encrypted signing key is only useful with the passphrase that created it. PostSnail has no account system and no recovery server.
+The encrypted signing key is only useful with the passphrase that created it. The encrypted workspace is only useful with the workspace passphrase that created it. PostSnail has no account system and no recovery server.
+
+If both browser data and the `.postsnail` workspace/passphrase are lost, PostSnail cannot restore private keys, drafts, plugin state, rejected comments, or editable source history.
+
+## Public ZIP Recovery
+
+The public Website ZIP is not the full project source. A published ZIP or deployed site can only recover public pages, public assets, feeds, public proof files, and public post records. It cannot restore private signing keys, drafts, private plugin state, rejected comments, moderation notes, or recovery data.
+
+To move to another computer, export `.postsnail`, import it in the new browser, unlock the publisher key, then export a new public Website ZIP.
 
 ## Verifier Results
 

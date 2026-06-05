@@ -1,5 +1,4 @@
 import DOMPurify from "./vendor/dompurify/purify.es.mjs";
-import { exportBackup, importBackup } from "./src/backup.js";
 import { normalizePost, uniqueSlug } from "./src/content.js";
 import {
   decryptSecretKey,
@@ -23,6 +22,7 @@ import {
   saveSettings,
 } from "./src/storage.js";
 import { verifyPostSnailZip } from "./src/verifier.js";
+import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
 
 globalThis.DOMPurify = DOMPurify;
 
@@ -44,6 +44,10 @@ const state = {
   identity: null,
   settings: { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" },
   commitHistory: [],
+  plugins: { installed: [], lock: {}, state: {} },
+  moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
+  trackerUrls: [],
+  exportHistory: [],
   form: emptyPostForm(),
   secretKey: null,
   lastManifest: null,
@@ -58,13 +62,7 @@ init().catch((error) => {
 
 async function init() {
   const loaded = await loadAppState();
-  state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
-  state.identity = loaded.identity;
-  state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
-  state.commitHistory = loaded.commitHistory || [];
-  state.posts = loaded.posts;
-  state.assets = loaded.assets;
-  state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
+  applyLoadedState(loaded);
   state.status = "Local library loaded.";
   render();
 }
@@ -112,8 +110,12 @@ app.addEventListener("change", async (event) => {
     await addImages(input.files);
     input.value = "";
   }
-  if (input.id === "backup-import") {
-    await importBackupFile(input.files?.[0]);
+  if (input.id === "workspace-import") {
+    await importWorkspaceFile(input.files?.[0]);
+    input.value = "";
+  }
+  if (input.id === "legacy-backup-import") {
+    await importLegacyBackupFile(input.files?.[0]);
     input.value = "";
   }
   if (input.id === "verify-upload") {
@@ -201,9 +203,8 @@ async function handleAction(button) {
     render();
     return;
   }
-  if (action === "export-backup") {
-    downloadText(exportBackup(snapshotState()), `postsnail-backup-${Date.now()}.json`, "application/json");
-    setStatus("Backup exported.");
+  if (action === "export-workspace") {
+    await exportWorkspaceFile();
     return;
   }
   if (action === "clear-local") {
@@ -213,6 +214,10 @@ async function handleAction(button) {
       state.identity = null;
       state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" };
       state.commitHistory = [];
+      state.plugins = { installed: [], lock: {}, state: {} };
+      state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
+      state.trackerUrls = [];
+      state.exportHistory = [];
       state.posts = [];
       state.assets = [];
       state.form = emptyPostForm();
@@ -378,28 +383,70 @@ async function verifyZipFile(file) {
   }
 }
 
-async function importBackupFile(file) {
+async function exportWorkspaceFile() {
+  const passphrase = workspacePassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter a workspace passphrase of at least 10 characters before exporting a .postsnail file.");
+    return;
+  }
+  setStatus("Encrypting private workspace vault...");
+  await nextFrame();
+  try {
+    const result = await exportWorkspaceVault(snapshotState(), passphrase);
+    downloadText(result.text, result.filename, "application/postsnail+json");
+    setStatus(`Encrypted .postsnail workspace exported. Fingerprint: ${result.envelope.workspaceFingerprint}`);
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function importWorkspaceFile(file) {
   if (!file) return;
+  const passphrase = workspacePassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter the workspace passphrase before importing a .postsnail file.");
+    return;
+  }
   try {
     const text = await file.text();
-    const imported = importBackup(text);
-    await replaceAppState(imported);
-    const loaded = await loadAppState();
-    state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
-    state.identity = loaded.identity;
-    state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
-    state.commitHistory = loaded.commitHistory || [];
-    state.posts = loaded.posts;
-    state.assets = loaded.assets;
-    state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
-    state.secretKey = null;
-    state.lastManifest = null;
-    state.lastAnnouncePayload = null;
-    setStatus("Backup imported. Unlock the key before generating a site.");
+    const imported = await importWorkspaceVault(text, passphrase);
+    await restoreImportedState(imported.state);
+    setStatus("Encrypted workspace imported. Unlock the publisher key before exporting a new public Website ZIP.");
     render();
   } catch (error) {
     setStatus(error.message);
   }
+}
+
+async function importLegacyBackupFile(file) {
+  if (!file) return;
+  const passphrase = workspacePassphrase();
+  if (passphrase.length < 10) {
+    setStatus("Enter a workspace passphrase before migrating a legacy backup JSON file.");
+    return;
+  }
+  try {
+    const text = await file.text();
+    const imported = importLegacyBackupJson(text);
+    await restoreImportedState(imported.state);
+    const migratedVault = await exportWorkspaceVault(imported.state, passphrase);
+    downloadText(migratedVault.text, migratedVault.filename, "application/postsnail+json");
+    setStatus("Legacy backup JSON imported and migrated. An encrypted .postsnail workspace was downloaded.");
+    render();
+  } catch (error) {
+    setStatus(error.message);
+  }
+}
+
+async function restoreImportedState(nextState) {
+  await replaceAppState(nextState);
+  const loaded = await loadAppState();
+  applyLoadedState(loaded);
+  state.secretKey = null;
+  state.lastManifest = null;
+  state.lastExportVerification = null;
+  state.lastAnnouncePayload = null;
+  state.verifyResult = null;
 }
 
 function render() {
@@ -633,12 +680,22 @@ function renderGenerate() {
           <span>Preferred trackers</span>
           <textarea class="compact" data-settings-field="preferredTrackers" placeholder="https://tracker.example/announce">${escapeHtml(state.settings.preferredTrackers || "")}</textarea>
         </label>
+        <label class="field">
+          <span>Workspace passphrase</span>
+          <input id="workspace-passphrase" type="password" autocomplete="new-password" placeholder="Encrypt or unlock .postsnail workspace files">
+        </label>
+        <div class="notice warning">
+          <strong>Two exports, two meanings</strong>
+          <p><code>.postsnail</code> is your private encrypted editable workspace. <code>.zip</code> is the public static Website ZIP for publishing. Losing the workspace or passphrase can prevent future editing, and the Website ZIP is not the full project source.</p>
+        </div>
         <div class="actions">
-          <button class="btn primary" type="button" data-action="generate-site" ${canGenerate ? "" : "disabled"}>Download signed ZIP</button>
+          <button class="btn primary" type="button" data-action="generate-site" ${canGenerate ? "" : "disabled"}>Export Website ZIP</button>
           <button class="btn" type="button" data-action="go-verify">Verify a ZIP</button>
-          <button class="btn" type="button" data-action="export-backup">Export backup</button>
-          <label class="btn" for="backup-import">Import backup</label>
-          <input id="backup-import" type="file" accept="application/json,.json" hidden>
+          <button class="btn" type="button" data-action="export-workspace">Export Workspace</button>
+          <label class="btn" for="workspace-import">Import Workspace</label>
+          <input id="workspace-import" type="file" accept=".postsnail,application/postsnail+json,application/json" hidden>
+          <label class="btn" for="legacy-backup-import">Import Legacy Backup JSON</label>
+          <input id="legacy-backup-import" type="file" accept="application/json,.json" hidden>
           <button class="btn danger" type="button" data-action="clear-local">Clear local data</button>
         </div>
       </section>
@@ -714,7 +771,7 @@ function renderInfo() {
         <h2 class="panel-title">Privacy and support</h2>
         <div class="notice good">
           <strong>No backend</strong>
-          <p>Posts, images, backups, and private keys stay in your browser unless you export or upload them yourself. PostSnail makes no registry calls in v1.</p>
+          <p>Posts, images, workspace vaults, and private keys stay in your browser unless you export or upload them yourself. PostSnail makes no registry calls in v1.</p>
         </div>
         <div id="donate" class="donate-box" aria-label="Donation options">
           <img class="donate-qr" src="../btc-wallet-qr.svg" width="104" height="104" alt="Bitcoin wallet QR code" loading="lazy" decoding="async">
@@ -852,6 +909,20 @@ function postToForm(post) {
   };
 }
 
+function applyLoadedState(loaded) {
+  state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
+  state.identity = loaded.identity;
+  state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
+  state.commitHistory = loaded.commitHistory || [];
+  state.plugins = loaded.plugins || { installed: [], lock: {}, state: {} };
+  state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
+  state.trackerUrls = loaded.trackerUrls || [];
+  state.exportHistory = loaded.exportHistory || [];
+  state.posts = loaded.posts || [];
+  state.assets = loaded.assets || [];
+  state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
+}
+
 function snapshotState() {
   return {
     profile: state.profile,
@@ -860,7 +931,15 @@ function snapshotState() {
     identity: state.identity,
     settings: state.settings,
     commitHistory: state.commitHistory,
+    plugins: state.plugins,
+    moderation: state.moderation,
+    trackerUrls: state.trackerUrls,
+    exportHistory: state.exportHistory,
   };
+}
+
+function workspacePassphrase() {
+  return document.getElementById("workspace-passphrase")?.value || "";
 }
 
 function setStatus(message) {

@@ -90,3 +90,49 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
     assert.doesNotMatch(html, /NOTICE attribution/);
   }
 });
+
+test("buildStaticExport keeps workspace-only data out of the public ZIP", async () => {
+  const keys = generateSigningKeyPair();
+  const published = normalizePost({
+    id: "p1",
+    title: "Public Post",
+    body: "Public published body.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+  const draft = normalizePost({
+    id: "d1",
+    title: "Private Draft",
+    body: "Private draft body must not ship.",
+    status: "draft",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const result = await buildStaticExport({
+    profile: { siteTitle: "Privacy Test", handle: "privacy", siteUrl: "https://example.com" },
+    posts: [published, draft],
+    assets: [],
+    settings: {
+      language: "en",
+      pluginState: { token: "plugin-private-token" },
+      rejectedComments: [{ body: "Rejected private moderation note" }],
+      encryptedWorkspace: "postsnail-workspace",
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const files = unzipSync(result.zipBytes);
+  const combined = Object.entries(files)
+    .map(([name, bytes]) => `${name}\n${decodeText(bytes)}`)
+    .join("\n");
+
+  assert.doesNotMatch(combined, /Private draft body must not ship/);
+  assert.doesNotMatch(combined, /plugin-private-token/);
+  assert.doesNotMatch(combined, /Rejected private moderation note/);
+  assert.doesNotMatch(combined, /postsnail-workspace/);
+  assert.doesNotMatch(combined, /\.postsnail/);
+  assert.doesNotMatch(combined, /encryptedSecretKey|secretKey|privateKey|rawPrivateKey/);
+  assert.equal(Object.keys(files).some((name) => name.endsWith(".postsnail")), false);
+});

@@ -2,11 +2,15 @@ const DB_NAME = "postsnail-v1";
 const DB_VERSION = 1;
 
 export async function loadAppState() {
-  const [profile, identity, settings, commitHistory, posts, assets] = await Promise.all([
+  const [profile, identity, settings, commitHistory, plugins, moderation, trackerUrls, exportHistory, posts, assets] = await Promise.all([
     getKv("profile"),
     getKv("identity"),
     getKv("settings"),
     getKv("commitHistory"),
+    getKv("plugins"),
+    getKv("moderation"),
+    getKv("trackerUrls"),
+    getKv("exportHistory"),
     getAll("posts"),
     getAll("assets"),
   ]);
@@ -15,6 +19,10 @@ export async function loadAppState() {
     identity: identity || null,
     settings: settings || {},
     commitHistory: Array.isArray(commitHistory) ? commitHistory : [],
+    plugins: normalizePlugins(plugins),
+    moderation: normalizeModeration(moderation),
+    trackerUrls: Array.isArray(trackerUrls) ? trackerUrls : [],
+    exportHistory: Array.isArray(exportHistory) ? exportHistory : [],
     posts: posts.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     assets: assets.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
   };
@@ -58,6 +66,10 @@ export async function replaceAppState(nextState) {
     tx.objectStore("kv").put(nextState.identity || null, "identity");
     tx.objectStore("kv").put(nextState.settings || {}, "settings");
     tx.objectStore("kv").put(Array.isArray(nextState.commitHistory) ? nextState.commitHistory : [], "commitHistory");
+    tx.objectStore("kv").put(normalizePlugins(nextState.plugins), "plugins");
+    tx.objectStore("kv").put(normalizeModeration(nextState.moderation), "moderation");
+    tx.objectStore("kv").put(Array.isArray(nextState.trackerUrls) ? nextState.trackerUrls : [], "trackerUrls");
+    tx.objectStore("kv").put(Array.isArray(nextState.exportHistory) ? nextState.exportHistory : [], "exportHistory");
     for (const post of nextState.posts || []) tx.objectStore("posts").put(post);
     for (const asset of nextState.assets || []) tx.objectStore("assets").put(asset);
   });
@@ -134,4 +146,20 @@ function transactionDone(db, stores, mode, callback) {
     tx.onabort = () => reject(tx.error);
     callback(tx);
   });
+}
+
+function normalizePlugins(value) {
+  return {
+    installed: Array.isArray(value?.installed) ? value.installed : [],
+    lock: value?.lock && typeof value.lock === "object" && !Array.isArray(value.lock) ? value.lock : {},
+    state: value?.state && typeof value.state === "object" && !Array.isArray(value.state) ? value.state : {},
+  };
+}
+
+function normalizeModeration(value) {
+  return {
+    approvedComments: Array.isArray(value?.approvedComments) ? value.approvedComments : [],
+    rejectedComments: Array.isArray(value?.rejectedComments) ? value.rejectedComments : [],
+    blockedPublicKeys: Array.isArray(value?.blockedPublicKeys) ? value.blockedPublicKeys : [],
+  };
 }

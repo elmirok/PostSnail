@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Concept - Alpha 1</title>
-    <meta name="description" content="The PostSnail concept: local admin, static microblog, signed proof files, and Forest discovery.">
-    <link rel="canonical" href="https://postsnail.org/docs/concept/">
+    <title>PostSnail Workspace Migrations - Alpha 1</title>
+    <meta name="description" content="Versioned workspace migrations for encrypted PostSnail .postsnail files.">
+    <link rel="canonical" href="https://postsnail.org/docs/migrations/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,17 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>PostSnail Concept</h1>
-            <p class="lede">PostSnail separates publishing, proof, hosting, and discovery so each part can stay simple.</p>
+            <h1>Workspace Migrations</h1>
+            <p class="lede">PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Concept sections"><a href="#admin">Local Admin</a><a href="#source">Private Source</a><a href="#bundle">Static Bundle</a><a href="#proof">Proof Files</a><a href="#forest">Forest</a></nav>
+            <nav class="doc-nav" aria-label="Migration sections"><a href="#v1">Version 1</a><a href="#chain">Future Chains</a><a href="#future">Future Version Failure</a><a href="#legacy">Legacy JSON</a></nav>
             <div class="doc-content">
-              <section id="admin"><h2>Local Admin</h2><p>The admin is a browser-only tool. It stores posts, images, settings, encrypted workspace vaults, and encrypted publisher keys locally and makes no automatic registry calls.</p></section>
-              <section id="source"><h2>Private Source</h2><p>.postsnail is the private encrypted editable source. It is for the creator, not for hosting or indexing.</p></section>
-              <section id="bundle"><h2>Static Bundle</h2><p>Generated blogs are plain files. They can be hosted anywhere static files work and do not display PostSnail or Hilazon6 branding.</p></section>
-              <section id="proof"><h2>Proof Files</h2><p>The bundle includes public manifest, identity, commit, feed, and sitemap files. SHA3-512 digests and ML-DSA-65 signatures let verifiers check content records and fingerprints.</p></section>
-              <section id="forest"><h2>Forest</h2><p>Forest is a discovery surface. It verifies public proof metadata and indexes summaries; it does not replace the creator's domain or full ZIP verification.</p></section>
+              <section id="v1"><h2>Version 1</h2><p>Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, and export history.</p></section>
+              <section id="chain"><h2>Future Chains</h2><p>Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step.</p></section>
+              <section id="future"><h2>Future Version Failure</h2><p>If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version.</p></section>
+              <section id="legacy"><h2>Legacy JSON</h2><p>Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema.</p></section>
             </div>
           </article>
     </main>

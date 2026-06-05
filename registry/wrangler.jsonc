@@ -11,6 +11,12 @@
   "vars": {
     "ENVIRONMENT": "production"
   },
+  "routes": [
+    {
+      "pattern": "forest.postsnail.org",
+      "custom_domain": true
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

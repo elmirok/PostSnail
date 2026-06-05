@@ -1,0 +1,166 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { exportBackup } from "../src/backup.js";
+import { CURRENT_WORKSPACE_VERSION, migrateWorkspace } from "../src/migrations.js";
+import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "../src/workspace.js";
+import { createWorkspaceData } from "../src/workspaceSchema.js";
+
+const now = "2026-06-05T12:00:00.000Z";
+const passphrase = "correct horse battery staple";
+
+function sampleState() {
+  return {
+    profile: { siteTitle: "Vault Test", handle: "vault", description: "Private editable source." },
+    posts: [
+      {
+        id: "p1",
+        title: "Public note",
+        slug: "public-note",
+        body: "Published body survives inside the encrypted workspace.",
+        tags: ["alpha"],
+        status: "published",
+        excerpt: "Published body survives",
+        imageIds: ["asset-1"],
+        createdAt: now,
+        updatedAt: now,
+        publishedAt: now,
+      },
+      {
+        id: "d1",
+        title: "Private draft",
+        slug: "private-draft",
+        body: "Private draft body only belongs in the workspace.",
+        tags: ["draft"],
+        status: "draft",
+        excerpt: "Private draft",
+        imageIds: [],
+        createdAt: now,
+        updatedAt: now,
+        publishedAt: "",
+      },
+    ],
+    assets: [
+      {
+        id: "asset-1",
+        name: "pixel.png",
+        type: "image/png",
+        dataBase64: "iVBORw0KGgo=",
+        createdAt: now,
+      },
+    ],
+    identity: {
+      algorithm: "ML-DSA-65",
+      publicKey: "base64:cHVibGlj",
+      encryptedSecretKey: { version: 1, salt: "salt", iv: "iv", data: "ciphertext" },
+      createdAt: now,
+    },
+    settings: { warnMetadata: true, preferredTrackers: "https://tracker.example/announce" },
+    commitHistory: [{ id: "commit-1", bundleFingerprint: "psn1-sha3-512-old" }],
+    plugins: {
+      installed: [{ id: "proof-widget", version: "1.0.0" }],
+      lock: { "proof-widget": "sha3-locked" },
+      state: { "proof-widget": { token: "plugin-private-token" } },
+    },
+    moderation: {
+      approvedComments: [{ id: "c1", body: "Approved public comment" }],
+      rejectedComments: [{ id: "c2", body: "Rejected private moderation note" }],
+      blockedPublicKeys: ["base64:blocked"],
+    },
+    trackerUrls: ["https://tracker.example/announce"],
+    exportHistory: [{ filename: "postsnail-vault-test.zip", exportedAt: now }],
+  };
+}
+
+test("encrypted .postsnail workspace round trips editable state without plaintext leakage", async () => {
+  const exported = await exportWorkspaceVault(sampleState(), passphrase, { now });
+
+  assert.equal(exported.filename, "postsnail-vault-test.postsnail");
+  assert.match(exported.text, /"format": "postsnail-workspace"/);
+  assert.match(exported.envelope.workspaceFingerprint, /^psw1-sha3-512-/);
+  assert.doesNotMatch(exported.text, /Private draft body/);
+  assert.doesNotMatch(exported.text, /Published body survives/);
+  assert.doesNotMatch(exported.text, /plugin-private-token/);
+
+  const imported = await importWorkspaceVault(exported.text, passphrase);
+  assert.equal(imported.workspace.version, CURRENT_WORKSPACE_VERSION);
+  assert.deepEqual(imported.state.posts, sampleState().posts);
+  assert.deepEqual(imported.state.assets, sampleState().assets);
+  assert.deepEqual(imported.state.plugins, sampleState().plugins);
+  assert.deepEqual(imported.state.commitHistory, sampleState().commitHistory);
+  assert.deepEqual(imported.state.moderation, sampleState().moderation);
+});
+
+test("workspace import fails safely for wrong passphrase and tampered ciphertext", async () => {
+  const exported = await exportWorkspaceVault(sampleState(), passphrase, { now });
+
+  await assert.rejects(
+    () => importWorkspaceVault(exported.text, "wrong passphrase"),
+    /Unable to decrypt workspace\. Check the passphrase or file integrity\./,
+  );
+
+  const tampered = JSON.parse(exported.text);
+  tampered.ciphertext = `${tampered.ciphertext.slice(0, -2)}aa`;
+  await assert.rejects(
+    () => importWorkspaceVault(JSON.stringify(tampered), passphrase),
+    /Unable to decrypt workspace\. Check the passphrase or file integrity\./,
+  );
+});
+
+test("workspace import rejects a mismatched workspace fingerprint", async () => {
+  const exported = await exportWorkspaceVault(sampleState(), passphrase, { now });
+  const tampered = JSON.parse(exported.text);
+  tampered.workspaceFingerprint = "psw1-sha3-512-deadbeef";
+
+  await assert.rejects(
+    () => importWorkspaceVault(JSON.stringify(tampered), passphrase),
+    /Workspace fingerprint mismatch\./,
+  );
+});
+
+test("legacy JSON backup imports through workspace schema and rejects raw private keys", () => {
+  const legacy = exportBackup(sampleState());
+  const imported = importLegacyBackupJson(legacy, { now });
+
+  assert.equal(imported.migrated, true);
+  assert.equal(imported.workspace.schema, "postsnail-workspace-data");
+  assert.equal(imported.workspace.version, CURRENT_WORKSPACE_VERSION);
+  assert.deepEqual(imported.state.plugins, sampleState().plugins);
+  assert.deepEqual(imported.state.posts, sampleState().posts);
+
+  const rawBackup = {
+    app: "PostSnail",
+    version: 1,
+    state: { identity: { publicKey: "base64:cHVibGlj", secretKey: "raw-private-key" } },
+  };
+  assert.throws(
+    () => importLegacyBackupJson(JSON.stringify(rawBackup), { now }),
+    /Workspace data must not contain raw private signing keys\./,
+  );
+  assert.throws(
+    () => createWorkspaceData({ identity: { secretKey: "raw-private-key" } }, { now }),
+    /Workspace data must not contain raw private signing keys\./,
+  );
+});
+
+test("workspace migration v1 defaults missing containers and rejects future versions", () => {
+  const migrated = migrateWorkspace({
+    schema: "postsnail-workspace-data",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    profile: { siteTitle: "Sparse" },
+    posts: [],
+  });
+
+  assert.equal(migrated.version, CURRENT_WORKSPACE_VERSION);
+  assert.deepEqual(migrated.plugins, { installed: [], lock: {}, state: {} });
+  assert.deepEqual(migrated.moderation, { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] });
+  assert.deepEqual(migrated.trackerUrls, []);
+  assert.deepEqual(migrated.exportHistory, []);
+
+  assert.throws(
+    () => migrateWorkspace({ schema: "postsnail-workspace-data", version: 999 }),
+    /This workspace was created by a newer PostSnail version\./,
+  );
+});

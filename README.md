@@ -5,7 +5,12 @@ PostSnail Alpha 1 has two public surfaces:
 - `https://postsnail.org/` is the project website, manifesto, media kit, docs, and entry point to the browser admin.
 - `https://forest.postsnail.org/` is PostSnail Forest, the searchable tracker where creators register published PostSnail sites.
 
-The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It stores posts, images, backups, and encrypted publisher keys locally in the browser, then downloads a static ZIP that can be hosted on Cloudflare Pages, GitHub Pages, Netlify, or any plain static host.
+The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It stores posts, images, encrypted workspace vaults, and encrypted publisher keys locally in the browser, then downloads a static ZIP that can be hosted on Cloudflare Pages, GitHub Pages, Netlify, or any plain static host.
+
+PostSnail has two exports:
+
+1. Encrypted Workspace (`.postsnail`) for the creator. This is the private editable source.
+2. Public Website ZIP (`.zip`) for publishing. This is static public output, not the full project source.
 
 The exported site includes:
 
@@ -39,10 +44,11 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 
 1. Write at least one published post.
 2. Generate or unlock the encrypted ML-DSA-65 publisher key.
-3. Open Generate and click `Download signed ZIP`.
-4. Open Verify and choose the ZIP to validate it locally.
-5. Unzip the bundle and upload its contents to a static host.
-6. Register the public site on PostSnail Forest after it is live.
+3. Open Generate, enter a workspace passphrase, and export an encrypted `.postsnail` workspace.
+4. Click `Export Website ZIP`.
+5. Open Verify and choose the ZIP to validate it locally.
+6. Unzip the bundle and upload its contents to a static host.
+7. Register the public site on PostSnail Forest after it is live.
 
 ## What “Post-Quantum Signed Fingerprint” Means
 
@@ -60,10 +66,12 @@ Creators remain the source of truth through their own domain and signed proof fi
 
 - The private signing key is encrypted with your passphrase before being stored in IndexedDB.
 - Losing the passphrase means PostSnail cannot decrypt the signing key.
-- Export a backup after creating your identity and after meaningful publishing sessions.
+- Export an encrypted `.postsnail` workspace after creating your identity and after meaningful publishing sessions.
+- Move to another computer by importing the `.postsnail` workspace in the new browser, unlocking the publisher key, and exporting a new public Website ZIP.
+- A published ZIP or public site can only recover public content. It cannot recover private keys, drafts, private plugin state, rejected comments, or moderation notes.
 - Image files are copied into the ZIP as selected; strip EXIF/GPS metadata before importing images if that matters for your threat model.
 
-More detail: [Cloudflare Pages guide](docs/cloudflare-pages.md) and [recovery/proof notes](docs/recovery-and-proof.md).
+More detail: [workspace vaults](docs/workspace-vault.md), [Cloudflare Pages guide](docs/cloudflare-pages.md), [security notes](docs/security.md), [workspace migrations](docs/migrations.md), and [recovery/proof notes](docs/recovery-and-proof.md).
 
 ## License And Attribution
 
