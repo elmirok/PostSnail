@@ -82,7 +82,8 @@ class MemoryStore implements RegistryStore {
     for (const site of this.sites.values()) {
       if (site.hidden) continue;
       for (const post of this.posts.get(site.id) || []) {
-        const matchesQ = !q || post.searchText.includes(q);
+        const siteText = `${site.siteTitle} ${site.description} ${site.handle} ${site.canonicalUrl} ${site.siteUrl}`.toLowerCase();
+        const matchesQ = !q || post.searchText.includes(q) || siteText.includes(q);
         const matchesTag = !tag || post.tags.includes(tag);
         if (matchesQ && matchesTag) items.push({ site, post });
       }
@@ -236,6 +237,10 @@ describe("registry API and crawl flow", () => {
     expect(results.items).toHaveLength(1);
     expect(results.items[0].post).toMatchObject({ title: "Searchable Proof", digest: expect.stringMatching(/^[a-f0-9]{128}$/) });
     expect(results.items[0].post.body).toBeUndefined();
+
+    const hostSearch = await handleRequest(new Request("https://registry.example/api/search?q=creator.example"), deps);
+    const hostResults = await hostSearch.json() as any;
+    expect(hostResults.items).toHaveLength(1);
   });
 
   test("failed crawls store safe failure state and do not create search results", async () => {

@@ -178,8 +178,15 @@ export class D1RegistryStore implements RegistryStore {
     const values: unknown[] = [];
     if (params.q) {
       const like = `%${escapeLike(params.q)}%`;
-      conditions.push("(p.search_text LIKE ? ESCAPE '\\' OR s.site_title LIKE ? ESCAPE '\\' OR s.description LIKE ? ESCAPE '\\')");
-      values.push(like, like, like);
+      conditions.push(
+        `(p.search_text LIKE ? ESCAPE '\\'
+          OR s.site_title LIKE ? ESCAPE '\\'
+          OR s.description LIKE ? ESCAPE '\\'
+          OR s.handle LIKE ? ESCAPE '\\'
+          OR s.canonical_url LIKE ? ESCAPE '\\'
+          OR s.site_url LIKE ? ESCAPE '\\')`,
+      );
+      values.push(like, like, like, like, like, like);
     }
     if (params.tag) {
       conditions.push("p.tags_text LIKE ?");
