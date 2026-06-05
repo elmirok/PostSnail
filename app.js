@@ -34,6 +34,15 @@ const defaultProfile = {
   siteUrl: "",
   about: "",
 };
+const defaultSettings = {
+  warnMetadata: true,
+  language: "en",
+  topics: "",
+  preferredTrackers: "",
+  indexingPolicy: "allow",
+  showPoweredBy: true,
+  showTrackerCredit: true,
+};
 
 const state = {
   activeTab: "write",
@@ -42,7 +51,7 @@ const state = {
   posts: [],
   assets: [],
   identity: null,
-  settings: { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" },
+  settings: { ...defaultSettings },
   commitHistory: [],
   plugins: { installed: [], lock: {}, state: {} },
   moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
@@ -91,8 +100,7 @@ app.addEventListener("input", (event) => {
     saveProfile(state.profile);
   }
   if (input.matches("[data-settings-field]")) {
-    state.settings[input.dataset.settingsField] = input.value;
-    saveSettings(state.settings);
+    updateSettingFromInput(input);
   }
 });
 
@@ -103,8 +111,7 @@ app.addEventListener("change", async (event) => {
     updatePreview();
   }
   if (input.matches("[data-settings-field]")) {
-    state.settings[input.dataset.settingsField] = input.value;
-    saveSettings(state.settings);
+    updateSettingFromInput(input);
   }
   if (input.id === "image-upload") {
     await addImages(input.files);
@@ -212,7 +219,7 @@ async function handleAction(button) {
       await clearAppState();
       state.profile = { ...defaultProfile };
       state.identity = null;
-      state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow" };
+      state.settings = { ...defaultSettings };
       state.commitHistory = [];
       state.plugins = { installed: [], lock: {}, state: {} };
       state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
@@ -680,6 +687,16 @@ function renderGenerate() {
           <span>Preferred trackers</span>
           <textarea class="compact" data-settings-field="preferredTrackers" placeholder="https://tracker.example/announce">${escapeHtml(state.settings.preferredTrackers || "")}</textarea>
         </label>
+        <div class="grid-2">
+          <label class="field checkbox-field">
+            <input type="checkbox" data-settings-field="showPoweredBy" ${settingEnabled("showPoweredBy") ? "checked" : ""}>
+            <span>Show Powered by PostSnail</span>
+          </label>
+          <label class="field checkbox-field">
+            <input type="checkbox" data-settings-field="showTrackerCredit" ${settingEnabled("showTrackerCredit") ? "checked" : ""}>
+            <span>Show tracker credit</span>
+          </label>
+        </div>
         <label class="field">
           <span>Workspace passphrase</span>
           <input id="workspace-passphrase" type="password" autocomplete="new-password" placeholder="Encrypt or unlock .postsnail workspace files">
@@ -912,7 +929,7 @@ function postToForm(post) {
 function applyLoadedState(loaded) {
   state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
   state.identity = loaded.identity;
-  state.settings = { warnMetadata: true, language: "en", topics: "", preferredTrackers: "", indexingPolicy: "allow", ...(loaded.settings || {}) };
+  state.settings = { ...defaultSettings, ...(loaded.settings || {}) };
   state.commitHistory = loaded.commitHistory || [];
   state.plugins = loaded.plugins || { installed: [], lock: {}, state: {} };
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
@@ -921,6 +938,15 @@ function applyLoadedState(loaded) {
   state.posts = loaded.posts || [];
   state.assets = loaded.assets || [];
   state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
+}
+
+function updateSettingFromInput(input) {
+  state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
+  saveSettings(state.settings);
+}
+
+function settingEnabled(field) {
+  return state.settings[field] !== false && state.settings[field] !== "false";
 }
 
 function snapshotState() {

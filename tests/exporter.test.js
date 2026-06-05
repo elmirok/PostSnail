@@ -53,6 +53,8 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
       ".well-known/postsnail/latest-commit.json",
       "about/index.html",
       "archive/index.html",
+      "assets/postsnail-brand/postsnail-icon.png",
+      "assets/postsnail-brand/postsnail-logo.png",
       "assets/tiny-proof.png",
       "feed.json",
       "index.html",
@@ -81,6 +83,11 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   const postHtml = decodeText(files["posts/hello-postsnail/index.html"]);
   const tagHtml = decodeText(files["tags/intro/index.html"]);
   assert.match(indexHtml, /src="assets\/tiny-proof\.png"/);
+  assert.match(indexHtml, /Powered by PostSnail/);
+  assert.match(indexHtml, /src="assets\/postsnail-brand\/postsnail-logo\.png"/);
+  assert.match(postHtml, /src="\.\.\/\.\.\/assets\/postsnail-brand\/postsnail-logo\.png"/);
+  assert.doesNotMatch(indexHtml, /Tracked by/);
+  assert.equal(Boolean(files["trackers/index.html"]), false);
   assert.match(indexHtml, /href="posts\/hello-postsnail\/"/);
   assert.match(tagHtml, /href="..\/..\/posts\/hello-postsnail\/"/);
   assert.match(tagHtml, /href="..\/..\/tags\/intro\/"/);
@@ -89,6 +96,81 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
     assert.doesNotMatch(html, /PostSnail is Apache-2\.0 licensed/);
     assert.doesNotMatch(html, /NOTICE attribution/);
   }
+});
+
+test("buildStaticExport renders tracker credit page and honors attribution opt-outs", async () => {
+  const keys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Tracked Post",
+    body: "A public post for trackers.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const enabled = await buildStaticExport({
+    profile: { siteTitle: "Tracked Site", handle: "tracked", siteUrl: "https://creator.example" },
+    posts: [post],
+    assets: [],
+    settings: {
+      preferredTrackers: "https://forest.postsnail.org\nhttps://tracker.example/announce\nhttp://bad.example",
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const enabledFiles = unzipSync(enabled.zipBytes);
+  const homeHtml = decodeText(enabledFiles["index.html"]);
+  const postHtml = decodeText(enabledFiles["posts/tracked-post/index.html"]);
+  const trackersHtml = decodeText(enabledFiles["trackers/index.html"]);
+  assert.match(homeHtml, /Powered by PostSnail/);
+  assert.match(homeHtml, /href="trackers\/"/);
+  assert.match(homeHtml, /Tracked by/);
+  assert.match(postHtml, /href="\.\.\/\.\.\/trackers\/"/);
+  assert.match(trackersHtml, /Tracker credits/);
+  assert.match(trackersHtml, /href="https:\/\/forest\.postsnail\.org\/" rel="noopener noreferrer"/);
+  assert.match(trackersHtml, /href="https:\/\/tracker\.example\/announce" rel="noopener noreferrer"/);
+  assert.doesNotMatch(trackersHtml, /bad\.example/);
+  assert.ok(enabledFiles["assets/postsnail-brand/postsnail-logo.png"]);
+  assert.ok(enabledFiles["assets/postsnail-brand/postsnail-icon.png"]);
+
+  const poweredOff = await buildStaticExport({
+    profile: { siteTitle: "Tracked Site", handle: "tracked", siteUrl: "https://creator.example" },
+    posts: [post],
+    assets: [],
+    settings: {
+      preferredTrackers: "https://forest.postsnail.org",
+      showPoweredBy: false,
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const poweredOffFiles = unzipSync(poweredOff.zipBytes);
+  const poweredOffHome = decodeText(poweredOffFiles["index.html"]);
+  assert.doesNotMatch(poweredOffHome, /Powered by PostSnail/);
+  assert.match(poweredOffHome, /Tracked by/);
+  assert.equal(Boolean(poweredOffFiles["assets/postsnail-brand/postsnail-logo.png"]), false);
+  assert.equal(Boolean(poweredOffFiles["assets/postsnail-brand/postsnail-icon.png"]), false);
+
+  const trackerOff = await buildStaticExport({
+    profile: { siteTitle: "Tracked Site", handle: "tracked", siteUrl: "https://creator.example" },
+    posts: [post],
+    assets: [],
+    settings: {
+      preferredTrackers: "https://forest.postsnail.org",
+      showTrackerCredit: false,
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const trackerOffFiles = unzipSync(trackerOff.zipBytes);
+  const trackerOffHome = decodeText(trackerOffFiles["index.html"]);
+  assert.match(trackerOffHome, /Powered by PostSnail/);
+  assert.doesNotMatch(trackerOffHome, /Tracked by/);
+  assert.equal(Boolean(trackerOffFiles["trackers/index.html"]), false);
 });
 
 test("buildStaticExport keeps workspace-only data out of the public ZIP", async () => {

@@ -314,6 +314,16 @@ textarea:disabled {
   align-items: center;
 }
 
+.field.checkbox-field {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 11px;
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -324,6 +334,14 @@ textarea:disabled {
   background: var(--surface);
   color: var(--ink);
   padding: 10px 11px;
+}
+
+.field.checkbox-field input {
+  width: auto;
+  min-width: 18px;
+  inline-size: 18px;
+  block-size: 18px;
+  padding: 0;
 }
 
 .field textarea {

@@ -36,6 +36,12 @@ import {
 import { renderMarkdown } from "./markdown.js";
 
 export const GENERATOR_VERSION = "0.1.0";
+const POSTSNAIL_HOME_URL = "https://postsnail.org/";
+const BRAND_ASSET_FILES = {
+  logo: "postsnail-logo.png",
+  icon: "postsnail-icon.png",
+};
+const BRAND_EXPORT_PATH = "assets/postsnail-brand/";
 
 export async function buildStaticExport({
   profile,
@@ -49,6 +55,7 @@ export async function buildStaticExport({
 }) {
   const cleanProfile = normalizeProfile(profile);
   const cleanSettings = normalizeDiscoverySettings(settings);
+  const attribution = normalizeAttributionSettings(settings, cleanSettings);
   const publishedPosts = posts
     .filter((post) => post.status === "published")
     .slice()
@@ -67,20 +74,27 @@ export async function buildStaticExport({
   });
 
   const files = {};
-  files["index.html"] = htmlBytes(renderIndex(cleanProfile, publishedPosts, postProofs, assetMap));
-  files["archive/index.html"] = htmlBytes(renderArchive(cleanProfile, publishedPosts));
-  files["about/index.html"] = htmlBytes(renderAbout(cleanProfile));
+  files["index.html"] = htmlBytes(renderIndex(cleanProfile, publishedPosts, postProofs, assetMap, attribution));
+  files["archive/index.html"] = htmlBytes(renderArchive(cleanProfile, publishedPosts, attribution));
+  files["about/index.html"] = htmlBytes(renderAbout(cleanProfile, attribution));
   files["feed.json"] = htmlBytes(renderFeedJson(cleanProfile, publishedPosts, postProofs));
   files["rss.xml"] = htmlBytes(renderRss(cleanProfile, publishedPosts));
-  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts));
+  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts, attribution.trackerUrls.length > 0));
+  if (attribution.trackerUrls.length) {
+    files["trackers/index.html"] = htmlBytes(renderTrackers(cleanProfile, attribution));
+  }
   for (const post of publishedPosts) {
-    files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap));
+    files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap, attribution));
   }
   for (const tag of tagsForPosts(publishedPosts)) {
-    files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts));
+    files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts, attribution));
   }
   for (const asset of assetMap.values()) {
     files[`assets/${asset.fileName}`] = decodeBase64(asset.dataBase64);
+  }
+  if (attribution.showPoweredBy) {
+    files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.logo}`] = await loadBrandAsset(BRAND_ASSET_FILES.logo);
+    files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.icon}`] = await loadBrandAsset(BRAND_ASSET_FILES.icon);
   }
 
   const fileDigests = digestFiles(files);
@@ -153,6 +167,17 @@ function normalizeProfile(profile = {}) {
   };
 }
 
+function normalizeAttributionSettings(settings = {}, discoverySettings = normalizeDiscoverySettings(settings)) {
+  return {
+    showPoweredBy: settings.showPoweredBy !== false && settings.showPoweredBy !== "false",
+    showTrackerCredit: settings.showTrackerCredit !== false && settings.showTrackerCredit !== "false",
+    trackerUrls:
+      settings.showTrackerCredit === false || settings.showTrackerCredit === "false"
+        ? []
+        : discoverySettings.preferredTrackers,
+  };
+}
+
 function canonicalPostRecord(post, profile, assetMap) {
   return {
     id: post.id,
@@ -204,7 +229,7 @@ function extensionForAsset(asset) {
   return ".png";
 }
 
-function renderIndex(profile, posts, proofs, assetMap) {
+function renderIndex(profile, posts, proofs, assetMap, attribution) {
   return renderPage(profile, {
     title: profile.siteTitle,
     path: "",
@@ -218,10 +243,11 @@ function renderIndex(profile, posts, proofs, assetMap) {
         ${posts.map((post) => renderPostCard(post, proofs, assetMap)).join("") || "<p>No posts yet.</p>"}
       </section>
     `,
+    attribution,
   });
 }
 
-function renderArchive(profile, posts) {
+function renderArchive(profile, posts, attribution) {
   return renderPage(profile, {
     title: `Archive - ${profile.siteTitle}`,
     path: "archive/",
@@ -232,20 +258,22 @@ function renderArchive(profile, posts) {
       </ol>
     `,
     rootPrefix: "../",
+    attribution,
   });
 }
 
-function renderAbout(profile) {
+function renderAbout(profile, attribution) {
   const body = profile.about ? renderMarkdown(profile.about) : `<p>${escapeHtml(profile.description)}</p>`;
   return renderPage(profile, {
     title: `About - ${profile.siteTitle}`,
     path: "about/",
     body: `<h1>About</h1>${body}`,
     rootPrefix: "../",
+    attribution,
   });
 }
 
-function renderPost(profile, post, proofs, assetMap) {
+function renderPost(profile, post, proofs, assetMap, attribution) {
   const proof = proofs.find((item) => item.slug === post.slug);
   const images = post.imageIds
     .map((id) => assetMap.get(id))
@@ -268,16 +296,39 @@ function renderPost(profile, post, proofs, assetMap) {
       </article>
     `,
     rootPrefix: "../../",
+    attribution,
   });
 }
 
-function renderTag(profile, tag, posts) {
+function renderTag(profile, tag, posts, attribution) {
   const tagged = posts.filter((post) => post.tags.includes(tag));
   return renderPage(profile, {
     title: `#${tag} - ${profile.siteTitle}`,
     path: `tags/${tag}/`,
     body: `<h1>#${escapeHtml(tag)}</h1><section class="feed">${tagged.map((post) => renderPostCard(post, [], new Map(), "../../")).join("")}</section>`,
     rootPrefix: "../../",
+    attribution,
+  });
+}
+
+function renderTrackers(profile, attribution) {
+  return renderPage(profile, {
+    title: `Tracker credits - ${profile.siteTitle}`,
+    path: "trackers/",
+    body: `
+      <section class="tracker-credits">
+        <p class="kicker">Discovery credits</p>
+        <h1>Tracker credits</h1>
+        <p>These PostSnail trackers can help readers discover this public microblog. The signed manifest on this creator-owned site remains the source of truth.</p>
+        <ul class="tracker-list">
+          ${attribution.trackerUrls
+            .map((url) => `<li><a href="${escapeAttr(url)}" rel="noopener noreferrer">${escapeHtml(url)}</a></li>`)
+            .join("")}
+        </ul>
+      </section>
+    `,
+    rootPrefix: "../",
+    attribution,
   });
 }
 
@@ -345,11 +396,12 @@ function renderRss(profile, posts) {
 </rss>`;
 }
 
-function renderSitemap(profile, posts) {
+function renderSitemap(profile, posts, hasTrackerPage = false) {
   const urls = [
     ["", latestPostDate(posts)],
     ["archive/", latestPostDate(posts)],
     ["about/", ""],
+    ...(hasTrackerPage ? [["trackers/", latestPostDate(posts)]] : []),
     [FEED_PATH, latestPostDate(posts)],
     [RSS_PATH, latestPostDate(posts)],
     ...posts.map((post) => [`posts/${post.slug}/`, post.updatedAt || post.publishedAt || post.createdAt]),
@@ -366,9 +418,10 @@ ${urls
 </urlset>`;
 }
 
-function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null }) {
+function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null, attribution = normalizeAttributionSettings() }) {
   const canonicalUrl = siteUrlForPath(profile.siteUrl, path);
   const jsonLd = post ? articleJsonLd(profile, post, canonicalUrl) : siteJsonLd(profile, canonicalUrl);
+  const footer = renderPublicFooter(rootPrefix, attribution);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -402,8 +455,24 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
     <nav><a href="${rootPrefix}archive/">Archive</a><a href="${rootPrefix}about/">About</a></nav>
   </header>
   <main>${body}</main>
+  ${footer}
 </body>
 </html>`;
+}
+
+function renderPublicFooter(rootPrefix, attribution) {
+  const poweredBy = attribution.showPoweredBy
+    ? `<a class="powered-by" href="${POSTSNAIL_HOME_URL}" rel="noopener noreferrer"><span>Powered by PostSnail</span><img src="${rootPrefix}${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.logo}" alt="" loading="lazy"></a>`
+    : "";
+  const trackedBy = attribution.trackerUrls.length
+    ? `<a class="tracked-by" href="${rootPrefix}trackers/">Tracked by</a>`
+    : "";
+  if (!poweredBy && !trackedBy) return "";
+  return `
+  <footer class="public-footer">
+    ${poweredBy}
+    ${trackedBy}
+  </footer>`;
 }
 
 function siteJsonLd(profile, url) {
@@ -457,12 +526,33 @@ function publicCss() {
     .markdown { font-size: 1.05rem; line-height: 1.65; }
     .archive-list { display: grid; gap: 10px; padding-left: 1.2em; }
     .archive-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+    .public-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; width: min(980px, 92vw); margin: 0 auto; padding: 18px 0 28px; border-top: 1px solid #e7e4ed; color: #6c6875; font-size: 0.86rem; }
+    .powered-by, .tracked-by { display: inline-flex; align-items: center; gap: 8px; color: inherit; font-weight: 800; text-decoration: none; }
+    .powered-by img { width: 112px; height: auto; image-rendering: pixelated; }
+    .tracker-credits { max-width: 760px; }
+    .tracker-list { display: grid; gap: 10px; padding-left: 1.2em; }
+    .tracker-list a { overflow-wrap: anywhere; }
     @media (max-width: 640px) {
       .site-header, .post-card { grid-template-columns: 1fr; }
       .site-header { align-items: flex-start; flex-direction: column; }
       .post-card { display: grid; }
+      .public-footer { align-items: flex-start; flex-direction: column; }
     }
   `;
+}
+
+async function loadBrandAsset(fileName) {
+  const assetUrl = new URL(`../assets/brand/${fileName}`, import.meta.url);
+  if (assetUrl.protocol !== "file:" && typeof fetch === "function") {
+    const response = await fetch(assetUrl);
+    if (!response.ok) throw new Error(`Could not load PostSnail brand asset: ${fileName}`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+  if (assetUrl.protocol === "file:") {
+    const { readFile } = await import("node:fs/promises");
+    return new Uint8Array(await readFile(assetUrl));
+  }
+  throw new Error(`Could not load PostSnail brand asset: ${fileName}`);
 }
 
 function tagsForPosts(posts) {

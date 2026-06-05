@@ -78,6 +78,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Import Workspace/);
   assert.match(appJs, /Import Legacy Backup JSON/);
   assert.match(appJs, /Export Website ZIP/);
+  assert.match(appJs, /Show Powered by PostSnail/);
+  assert.match(appJs, /Show tracker credit/);
   assert.match(appJs, /\.postsnail/);
   assert.match(appJs, /\.zip/);
   assert.match(appJs, legalFooterPattern);
