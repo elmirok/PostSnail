@@ -284,6 +284,7 @@ export function verifyCommitLog(commits, context) {
   let previousHash = null;
   list.forEach((commit, index) => {
     const expectedContext = index === list.length - 1 ? context : { ...context, manifestHash: commit.manifestHash, bundleFingerprint: commit.bundleFingerprint };
+    if (commit?.sequence !== index + 1) errors.push(`Commit ${index + 1}: Commit sequence is not consecutive.`);
     const result = verifyCommitRecord(commit, { ...expectedContext, previousCommit: previousHash });
     if (!result.ok) errors.push(...result.errors.map((error) => `Commit ${index + 1}: ${error}`));
     previousHash = commitHash(commit);

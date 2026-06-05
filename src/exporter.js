@@ -276,23 +276,23 @@ function renderTag(profile, tag, posts) {
   return renderPage(profile, {
     title: `#${tag} - ${profile.siteTitle}`,
     path: `tags/${tag}/`,
-    body: `<h1>#${escapeHtml(tag)}</h1><section class="feed">${tagged.map((post) => renderPostCard(post, [], new Map())).join("")}</section>`,
+    body: `<h1>#${escapeHtml(tag)}</h1><section class="feed">${tagged.map((post) => renderPostCard(post, [], new Map(), "../../")).join("")}</section>`,
     rootPrefix: "../../",
   });
 }
 
-function renderPostCard(post, proofs, assetMap) {
+function renderPostCard(post, proofs, assetMap, rootPrefix = "") {
   const proof = proofs.find((item) => item.slug === post.slug);
   const firstImage = post.imageIds.map((id) => assetMap.get(id)).find(Boolean);
-  const image = firstImage ? `<img src="assets/${firstImage.fileName}" alt="${escapeHtml(firstImage.alt || firstImage.name || "")}" loading="lazy">` : "";
+  const image = firstImage ? `<img src="${rootPrefix}assets/${firstImage.fileName}" alt="${escapeHtml(firstImage.alt || firstImage.name || "")}" loading="lazy">` : "";
   return `
     <article class="post-card">
       ${image}
       <div>
         <time>${formatDate(post.publishedAt)}</time>
-        <h2><a href="posts/${post.slug}/">${escapeHtml(post.title || post.slug)}</a></h2>
+        <h2><a href="${rootPrefix}posts/${post.slug}/">${escapeHtml(post.title || post.slug)}</a></h2>
         <p>${escapeHtml(post.excerpt || buildExcerpt(post.body))}</p>
-        <div class="post-tags">${post.tags.map((tag) => `<a href="tags/${tag}/">#${escapeHtml(tag)}</a>`).join("")}</div>
+        <div class="post-tags">${post.tags.map((tag) => `<a href="${rootPrefix}tags/${tag}/">#${escapeHtml(tag)}</a>`).join("")}</div>
         ${proof ? `<code class="digest">${escapeHtml(proof.digest.slice(0, 32))}...</code>` : ""}
       </div>
     </article>

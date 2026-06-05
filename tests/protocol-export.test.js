@@ -165,4 +165,7 @@ test("commit verification rejects mismatched manifest hash and signatures", asyn
   assert.equal(verifyCommitRecord(commit, { publicKey: payload.publicKey, manifestHash: "abc", bundleFingerprint: "psn1-sha3-512-abc" }).ok, true);
   assert.equal(verifyCommitRecord({ ...commit, manifestHash: "changed" }, { publicKey: payload.publicKey, manifestHash: "abc", bundleFingerprint: "psn1-sha3-512-abc" }).ok, false);
   assert.equal(verifyCommitRecord({ ...commit, signature: commit.signature.replace(/.$/u, "A") }, { publicKey: payload.publicKey, manifestHash: "abc", bundleFingerprint: "psn1-sha3-512-abc" }).ok, false);
+
+  const { verifyCommitLog } = await import("../src/proof-documents.js");
+  assert.equal(verifyCommitLog([{ ...commit, sequence: 2 }], { publicKey: payload.publicKey, manifestHash: "abc", bundleFingerprint: "psn1-sha3-512-abc" }).ok, false);
 });

@@ -17,6 +17,9 @@ The Verify tab checks:
 - Manifest signature against the public key.
 - Each post record digest and signature.
 - Each generated file hash listed in the manifest.
+- Signed identity/discovery metadata in `.well-known/postsnail.json`.
+- Domain binding when a site URL is declared.
+- Signed export commit history when present.
 - Bundle fingerprint over the manifest’s file and post proof set.
 
 If any check fails, treat the ZIP as changed, corrupted, or not a PostSnail export from that publisher key.
@@ -24,4 +27,3 @@ If any check fails, treat the ZIP as changed, corrupted, or not a PostSnail expo
 ## Image Metadata
 
 PostSnail copies selected images into the exported site as-is. Browser APIs do not reliably remove metadata. Use a trusted image-cleaning tool before importing photos if EXIF/GPS metadata matters.
-
