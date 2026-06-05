@@ -216,6 +216,22 @@ function mappedFetch(documents: { wellKnown: string; manifest: string }) {
 }
 
 describe("registry API and crawl flow", () => {
+  test("serves the Forest homepage for GET and HEAD", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+
+    const get = await handleRequest(new Request("https://registry.example/"), deps);
+    expect(get.status).toBe(200);
+    expect(get.headers.get("content-type")).toContain("text/html");
+    expect(await get.text()).toContain("PostSnail Forest");
+
+    const head = await handleRequest(new Request("https://registry.example/", { method: "HEAD" }), deps);
+    expect(head.status).toBe(200);
+    expect(head.headers.get("content-type")).toContain("text/html");
+    expect(await head.text()).toBe("");
+  });
+
   test("queues submissions and rejects duplicate active submissions", async () => {
     const store = new MemoryStore();
     const queue = new MemoryQueue();

@@ -48,8 +48,8 @@ export function depsFromEnv(env: RuntimeEnv): AppDeps {
 export async function handleRequest(request: Request, deps: AppDeps): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
-  if (request.method === "GET" && url.pathname === "/") {
-    return new Response(renderSearchPage(), { headers: htmlHeaders() });
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/") {
+    return new Response(request.method === "HEAD" ? null : renderSearchPage(), { headers: htmlHeaders() });
   }
   try {
     if (request.method === "POST" && url.pathname === "/api/submit") return await handleSubmit(request, deps);
