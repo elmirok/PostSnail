@@ -49,6 +49,7 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 5. Open Verify and choose the ZIP to validate it locally.
 6. Unzip the bundle and upload its contents to a static host.
 7. Register the public site on PostSnail Forest after it is live.
+8. After later publishes, click `Notify Forest` once the new ZIP is live so Forest can refresh quickly.
 
 ## What “Post-Quantum Signed Fingerprint” Means
 
@@ -59,6 +60,8 @@ This proves that the exported content matches the signed manifest and publisher 
 ## Discovery and Trackers
 
 PostSnail sites are self-authenticating static bundles. PostSnail Forest is only a search/discovery service: it fetches the public `.well-known` identity document and manifest, verifies signatures and fingerprints, then indexes compact public summaries.
+
+After a creator publishes a new ZIP, the admin can send Forest a signed public announce. Forest checks the live `.well-known/postsnail.json` fingerprint first and only queues a full crawl when the fingerprint changed. If the creator forgets, Forest also runs capped scheduled checks that back off quiet sites toward daily checks.
 
 Creators remain the source of truth through their own domain and signed proof files. See the public docs at `/docs/architecture/` and the repo notes in [tracker protocol notes](docs/tracker-protocol.md).
 
@@ -81,4 +84,4 @@ The shipped browser dependencies are open-source and listed in [third-party noti
 
 ## Forest Cost Notes
 
-Forest JSON API usage can consume Cloudflare resources. Search and site lookups use Workers and D1 reads; submissions also use D1 writes and Queue operations. Cloudflare Free plan limits can fail closed when exhausted, while Workers Paid usage can create overage billing if abused. For production, keep app-level submit limits and add Cloudflare dashboard/WAF rate rules for `/api/search` and `/api/submit`.
+Forest JSON API usage can consume Cloudflare resources. Search and site lookups use Workers and D1 reads; submissions and announces use D1 rate-limit reads/writes plus Queue operations when a crawl is needed. Scheduled freshness checks use Worker requests and cheap `.well-known` fetches first, then run full manifest/post verification only after a bundle fingerprint change. Cloudflare Free plan limits can fail closed when exhausted, while Workers Paid usage can create overage billing if abused. For production, keep app-level limits and add Cloudflare dashboard/WAF rate rules for `/api/search`, `/api/submit`, and `/api/announce`.

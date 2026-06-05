@@ -1,13 +1,17 @@
 import { encodeText } from "../../src/bytes.js";
 import { normalizeTags } from "../../src/content.js";
 import { sha3Hex } from "../../src/crypto.js";
+import { verifyAnnouncePayload } from "../../src/proof-documents.js";
 import { D1RegistryStore } from "./db";
 import { renderSearchPage } from "./html";
 import { normalizedSearchText, randomId } from "./ids";
-import { normalizeSubmittedUrl } from "./url";
+import { fetchJson } from "./remote";
+import { addMinutes, createRefreshSubmission } from "./scheduler";
+import { normalizeSubmittedUrl, sameOriginUrl } from "./url";
 import type { CrawlMessage, Fetcher, RegistryQueue, RegistryStore, SearchParams, SubmissionRecord } from "./types";
 
 const MAX_SUBMIT_BYTES = 8192;
+const MAX_ANNOUNCE_BYTES = 24 * 1024;
 
 export interface AppDeps {
   store: RegistryStore;
@@ -40,6 +44,7 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
   }
   try {
     if (request.method === "POST" && url.pathname === "/api/submit") return await handleSubmit(request, deps);
+    if (request.method === "POST" && url.pathname === "/api/announce") return await handleAnnounce(request, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/submissions/")) return await handleSubmission(url, deps);
     if (request.method === "GET" && url.pathname === "/api/search") return await handleSearch(url, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/sites/")) return await handleSite(url, deps);
@@ -53,7 +58,7 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
 }
 
 async function handleSubmit(request: Request, deps: AppDeps): Promise<Response> {
-  const body = await readJsonRequest(request);
+  const body = await readJsonRequest(request, MAX_SUBMIT_BYTES);
   const rawUrl = typeof body.url === "string" ? body.url : "";
   const normalized = normalizeForSubmit(rawUrl);
   const now = deps.now?.() || new Date().toISOString();
@@ -74,6 +79,51 @@ async function handleSubmit(request: Request, deps: AppDeps): Promise<Response> 
   await deps.store.createSubmission(submission);
   await deps.queue.send({ submissionId: submission.id, siteUrl: submission.siteUrl });
   return json({ submissionId: submission.id, status: "queued", siteUrl: submission.siteUrl }, 202);
+}
+
+async function handleAnnounce(request: Request, deps: AppDeps): Promise<Response> {
+  const payload = await readJsonRequest(request, MAX_ANNOUNCE_BYTES);
+  const announce = verifyAnnouncePayload(payload);
+  if (!announce.ok) throw new PublicError(400, announce.errors.join(" "));
+  const normalized = normalizeForSubmit(stringValue(payload.siteUrl));
+  const now = deps.now?.() || new Date().toISOString();
+  const requesterHash = requesterHashFor(request, deps.rateLimitSecret || "postsnail-local-dev");
+  await enforceAnnounceRateLimit(deps.store, requesterHash, normalized.siteUrl, now);
+
+  const wellKnownUrl = sameOriginUrl(normalized.siteUrl, stringValue(payload.wellKnownUrl) || ".well-known/postsnail.json").toString();
+  sameOriginUrl(normalized.siteUrl, stringValue(payload.manifestUrl) || "postsnail.manifest.json");
+  const fingerprint = stringValue(payload.bundleFingerprint);
+  const publicKey = stringValue(payload.publicKey);
+  const site = await deps.store.getSiteByCanonicalUrl(normalized.siteUrl);
+  if (site && site.publicKey !== publicKey) throw new PublicError(401, "Announce public key does not match the indexed site.");
+
+  let wellKnown: Record<string, unknown>;
+  try {
+    wellKnown = objectRecord(await fetchJson(wellKnownUrl, deps.fetcher || fetch, normalized.siteUrl));
+  } catch {
+    if (site) {
+      await deps.store.recordPendingRefresh(site.id, fingerprint, addMinutes(now, 15), now);
+      return json({ status: "pending_live_site", siteUrl: normalized.siteUrl, bundleFingerprint: fingerprint }, 202);
+    }
+    throw new PublicError(400, "Live PostSnail proof metadata could not be fetched.");
+  }
+  if (stringValue(wellKnown.publicKey) !== publicKey) throw new PublicError(401, "Live public key does not match the announce payload.");
+  if (stringValue(wellKnown.bundleFingerprint) !== fingerprint) {
+    if (site) {
+      await deps.store.recordPendingRefresh(site.id, fingerprint, addMinutes(now, 15), now);
+      return json({ status: "pending_live_site", siteUrl: normalized.siteUrl, bundleFingerprint: fingerprint }, 202);
+    }
+    throw new PublicError(409, "Live site has not published the announced fingerprint.");
+  }
+  if (site?.bundleFingerprint === fingerprint) {
+    await deps.store.recordRefreshCheck(site.id, { changed: false, failed: false }, now, addMinutes(now, 60), 60);
+    return json({ status: "current", siteUrl: normalized.siteUrl, bundleFingerprint: fingerprint }, 200);
+  }
+  const active = await deps.store.findActiveSubmission(normalized.siteUrl, now);
+  if (active) throw new PublicError(409, "This site already has an active refresh.");
+  const submission = await createRefreshSubmission(deps.store, deps.queue, normalized.siteUrl, site?.id || null, requesterHash, now);
+  if (site) await deps.store.recordRefreshQueued(site.id, fingerprint, addMinutes(now, 60), now);
+  return json({ status: "queued", submissionId: submission.id, siteUrl: normalized.siteUrl }, 202);
 }
 
 function normalizeForSubmit(rawUrl: string): { siteUrl: string; hostname: string } {
@@ -167,6 +217,16 @@ async function enforceRateLimit(store: RegistryStore, requesterHash: string, now
   if (hourCount > 10 || dayCount > 50) throw new PublicError(429, "Submission rate limit reached.");
 }
 
+async function enforceAnnounceRateLimit(store: RegistryStore, requesterHash: string, siteUrl: string, now: string): Promise<void> {
+  await enforceRateLimit(store, requesterHash, now);
+  const hour = now.slice(0, 13);
+  const day = now.slice(0, 10);
+  const siteHash = sha3Hex(encodeText(siteUrl));
+  const siteHourCount = await store.incrementRateLimit(`announce:${siteHash}:hour:${hour}`, `${hour}:00:00Z`, now);
+  const siteDayCount = await store.incrementRateLimit(`announce:${siteHash}:day:${day}`, `${day}T00:00:00Z`, now);
+  if (siteHourCount > 6 || siteDayCount > 24) throw new PublicError(429, "Announce rate limit reached.");
+}
+
 function requesterHashFor(request: Request, secret: string): string {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return sha3Hex(encodeText(`${secret}:${ip}`));
@@ -183,17 +243,25 @@ function htmlHeaders(): HeadersInit {
   };
 }
 
-async function readJsonRequest(request: Request): Promise<Record<string, unknown>> {
+async function readJsonRequest(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
   const length = Number(request.headers.get("content-length") || "0");
-  if (length > MAX_SUBMIT_BYTES) throw new PublicError(400, "Request body is too large.");
+  if (length > maxBytes) throw new PublicError(400, "Request body is too large.");
   const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_SUBMIT_BYTES) throw new PublicError(400, "Request body is too large.");
+  if (new TextEncoder().encode(text).byteLength > maxBytes) throw new PublicError(400, "Request body is too large.");
   try {
     const parsed = JSON.parse(text);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     throw new PublicError(400, "Request body must be JSON.");
   }
+}
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 async function hasAdminAccess(request: Request, token?: string): Promise<boolean> {

@@ -24,6 +24,7 @@ async function proofFixture() {
       siteUrl: "https://creator.example",
       about: "About registry feed."
     },
+    settings: { showPoweredBy: false },
     posts: [post],
     assets: [],
     publicKey: keys.publicKey,

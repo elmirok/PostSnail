@@ -31,6 +31,17 @@ export class D1RegistryStore implements RegistryStore {
     return row || null;
   }
 
+  async findActiveSubmission(siteUrl: string): Promise<{ id: string; status: string } | null> {
+    const row = await this.db.prepare(
+      `SELECT id, status FROM submissions
+       WHERE site_url = ?
+         AND status IN ('queued', 'crawling')
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+    ).bind(siteUrl).first<{ id: string; status: string }>();
+    return row || null;
+  }
+
   async createSubmission(submission: SubmissionRecord): Promise<void> {
     await this.db.prepare(
       `INSERT INTO submissions (id, site_url, status, site_id, message, requester_hash, created_at, updated_at)
@@ -80,8 +91,9 @@ export class D1RegistryStore implements RegistryStore {
         `INSERT INTO sites (
           id, canonical_url, manifest_url, site_title, handle, description, site_url, public_key,
           bundle_fingerprint, generated_at, last_verified_at, hidden, created_at, updated_at,
-          latest_crawl_status, latest_crawl_message
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          latest_crawl_status, latest_crawl_message, last_checked_at, next_check_at,
+          check_interval_minutes, unchanged_check_count, failure_count, pending_fingerprint
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           canonical_url = excluded.canonical_url,
           manifest_url = excluded.manifest_url,
@@ -95,7 +107,13 @@ export class D1RegistryStore implements RegistryStore {
           last_verified_at = excluded.last_verified_at,
           updated_at = excluded.updated_at,
           latest_crawl_status = excluded.latest_crawl_status,
-          latest_crawl_message = excluded.latest_crawl_message`,
+          latest_crawl_message = excluded.latest_crawl_message,
+          last_checked_at = excluded.last_checked_at,
+          next_check_at = excluded.next_check_at,
+          check_interval_minutes = excluded.check_interval_minutes,
+          unchanged_check_count = excluded.unchanged_check_count,
+          failure_count = excluded.failure_count,
+          pending_fingerprint = excluded.pending_fingerprint`,
       ).bind(
         site.id,
         site.canonicalUrl,
@@ -112,6 +130,12 @@ export class D1RegistryStore implements RegistryStore {
         now,
         now,
         "indexed",
+        "",
+        now,
+        addMinutes(now, 60),
+        60,
+        0,
+        0,
         "",
       ),
       this.db.prepare("DELETE FROM posts WHERE site_id = ?").bind(site.id),
@@ -156,6 +180,22 @@ export class D1RegistryStore implements RegistryStore {
     return row ? rowToSite(row) : null;
   }
 
+  async getSiteByCanonicalUrl(siteUrl: string): Promise<RegistrySite | null> {
+    const row = await this.db.prepare("SELECT * FROM sites WHERE canonical_url = ? ORDER BY updated_at DESC LIMIT 1").bind(siteUrl).first<Row>();
+    return row ? rowToSite(row) : null;
+  }
+
+  async getDueSites(now: string, limit: number): Promise<RegistrySite[]> {
+    const result = await this.db.prepare(
+      `SELECT * FROM sites
+       WHERE hidden = 0
+         AND next_check_at <= ?
+       ORDER BY next_check_at ASC, id ASC
+       LIMIT ?`,
+    ).bind(now, Math.min(Math.max(limit, 1), 100)).all<Row>();
+    return (result.results || []).map(rowToSite);
+  }
+
   async getPostsForSite(id: string, limit = 100): Promise<RegistryPost[]> {
     const result = await this.db.prepare(
       `SELECT id AS post_id, site_id, slug, title, url, excerpt, tags_json, digest, published_at,
@@ -170,6 +210,52 @@ export class D1RegistryStore implements RegistryStore {
 
   async setSiteHidden(id: string, hidden: boolean, now = new Date().toISOString()): Promise<void> {
     await this.db.prepare("UPDATE sites SET hidden = ?, updated_at = ? WHERE id = ?").bind(hidden ? 1 : 0, now, id).run();
+  }
+
+  async recordPendingRefresh(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void> {
+    await this.db.prepare(
+      `UPDATE sites
+       SET pending_fingerprint = ?, next_check_at = ?, last_checked_at = ?, latest_crawl_status = 'queued',
+         latest_crawl_message = 'Waiting for announced fingerprint to appear on the live site.', updated_at = ?
+       WHERE id = ?`,
+    ).bind(fingerprint, nextCheckAt, now, now, siteId).run();
+  }
+
+  async recordRefreshQueued(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void> {
+    await this.db.prepare(
+      `UPDATE sites
+       SET pending_fingerprint = ?, next_check_at = ?, last_checked_at = ?, latest_crawl_status = 'queued',
+         latest_crawl_message = '', updated_at = ?
+       WHERE id = ?`,
+    ).bind(fingerprint, nextCheckAt, now, now, siteId).run();
+  }
+
+  async recordRefreshCheck(siteId: string, outcome: { changed: boolean; failed: boolean; fingerprint?: string }, now: string, nextCheckAt: string, intervalMinutes: number): Promise<void> {
+    await this.db.prepare(
+      `UPDATE sites
+       SET last_checked_at = ?, next_check_at = ?, check_interval_minutes = ?,
+         unchanged_check_count = CASE WHEN ? THEN 0 ELSE unchanged_check_count + 1 END,
+         failure_count = CASE WHEN ? THEN failure_count + 1 ELSE 0 END,
+         pending_fingerprint = CASE WHEN ? THEN COALESCE(?, pending_fingerprint) ELSE pending_fingerprint END,
+         latest_crawl_status = CASE WHEN ? THEN 'failed' ELSE latest_crawl_status END,
+         latest_crawl_message = CASE WHEN ? THEN 'Proof metadata could not be checked.' ELSE latest_crawl_message END,
+         updated_at = ?
+       WHERE id = ?`,
+    )
+      .bind(
+        now,
+        nextCheckAt,
+        intervalMinutes,
+        outcome.changed || outcome.failed ? 1 : 0,
+        outcome.failed ? 1 : 0,
+        outcome.changed ? 1 : 0,
+        outcome.fingerprint || "",
+        outcome.failed ? 1 : 0,
+        outcome.failed ? 1 : 0,
+        now,
+        siteId,
+      )
+      .run();
   }
 
   async search(params: SearchParams): Promise<SearchResult> {
@@ -253,6 +339,12 @@ function rowToSite(row: Row): RegistrySite {
     updatedAt: String(row.site_updated_at || row.updated_at || ""),
     latestCrawlStatus: String(row.latest_crawl_status || "indexed") as RegistrySite["latestCrawlStatus"],
     latestCrawlMessage: String(row.latest_crawl_message || ""),
+    lastCheckedAt: String(row.last_checked_at || row.last_verified_at || ""),
+    nextCheckAt: String(row.next_check_at || row.last_verified_at || ""),
+    checkIntervalMinutes: Number(row.check_interval_minutes || 60),
+    unchangedCheckCount: Number(row.unchanged_check_count || 0),
+    failureCount: Number(row.failure_count || 0),
+    pendingFingerprint: String(row.pending_fingerprint || ""),
   };
 }
 
@@ -301,4 +393,8 @@ function parseCursor(value: string | null): { publishedAt: string; id: string } 
   } catch {
     return null;
   }
+}
+
+function addMinutes(value: string, minutes: number): string {
+  return new Date(Date.parse(value) + minutes * 60 * 1000).toISOString();
 }

@@ -37,6 +37,12 @@ export interface RegistrySite {
   updatedAt: string;
   latestCrawlStatus: SubmissionStatus;
   latestCrawlMessage: string;
+  lastCheckedAt: string;
+  nextCheckAt: string;
+  checkIntervalMinutes: number;
+  unchangedCheckCount: number;
+  failureCount: number;
+  pendingFingerprint: string;
 }
 
 export interface RegistryPost {
@@ -73,13 +79,19 @@ export interface SearchResult {
 export interface RegistryStore {
   incrementRateLimit(key: string, windowStart?: string, now?: string): Promise<number>;
   findRecentSubmission(siteUrl: string, now?: string): Promise<{ id: string; status: string } | null>;
+  findActiveSubmission(siteUrl: string, now?: string): Promise<{ id: string; status: string } | null>;
   createSubmission(submission: SubmissionRecord): Promise<void>;
   getSubmission(id: string): Promise<SubmissionRecord | null>;
   markSubmissionCrawling(id: string, now: string): Promise<void>;
   markSubmissionFailed(id: string, message: string, now: string): Promise<void>;
   upsertVerifiedSite(site: RegistrySite, posts: RegistryPost[], submissionId: string, now: string): Promise<void>;
   getSite(id: string): Promise<RegistrySite | null>;
+  getSiteByCanonicalUrl(siteUrl: string): Promise<RegistrySite | null>;
+  getDueSites(now: string, limit: number): Promise<RegistrySite[]>;
   getPostsForSite(id: string, limit?: number): Promise<RegistryPost[]>;
+  recordPendingRefresh(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void>;
+  recordRefreshQueued(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void>;
+  recordRefreshCheck(siteId: string, outcome: { changed: boolean; failed: boolean; fingerprint?: string }, now: string, nextCheckAt: string, intervalMinutes: number): Promise<void>;
   setSiteHidden(id: string, hidden: boolean, now?: string): Promise<void>;
   search(params: SearchParams): Promise<SearchResult>;
 }

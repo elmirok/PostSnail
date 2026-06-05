@@ -80,6 +80,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Export Website ZIP/);
   assert.match(appJs, /Show Powered by PostSnail/);
   assert.match(appJs, /Show tracker credit/);
+  assert.match(appJs, /Notify Forest/);
+  assert.match(appJs, /https:\/\/forest\.postsnail\.org\/api\/announce/);
   assert.match(appJs, /\.postsnail/);
   assert.match(appJs, /\.zip/);
   assert.match(appJs, legalFooterPattern);

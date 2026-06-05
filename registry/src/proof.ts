@@ -128,7 +128,19 @@ function buildSite(siteUrl: string, manifestUrl: string, site: Record<string, un
     updatedAt: now,
     latestCrawlStatus: "indexed",
     latestCrawlMessage: "",
+    lastCheckedAt: now,
+    nextCheckAt: addMinutes(now, 60),
+    checkIntervalMinutes: 60,
+    unchangedCheckCount: 0,
+    failureCount: 0,
+    pendingFingerprint: "",
   };
+}
+
+function addMinutes(iso: string, minutes: number): string {
+  const base = Date.parse(iso);
+  const time = Number.isFinite(base) ? base : Date.now();
+  return new Date(time + minutes * 60_000).toISOString();
 }
 
 function resolveManifestUrl(siteUrl: string, wellKnown: Record<string, unknown>, errors: string[]): string {

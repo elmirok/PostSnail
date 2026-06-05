@@ -6,6 +6,7 @@ import { generateSigningKeyPair } from "../../src/crypto.js";
 import { buildStaticExport } from "../../src/exporter.js";
 import { handleRequest } from "../src/app";
 import { processCrawlMessage } from "../src/crawler";
+import { processScheduledChecks } from "../src/scheduler";
 import type { CrawlMessage, RegistryQueue, RegistryStore } from "../src/types";
 
 class MemoryQueue implements RegistryQueue {
@@ -21,6 +22,8 @@ class MemoryStore implements RegistryStore {
   posts = new Map<string, any[]>();
   hidden = new Set<string>();
   rateCounts = new Map<string, number>();
+  pending = new Map<string, string>();
+  checked: string[] = [];
 
   async incrementRateLimit(key: string): Promise<number> {
     const next = (this.rateCounts.get(key) || 0) + 1;
@@ -31,6 +34,15 @@ class MemoryStore implements RegistryStore {
   async findRecentSubmission(siteUrl: string): Promise<{ id: string; status: string } | null> {
     for (const submission of this.submissions.values()) {
       if (submission.siteUrl === siteUrl && ["queued", "crawling", "indexed"].includes(submission.status)) {
+        return { id: submission.id, status: submission.status };
+      }
+    }
+    return null;
+  }
+
+  async findActiveSubmission(siteUrl: string): Promise<{ id: string; status: string } | null> {
+    for (const submission of this.submissions.values()) {
+      if (submission.siteUrl === siteUrl && ["queued", "crawling"].includes(submission.status)) {
         return { id: submission.id, status: submission.status };
       }
     }
@@ -56,10 +68,58 @@ class MemoryStore implements RegistryStore {
   }
 
   async upsertVerifiedSite(site: any, posts: any[], submissionId: string, now: string): Promise<void> {
-    this.sites.set(site.id, { ...site, hidden: this.hidden.has(site.id) ? 1 : 0, lastVerifiedAt: now });
+    this.sites.set(site.id, {
+      ...site,
+      hidden: this.hidden.has(site.id) ? 1 : 0,
+      lastVerifiedAt: now,
+      lastCheckedAt: now,
+      nextCheckAt: "2026-06-05T01:00:00.000Z",
+      checkIntervalMinutes: 60,
+      unchangedCheckCount: 0,
+      failureCount: 0,
+      pendingFingerprint: ""
+    });
     this.posts.set(site.id, posts);
     const submission = this.submissions.get(submissionId);
     if (submission) Object.assign(submission, { status: "indexed", siteId: site.id, updatedAt: now });
+  }
+
+  async getSiteByCanonicalUrl(siteUrl: string): Promise<any | null> {
+    for (const site of this.sites.values()) {
+      if (site.canonicalUrl === siteUrl) return site;
+    }
+    return null;
+  }
+
+  async getDueSites(now: string, limit: number): Promise<any[]> {
+    return Array.from(this.sites.values())
+      .filter((site) => !site.hidden && site.nextCheckAt <= now)
+      .slice(0, limit);
+  }
+
+  async recordPendingRefresh(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void> {
+    const site = this.sites.get(siteId);
+    if (site) Object.assign(site, { pendingFingerprint: fingerprint, nextCheckAt, lastCheckedAt: now });
+    this.pending.set(siteId, fingerprint);
+  }
+
+  async recordRefreshQueued(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void> {
+    const site = this.sites.get(siteId);
+    if (site) Object.assign(site, { pendingFingerprint: fingerprint, nextCheckAt, lastCheckedAt: now, latestCrawlStatus: "queued" });
+  }
+
+  async recordRefreshCheck(siteId: string, outcome: { changed: boolean; failed: boolean; fingerprint?: string }, now: string, nextCheckAt: string, intervalMinutes: number): Promise<void> {
+    const site = this.sites.get(siteId);
+    if (!site) return;
+    this.checked.push(siteId);
+    Object.assign(site, {
+      lastCheckedAt: now,
+      nextCheckAt,
+      checkIntervalMinutes: intervalMinutes,
+      unchangedCheckCount: outcome.changed || outcome.failed ? 0 : (site.unchangedCheckCount || 0) + 1,
+      failureCount: outcome.failed ? (site.failureCount || 0) + 1 : 0,
+      pendingFingerprint: outcome.changed ? outcome.fingerprint || "" : site.pendingFingerprint || ""
+    });
   }
 
   async getSite(id: string): Promise<any | null> {
@@ -92,12 +152,12 @@ class MemoryStore implements RegistryStore {
   }
 }
 
-async function fixtureDocuments() {
-  const keys = generateSigningKeyPair();
+async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSigningKeyPair>; title?: string; body?: string; generatedAt?: string } = {}) {
+  const keys = options.keys || generateSigningKeyPair();
   const post = normalizePost({
     id: "p1",
-    title: "Searchable Proof",
-    body: "A useful searchable excerpt.",
+    title: options.title || "Searchable Proof",
+    body: options.body || "A useful searchable excerpt.",
     tags: ["Proof"],
     status: "published",
     createdAt: "2026-06-05T00:00:00.000Z"
@@ -110,16 +170,19 @@ async function fixtureDocuments() {
       siteUrl: "https://creator.example",
       about: ""
     },
+    settings: { showPoweredBy: false },
     posts: [post],
     assets: [],
     publicKey: keys.publicKey,
     secretKey: keys.secretKey,
-    generatedAt: "2026-06-05T00:00:00.000Z"
+    generatedAt: options.generatedAt || "2026-06-05T00:00:00.000Z"
   });
   const files = unzipSync(result.zipBytes, {}) as Record<string, Uint8Array>;
   return {
     wellKnown: decodeText(files[".well-known/postsnail.json"]),
-    manifest: decodeText(files["postsnail.manifest.json"])
+    manifest: decodeText(files["postsnail.manifest.json"]),
+    announcePayload: result.announcePayload,
+    keys
   };
 }
 
@@ -315,5 +378,199 @@ describe("registry API and crawl flow", () => {
 
     const search = await handleRequest(new Request("https://registry.example/api/search?q=searchable"), deps);
     expect((await search.json() as any).items).toHaveLength(0);
+  });
+
+  test("signed announce queues a changed registered site and rejects duplicate active refreshes", async () => {
+    const original = await fixtureDocuments();
+    const updated = await fixtureDocuments({
+      keys: original.keys,
+      title: "Fresh Announced Proof",
+      body: "A useful searchable excerpt with fresh words.",
+      generatedAt: "2026-06-05T01:00:00.000Z"
+    });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(original)
+    };
+
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    deps.fetcher = mappedFetch(updated);
+
+    const announced = await handleRequest(
+      new Request("https://registry.example/api/announce", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.20" },
+        body: JSON.stringify(updated.announcePayload)
+      }),
+      deps
+    );
+    expect(announced.status).toBe(202);
+    expect(await announced.json()).toMatchObject({ status: "queued", siteUrl: "https://creator.example/" });
+    expect(queue.messages).toHaveLength(1);
+
+    const duplicate = await handleRequest(
+      new Request("https://registry.example/api/announce", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.20" },
+        body: JSON.stringify(updated.announcePayload)
+      }),
+      deps
+    );
+    expect(duplicate.status).toBe(409);
+
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    const search = await handleRequest(new Request("https://registry.example/api/search?q=fresh"), deps);
+    expect((await search.json() as any).items[0].post.title).toBe("Fresh Announced Proof");
+  });
+
+  test("signed announce returns current or pending_live_site without full duplicate crawl", async () => {
+    const documents = await fixtureDocuments();
+    const pending = await fixtureDocuments({
+      keys: documents.keys,
+      title: "Pending Proof",
+      generatedAt: "2026-06-05T01:00:00.000Z"
+    });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(documents)
+    };
+
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const current = await handleRequest(
+      new Request("https://registry.example/api/announce", {
+        method: "POST",
+        body: JSON.stringify(documents.announcePayload)
+      }),
+      deps
+    );
+    expect(current.status).toBe(200);
+    expect(await current.json()).toMatchObject({ status: "current", bundleFingerprint: documents.announcePayload.bundleFingerprint });
+    expect(queue.messages).toHaveLength(0);
+
+    const beforeLive = await handleRequest(
+      new Request("https://registry.example/api/announce", {
+        method: "POST",
+        body: JSON.stringify(pending.announcePayload)
+      }),
+      deps
+    );
+    expect(beforeLive.status).toBe(202);
+    expect(await beforeLive.json()).toMatchObject({ status: "pending_live_site", bundleFingerprint: pending.announcePayload.bundleFingerprint });
+    expect(queue.messages).toHaveLength(0);
+    const site = Array.from(store.sites.values())[0];
+    expect(site.pendingFingerprint).toBe(pending.announcePayload.bundleFingerprint);
+  });
+
+  test("announce rejects bad signatures and mismatched registered public keys", async () => {
+    const documents = await fixtureDocuments();
+    const wrong = await fixtureDocuments({ title: "Wrong Key Proof" });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(documents)
+    };
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const tampered = { ...documents.announcePayload, bundleFingerprint: "psn1-sha3-512-tampered" };
+    const badSignature = await handleRequest(
+      new Request("https://registry.example/api/announce", { method: "POST", body: JSON.stringify(tampered) }),
+      deps
+    );
+    expect(badSignature.status).toBe(400);
+
+    const wrongKey = await handleRequest(
+      new Request("https://registry.example/api/announce", { method: "POST", body: JSON.stringify(wrong.announcePayload) }),
+      deps
+    );
+    expect(wrongKey.status).toBe(401);
+  });
+
+  test("scheduled checks fetch only well-known for unchanged sites and queue changed fingerprints", async () => {
+    const original = await fixtureDocuments();
+    const updated = await fixtureDocuments({
+      keys: original.keys,
+      title: "Scheduled Fresh Proof",
+      generatedAt: "2026-06-05T01:00:00.000Z"
+    });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const fetches: string[] = [];
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: async (url: string | URL | Request) => {
+        fetches.push(String(url));
+        return mappedFetch(original)(url);
+      }
+    };
+
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    fetches.length = 0;
+    const site = Array.from(store.sites.values())[0];
+    site.nextCheckAt = "2026-06-05T00:00:00.000Z";
+
+    await processScheduledChecks(deps, { limit: 5 });
+    expect(fetches).toEqual(["https://creator.example/.well-known/postsnail.json"]);
+    expect(queue.messages).toHaveLength(0);
+
+    fetches.length = 0;
+    site.nextCheckAt = "2026-06-05T00:00:00.000Z";
+    deps.fetcher = async (url: string | URL | Request) => {
+      fetches.push(String(url));
+      return mappedFetch(updated)(url);
+    };
+    await processScheduledChecks(deps, { limit: 5 });
+    expect(fetches).toEqual(["https://creator.example/.well-known/postsnail.json"]);
+    expect(queue.messages).toHaveLength(1);
+    expect(store.checked).toContain(site.id);
   });
 });

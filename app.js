@@ -27,6 +27,7 @@ import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } fr
 globalThis.DOMPurify = DOMPurify;
 
 const app = document.getElementById("app");
+const FOREST_ANNOUNCE_URL = "https://forest.postsnail.org/api/announce";
 const defaultProfile = {
   siteTitle: "My Microblog",
   description: "A fast static microblog with signed posts.",
@@ -62,6 +63,7 @@ const state = {
   lastManifest: null,
   lastExportVerification: null,
   lastAnnouncePayload: null,
+  lastAnnounceStatus: null,
   verifyResult: null,
 };
 
@@ -204,6 +206,10 @@ async function handleAction(button) {
     setStatus("Announce payload copied. It is not sent anywhere by PostSnail.");
     return;
   }
+  if (action === "notify-forest") {
+    await notifyForest();
+    return;
+  }
   if (action === "go-verify") {
     state.activeTab = "verify";
     setStatus("Choose the ZIP you just downloaded to verify it locally.");
@@ -232,6 +238,7 @@ async function handleAction(button) {
       state.lastManifest = null;
       state.lastExportVerification = null;
       state.lastAnnouncePayload = null;
+      state.lastAnnounceStatus = null;
       state.verifyResult = null;
       state.activeTab = "write";
       setStatus("Local data cleared.");
@@ -355,6 +362,7 @@ async function generateSiteZip() {
   state.lastManifest = result.manifest;
   state.commitHistory = result.commitHistory;
   state.lastAnnouncePayload = result.announcePayload;
+  state.lastAnnounceStatus = null;
   state.lastExportVerification = verification;
   await saveCommitHistory(state.commitHistory);
   setStatus(
@@ -362,6 +370,44 @@ async function generateSiteZip() {
       ? `ZIP ready and verified locally. Fingerprint: ${result.manifest.bundleFingerprint}`
       : `ZIP generated, but local verification found ${verification.errors.length} issue(s).`,
   );
+  render();
+}
+
+async function notifyForest() {
+  if (!state.lastAnnouncePayload) {
+    setStatus("Export a Website ZIP first so PostSnail can send its signed public announce.");
+    return;
+  }
+  setStatus("Notifying Forest with the signed public announce...");
+  await nextFrame();
+  try {
+    const response = await fetch(FOREST_ANNOUNCE_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(state.lastAnnouncePayload),
+    });
+    const result = await response.json().catch(() => ({}));
+    state.lastAnnounceStatus = {
+      ok: response.ok,
+      status: result.status || "",
+      message: result.error || result.status || "",
+      submissionId: result.submissionId || "",
+    };
+    if (response.ok) {
+      setStatus(
+        result.status === "current"
+          ? "Forest already has this fingerprint."
+          : result.status === "pending_live_site"
+            ? "Forest is waiting for the announced fingerprint to appear on your live site."
+            : "Forest refresh queued. Search will update after verification.",
+      );
+    } else {
+      setStatus(result.error || "Forest could not accept the announce.");
+    }
+  } catch {
+    state.lastAnnounceStatus = { ok: false, status: "", message: "Forest could not be reached.", submissionId: "" };
+    setStatus("Forest could not be reached.");
+  }
   render();
 }
 
@@ -453,6 +499,7 @@ async function restoreImportedState(nextState) {
   state.lastManifest = null;
   state.lastExportVerification = null;
   state.lastAnnouncePayload = null;
+  state.lastAnnounceStatus = null;
   state.verifyResult = null;
 }
 
@@ -735,8 +782,11 @@ function renderGenerate() {
               <button class="btn small" type="button" data-action="copy-fingerprint">Copy fingerprint</button>
               <button class="btn small" type="button" data-action="copy-manifest-signature">Copy manifest signature</button>
               <button class="btn small" type="button" data-action="copy-announce-payload">Copy announce payload</button>
+              <button class="btn small primary" type="button" data-action="notify-forest">Notify Forest</button>
               <button class="btn small" type="button" data-action="go-verify">Verify this ZIP</button>
             </div>
+            <p>After the new ZIP is live on your public host, Notify Forest sends only this signed public announce. It never sends your private key or workspace.</p>
+            ${state.lastAnnounceStatus ? `<p>${escapeHtml(state.lastAnnounceStatus.ok ? `Forest response: ${state.lastAnnounceStatus.status || "accepted"}` : state.lastAnnounceStatus.message)}</p>` : ""}
             <p>${state.lastExportVerification?.ok ? "The downloaded ZIP was verified locally immediately after generation." : "Choose the downloaded ZIP in Verify to inspect the proof."}</p>
           </div>
         ` : ""}
