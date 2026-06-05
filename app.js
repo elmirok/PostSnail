@@ -301,9 +301,15 @@ async function openShellFromGate() {
 }
 
 async function createShell() {
-  const passphrase = shellPassphrase();
+  const passphrase = shellCreatePassphrase();
+  const confirmation = shellCreateConfirm();
+  const siteTitle = shellCreateTitle();
   if (passphrase.length < 10) {
     setStatus("Enter a Shell passphrase of at least 10 characters before creating a Shell.");
+    return;
+  }
+  if (passphrase !== confirmation) {
+    setStatus("Confirm the new Shell passphrase before creating a Shell.");
     return;
   }
   if (
@@ -314,6 +320,7 @@ async function createShell() {
   }
   clearPendingShellSave();
   resetEditableState();
+  if (siteTitle) state.profile.siteTitle = siteTitle;
   state.shellMode = "unlocked";
   state.shellPassphrase = passphrase;
   state.activeTab = "identity";
@@ -753,41 +760,83 @@ function renderShellGate() {
           <p>Your Shell stays private. Your Website ZIP is public.</p>
         </div>
       </section>
-      <section class="panel-box fields">
-        <h2 class="panel-title">Open Shell</h2>
-        <p class="help">Choose an encrypted <code>.postsnail</code> vault and unlock it locally with the Shell passphrase.</p>
-        <label class="field">
-          <span>Shell file</span>
-          <input id="shell-file" type="file" accept=".postsnail,application/postsnail+json,application/json">
-        </label>
-        <label class="field">
-          <span>Shell passphrase</span>
-          <input id="shell-passphrase" type="password" autocomplete="current-password" placeholder="Used only in this browser">
-        </label>
-        <div class="actions">
-          <button class="btn primary" type="button" data-action="open-shell">Open Shell</button>
-          <button class="btn" type="button" data-action="create-shell">Create Shell</button>
-          ${state.hasEncryptedLocalShell ? `<button class="btn" type="button" data-action="unlock-local-shell">Unlock Local Shell</button>` : ""}
-          ${state.hasLegacyLocalData ? `<button class="btn warning-btn" type="button" data-action="migrate-local-data">Migrate Local Data</button>` : ""}
-        </div>
-        ${state.hasEncryptedLocalShell ? `
-          <div class="notice good">
-            <strong>Encrypted local Shell found</strong>
-            <p>Unlock Local Shell with the Shell passphrase. The browser cache stays encrypted at rest.</p>
+      <div class="shell-card-grid">
+        <section class="panel-box fields shell-card open-shell-card">
+          <div>
+            <p class="kicker">Existing Shell</p>
+            <h2 class="panel-title">Open Shell</h2>
+            <p class="help">Choose an encrypted <code>.postsnail</code> vault and unlock it locally with the Shell passphrase.</p>
           </div>
-        ` : ""}
+          <label class="field">
+            <span>Shell file</span>
+            <input id="shell-file" type="file" accept=".postsnail,application/postsnail+json,application/json">
+          </label>
+          <label class="field">
+            <span>Shell passphrase</span>
+            <input id="shell-passphrase" type="password" autocomplete="current-password" placeholder="Used only in this browser">
+          </label>
+          <div class="actions">
+            <button class="btn primary" type="button" data-action="open-shell">Open Shell</button>
+            ${state.hasEncryptedLocalShell ? `<button class="btn" type="button" data-action="unlock-local-shell">Unlock Local Shell</button>` : ""}
+          </div>
+          ${state.hasEncryptedLocalShell ? `
+            <div class="notice good">
+              <strong>Encrypted local Shell found</strong>
+              <p>Unlock Local Shell with the Shell passphrase. The browser cache stays encrypted at rest.</p>
+            </div>
+          ` : ""}
+        </section>
+        <section class="panel-box fields shell-card create-shell-card">
+          <div>
+            <p class="kicker">New Shell</p>
+            <h2 class="panel-title">Create Shell</h2>
+            <p class="help">Start a new private Shell on this browser. This creates a signature workspace, not an account.</p>
+          </div>
+          <div class="shell-card-steps">
+            <div><strong>1</strong><span>Name the blog.</span></div>
+            <div><strong>2</strong><span>Choose a Shell passphrase.</span></div>
+            <div><strong>3</strong><span>Create the signature key next.</span></div>
+          </div>
+          <label class="field">
+            <span>Shell name / site title</span>
+            <input id="shell-create-title" type="text" autocomplete="organization-title" placeholder="My Microblog">
+          </label>
+          <label class="field">
+            <span>New Shell passphrase</span>
+            <input id="shell-create-passphrase" type="password" autocomplete="new-password" placeholder="At least 10 characters">
+          </label>
+          <label class="field">
+            <span>Confirm passphrase</span>
+            <input id="shell-create-confirm" type="password" autocomplete="new-password" placeholder="Repeat the Shell passphrase">
+          </label>
+          <div class="notice">
+            <strong>No account is created</strong>
+            <p>No account. No email. No backend login. This only creates an encrypted local Shell.</p>
+          </div>
+          <div class="actions">
+            <button class="btn primary" type="button" data-action="create-shell">Create Shell</button>
+          </div>
+        </section>
+      </div>
+      <section class="panel-box shell-card recovery-shell-card">
+        <div>
+          <p class="kicker">Recovery</p>
+          <h2 class="panel-title">Legacy and migration</h2>
+          <p class="help">Use these only for older PostSnail data. Recovery actions use the Open Shell passphrase field.</p>
+        </div>
+        <div class="actions">
+          <label class="btn small" for="shell-legacy-import">Import Legacy Backup JSON</label>
+          ${state.hasLegacyLocalData ? `<button class="btn small warning-btn" type="button" data-action="migrate-local-data">Migrate Local Data</button>` : ""}
+        </div>
+        <input id="shell-legacy-import" type="file" accept="application/json,.json" hidden>
         ${state.hasLegacyLocalData ? `
           <div class="notice warning">
             <strong>Old browser-local data is not locked yet</strong>
             <p>This browser has older plaintext PostSnail data in IndexedDB. Migrate Local Data encrypts it with a Shell passphrase, clears plaintext stores, and then you should Export Shell as a private <code>.postsnail</code> backup.</p>
           </div>
-        ` : ""}
-        <div class="notice">
-          <strong>Import Legacy Backup JSON</strong>
-          <p>Only use this for older PostSnail backups. It restores the data and downloads a migrated encrypted Shell.</p>
-          <label class="btn small" for="shell-legacy-import">Import Legacy Backup JSON</label>
-          <input id="shell-legacy-import" type="file" accept="application/json,.json" hidden>
-        </div>
+        ` : `
+          <p class="help">Old backup? Import Legacy Backup JSON restores the data and downloads a migrated encrypted Shell.</p>
+        `}
       </section>
     </div>
   `;
@@ -1306,6 +1355,18 @@ function workspacePassphrase() {
 
 function shellPassphrase() {
   return document.getElementById("shell-passphrase")?.value || "";
+}
+
+function shellCreateTitle() {
+  return String(document.getElementById("shell-create-title")?.value || "").trim();
+}
+
+function shellCreatePassphrase() {
+  return document.getElementById("shell-create-passphrase")?.value || "";
+}
+
+function shellCreateConfirm() {
+  return document.getElementById("shell-create-confirm")?.value || "";
 }
 
 function scheduleLocalShellSave() {

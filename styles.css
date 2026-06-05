@@ -273,12 +273,61 @@ textarea:disabled {
 }
 
 .shell-gate {
-  width: min(960px, 100%);
+  width: min(1100px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
   gap: 14px;
   align-items: start;
+}
+
+.shell-card-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(340px, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.shell-card {
+  align-content: start;
+}
+
+.create-shell-card {
+  box-shadow: var(--shadow), inset 8px 0 0 var(--brand);
+}
+
+.recovery-shell-card {
+  display: grid;
+  gap: 10px;
+}
+
+.shell-card-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.shell-card-steps div {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 247, 0.78);
+  padding: 6px 8px;
+  color: var(--muted);
+}
+
+.shell-card-steps strong {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  background: var(--brand);
+  color: #fff;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.78rem;
 }
 
 .shell-intro h1 {
@@ -673,8 +722,21 @@ code {
   .grid-3,
   .info-layout,
   .shell-gate,
+  .shell-card-grid,
   .remote-shell {
     grid-template-columns: 1fr;
+  }
+
+  .create-shell-card {
+    order: 1;
+  }
+
+  .open-shell-card {
+    order: 2;
+  }
+
+  .recovery-shell-card {
+    order: 3;
   }
 }
 

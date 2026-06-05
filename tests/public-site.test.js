@@ -75,6 +75,14 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderShellGate/);
   assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Create Shell/);
+  assert.match(appJs, /open-shell-card/);
+  assert.match(appJs, /create-shell-card/);
+  assert.match(appJs, /recovery-shell-card/);
+  assert.match(appJs, /Start a new private Shell/);
+  assert.match(appJs, /This creates a signature workspace, not an account/);
+  assert.match(appJs, /shell-create-title/);
+  assert.match(appJs, /shell-create-passphrase/);
+  assert.match(appJs, /shell-create-confirm/);
   assert.match(appJs, /Unlock Local Shell/);
   assert.match(appJs, /Migrate Local Data/);
   assert.match(appJs, /Close Shell/);
@@ -114,6 +122,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /--line:\s*#16163c/);
   assert.match(css, /\.app-footer/);
   assert.match(css, /image-rendering:\s*pixelated/);
+  assert.match(css, /\.shell-card-grid/);
+  assert.match(css, /\.create-shell-card/);
+  assert.match(css, /\.recovery-shell-card/);
   assert.match(css, /\.notify-forest-attention/);
   assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
