@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "postsnail-registry",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "572c2170-0181-487a-9071-bc1a4b9dec9a",
       "migrations_dir": "migrations"
     }
   ],

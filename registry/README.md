@@ -4,6 +4,21 @@ Reference Cloudflare Worker registry for PostSnail microblogs. It accepts public
 
 The registry does not verify full ZIP contents. Full bundle verification remains in the PostSnail admin Verify tab.
 
+## Production
+
+Current Worker URL:
+
+```text
+https://postsnail-registry.araujo-ortiz.workers.dev
+```
+
+Current Cloudflare resources:
+
+- Worker: `postsnail-registry`
+- D1 database: `postsnail-registry`
+- Queue: `postsnail-crawl`
+- Secrets: `ADMIN_TOKEN`, `RATE_LIMIT_SECRET`
+
 ## Local Setup
 
 ```bash
