@@ -70,6 +70,7 @@ test("public pages are generated from the shared PostSnail layout", () => {
 test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   const appJs = read("app.js");
   const css = read("styles.css");
+  const headers = read("_headers");
 
   assert.match(appJs, /renderAppFooter/);
   assert.match(appJs, /postsnail-icon\.png/);
@@ -97,6 +98,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /--line:\s*#16163c/);
   assert.match(css, /\.app-footer/);
   assert.match(css, /image-rendering:\s*pixelated/);
+
+  assert.match(headers, /connect-src 'self' https:\/\/forest\.postsnail\.org/);
 });
 
 test("remote verifier generated page has matching public CSS support", () => {

@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https://storage.ko-fi.com; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self' https://forest.postsnail.org; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob: https://storage.ko-fi.com; connect-src 'self' https://forest.postsnail.org; object-src 'none'; base-uri 'none'; form-action 'self' https://forest.postsnail.org; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
