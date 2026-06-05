@@ -25,11 +25,20 @@ export function renderSearchPage(): string {
     h1 { margin:0; font-size: clamp(2rem, 6vw, 4.6rem); line-height:.98; letter-spacing:0; max-width: 900px; }
     h2 { margin:0; font-size:1.16rem; letter-spacing:0; }
     .hero p:last-child { margin:0; color:var(--muted); max-width:760px; font-size:1.05rem; line-height:1.55; }
-    .panels { display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(300px, .9fr); gap:14px; align-items:start; }
+    .panels { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; align-items:start; }
     .panel { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:12px; min-width:0; box-shadow:6px 6px 0 rgba(8,10,47,.11); }
+    .forest-search-panel { padding:18px; gap:14px; background:#ffffff; }
+    .forest-search-panel h2 { font-size:1.45rem; text-align:center; }
+    .forest-search-panel p { text-align:center; max-width:720px; justify-self:center; }
     .panel p { margin:0; color:var(--muted); line-height:1.45; }
     form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
-    .search-form { grid-template-columns:minmax(0, 1fr) minmax(120px, 180px) auto; }
+    .search-form { width:min(880px, 100%); justify-self:center; grid-template-columns:1fr; gap:10px; }
+    .search-box { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:0; border:3px solid var(--line); background:white; box-shadow:6px 6px 0 rgba(47,122,85,.18); }
+    .search-box input { min-height:64px; border:0; font-size:1.18rem; padding:0 18px; }
+    .search-box input:focus { outline:3px solid var(--coral); outline-offset:2px; }
+    .search-box button { min-height:64px; border-width:0 0 0 3px; padding:0 22px; font-size:1.02rem; }
+    .tag-row { display:grid; grid-template-columns:auto minmax(160px, 260px); align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:.9rem; }
+    .tag-row input { min-height:40px; background:var(--paper); }
     label { display:grid; gap:6px; color:var(--muted); font-size:.9rem; }
     label span { color:var(--ink); font-weight:700; }
     input { width:100%; min-height:42px; border:2px solid var(--line); border-radius:0; padding:0 12px; font:inherit; }
@@ -53,7 +62,7 @@ export function renderSearchPage(): string {
     footer a { color:var(--ink); font-weight:800; text-decoration-thickness:.08em; }
     .legal-links { display:flex; gap:10px; flex-wrap:wrap; font-size:.9rem; }
     @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
-    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
+    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel { padding:14px; } .forest-search-panel h2 { text-align:left; } .forest-search-panel p { text-align:left; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
   </style>
 </head>
 <body>
@@ -71,6 +80,18 @@ export function renderSearchPage(): string {
       <p>PostSnail Forest verifies public proof files, then indexes only site metadata plus post titles, tags, excerpts, dates, and digests.</p>
     </section>
     <section class="panels" aria-label="Forest actions">
+      <section class="panel forest-search-panel" aria-labelledby="search-title">
+        <h2 id="search-title">Search Forest</h2>
+        <p>Search indexed public summaries. Full bundle verification still belongs in the PostSnail admin verifier.</p>
+        <form id="search-form" class="search-form" role="search">
+          <div class="search-box">
+            <input id="q" name="q" aria-label="Search Forest" autocomplete="off" placeholder="Search microblogs, creators, tags, content">
+            <button class="primary" type="submit">Search Forest</button>
+          </div>
+          <label class="tag-row" for="tag"><span>Filter by tag</span><input id="tag" name="tag" autocomplete="off" placeholder="optional tag"></label>
+        </form>
+        <div class="status" id="status">Search Forest.</div>
+      </section>
       <section class="panel" aria-labelledby="register-title">
         <h2 id="register-title">Register your microblog</h2>
         <p>Use the public homepage URL of a PostSnail site. Registration verifies proofs; it does not create an account or transfer ownership.</p>
@@ -80,16 +101,6 @@ export function renderSearchPage(): string {
         </form>
         <div class="notice" id="registration-status" aria-live="polite">Paste a public https PostSnail URL to register it in Forest.</div>
         <div id="registration-details"></div>
-      </section>
-      <section class="panel" aria-labelledby="search-title">
-        <h2 id="search-title">Search Forest</h2>
-        <p>Search indexed public summaries. Full bundle verification still belongs in the PostSnail admin verifier.</p>
-        <form id="search-form" class="search-form" role="search">
-          <input id="q" name="q" autocomplete="off" placeholder="Search titles, tags, excerpts">
-          <input id="tag" name="tag" autocomplete="off" placeholder="tag">
-          <button class="primary" type="submit">Search Forest</button>
-        </form>
-        <div class="status" id="status">Search Forest.</div>
       </section>
     </section>
     <section class="results" id="results"></section>

@@ -14,6 +14,10 @@ describe("registry homepage", () => {
     expect(html).toContain('id="registration-status"');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('id="search-form"');
+    expect(html).toContain('class="panel forest-search-panel"');
+    expect(html).toContain('class="search-box"');
+    expect(html).toContain('placeholder="Search microblogs, creators, tags, content"');
+    expect(html).toContain("Filter by tag");
   });
 
   test("renders compact PostSnail legal footer links", () => {
