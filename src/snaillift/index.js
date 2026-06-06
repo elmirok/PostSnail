@@ -7,4 +7,9 @@ export {
   cloudflarePagesProvider,
   validateCloudflarePagesSettings,
 } from "./providers/cloudflarePages.js";
+export {
+  buildGithubPagesCommands,
+  githubPagesProvider,
+  validateGithubPagesSettings,
+} from "./providers/githubPages.js";
 export { assertSnailLiftSafe, runSnailLiftSafety } from "./safety.js";

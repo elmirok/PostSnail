@@ -16,9 +16,10 @@ Your shell stays private. Your trail goes live.
 
 1. Export Website ZIP.
 2. Run the SnailLift safety check.
-3. Deploy only public static files.
-4. Verify the live PostSnail proof files.
-5. Notify Forest only after live verification passes.
+3. Prepare provider commands for Cloudflare Pages or GitHub Pages.
+4. Deploy only public static files from a trusted terminal.
+5. Verify the live PostSnail proof files.
+6. Notify Forest only after live verification passes.
 
 ## Boundaries
 
@@ -27,3 +28,5 @@ SnailLift must never upload `.postsnail` Shell vaults, drafts, private keys, rej
 Core owns public export, workspace, identity, proof, and migration rules. SnailLift consumes those public interfaces and adds deployment assistance around them.
 
 Download ZIP remains the universal fallback. SnailLift is optional.
+
+Cloudflare Pages and GitHub Pages support are command assistants in Alpha 1B. PostSnail does not store provider tokens in the browser.

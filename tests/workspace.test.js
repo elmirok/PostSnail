@@ -172,6 +172,11 @@ test("workspace preserves SnailLift settings and deployment logs without secrets
       snailLiftCloudflareProjectName: "my-postsnail",
       snailLiftCloudflareBranch: "main",
       snailLiftSiteUrl: "https://creator.example/",
+      snailLiftGithubOwner: "boaz",
+      snailLiftGithubRepo: "postsnail-site",
+      snailLiftGithubBranch: "gh-pages",
+      snailLiftGithubTargetDir: "blog",
+      snailLiftGithubSiteUrl: "https://boaz.github.io/postsnail-site/",
       snailLiftApiToken: "must-not-survive",
       snailLiftCloudflareApiToken: "must-not-survive",
       snailLiftGithubToken: "must-not-survive",
@@ -193,6 +198,11 @@ test("workspace preserves SnailLift settings and deployment logs without secrets
 
   assert.equal(workspace.settings.snailLiftCloudflareAccountId, "abc123");
   assert.equal(workspace.settings.snailLiftCloudflareProjectName, "my-postsnail");
+  assert.equal(workspace.settings.snailLiftGithubOwner, "boaz");
+  assert.equal(workspace.settings.snailLiftGithubRepo, "postsnail-site");
+  assert.equal(workspace.settings.snailLiftGithubBranch, "gh-pages");
+  assert.equal(workspace.settings.snailLiftGithubTargetDir, "blog");
+  assert.equal(workspace.settings.snailLiftGithubSiteUrl, "https://boaz.github.io/postsnail-site/");
   assert.equal(workspace.settings.snailLiftApiToken, undefined);
   assert.equal(workspace.settings.snailLiftCloudflareApiToken, undefined);
   assert.equal(workspace.settings.snailLiftGithubToken, undefined);

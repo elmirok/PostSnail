@@ -196,6 +196,7 @@ const pages = [
         <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the public Website ZIP contents and verify public proof files.</span></a>
         <a href="/docs/snaillift/"><strong>SnailLift</strong><span>Deploy public generated files, verify live proof files, and notify Forest after verification.</span></a>
         <a href="/docs/snaillift-cloudflare/"><strong>SnailLift Cloudflare</strong><span>Use the Wrangler-assisted Cloudflare Pages path for Sprint 1A.</span></a>
+        <a href="/docs/snaillift-github/"><strong>SnailLift GitHub</strong><span>Use the GitHub Pages command assistant without browser token storage.</span></a>
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
@@ -249,7 +250,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/publishing/",
     body: docPage("Publishing sections", "Publishing PostSnail", "PostSnail can publish through a manual ZIP upload or through the optional SnailLift deployment assistant.", [
       ["zip", "Download ZIP", "Download ZIP remains the fallback. It is the universal public static artifact and works on any static host. The ZIP is public and is not the full project source."],
-      ["snaillift", "SnailLift", "SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. It is a deployment assistant, not hosting."],
+      ["snaillift", "SnailLift", "SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. Alpha 1B includes command assistants for Cloudflare Pages and GitHub Pages. It is a deployment assistant, not hosting."],
       ["forest", "Forest", "Forest should be notified only after the new public ZIP contents are live and live verification passes. This keeps search updates tied to the actual deployed fingerprint."],
     ]),
   },
@@ -274,7 +275,7 @@ const pages = [
     body: docPage("SnailLift sections", "SnailLift", "Your shell stays private. Your trail goes live.", [
       ["role", "Deployment Assistant", "SnailLift helps deploy public generated files. It is not hosting and does not own your Shell, key, account, source, or domain."],
       ["isolation", "Core Isolation", "SnailLift is built in for Alpha 1, but provider-specific deployment logic stays under src/snaillift. Core exporter, workspace, identity, manifest, protocol, and signing modules must stay provider-neutral so SnailLift can later move to plugins/postsnail-snaillift."],
-      ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, deploy public static files, verify the live PostSnail proof files, then notify Forest."],
+      ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, prepare Cloudflare Pages or GitHub Pages commands, deploy public static files from a trusted terminal, verify the live PostSnail proof files, then notify Forest."],
       ["boundaries", "Boundaries", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
       ["fallback", "ZIP Fallback", "Download ZIP remains the universal fallback for every creator. SnailLift is optional."],
     ]),
@@ -288,6 +289,17 @@ const pages = [
       ["steps", "Steps", "Export Website ZIP, extract it into postsnail-public, prepare Cloudflare settings in the admin, copy the generated Wrangler command, run it locally, return to PostSnail, verify live, then notify Forest."],
       ["token", "Token Guidance", "Use a limited Cloudflare Pages token. Do not paste long-lived account-wide tokens unless you understand the risk."],
       ["limits", "Sprint 1A Limit", "Sprint 1A does not store tokens by default and does not claim browser direct upload is universally available."],
+    ]),
+  },
+  {
+    path: "docs/snaillift-github/index.html",
+    title: "SnailLift GitHub Pages - Alpha 1",
+    description: "Use SnailLift with the GitHub Pages command assistant.",
+    canonical: "https://postsnail.org/docs/snaillift-github/",
+    body: docPage("SnailLift GitHub sections", "SnailLift GitHub Pages", "SnailLift Sprint 1B supports GitHub Pages as a command assistant.", [
+      ["steps", "Steps", "Export Website ZIP, extract it into postsnail-public, prepare GitHub settings in the admin, copy the generated commands, run them locally with your own git or GitHub CLI credentials, return to PostSnail, verify live, then notify Forest."],
+      ["tokens", "No Browser Token", "PostSnail does not ask for or store a GitHub token in the browser for Alpha 1B. GitHub credentials stay with your local git tooling."],
+      ["limits", "Sprint 1B Limit", "SnailLift prepares commands and checks public proof files. It does not configure GitHub Pages settings for you or write to GitHub through the browser."],
     ]),
   },
   {

@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Publishing PostSnail - Alpha 1</title>
-    <meta name="description" content="PostSnail publishing paths: Download ZIP and optional SnailLift deployment assistant.">
-    <link rel="canonical" href="https://postsnail.org/docs/publishing/">
+    <title>SnailLift GitHub Pages - Alpha 1</title>
+    <meta name="description" content="Use SnailLift with the GitHub Pages command assistant.">
+    <link rel="canonical" href="https://postsnail.org/docs/snaillift-github/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,15 +29,15 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Publishing PostSnail</h1>
-            <p class="lede">PostSnail can publish through a manual ZIP upload or through the optional SnailLift deployment assistant.</p>
+            <h1>SnailLift GitHub Pages</h1>
+            <p class="lede">SnailLift Sprint 1B supports GitHub Pages as a command assistant.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Publishing sections"><a href="#zip">Download ZIP</a><a href="#snaillift">SnailLift</a><a href="#forest">Forest</a></nav>
+            <nav class="doc-nav" aria-label="SnailLift GitHub sections"><a href="#steps">Steps</a><a href="#tokens">No Browser Token</a><a href="#limits">Sprint 1B Limit</a></nav>
             <div class="doc-content">
-              <section id="zip"><h2>Download ZIP</h2><p>Download ZIP remains the fallback. It is the universal public static artifact and works on any static host. The ZIP is public and is not the full project source.</p></section>
-              <section id="snaillift"><h2>SnailLift</h2><p>SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. Alpha 1B includes command assistants for Cloudflare Pages and GitHub Pages. It is a deployment assistant, not hosting.</p></section>
-              <section id="forest"><h2>Forest</h2><p>Forest should be notified only after the new public ZIP contents are live and live verification passes. This keeps search updates tied to the actual deployed fingerprint.</p></section>
+              <section id="steps"><h2>Steps</h2><p>Export Website ZIP, extract it into postsnail-public, prepare GitHub settings in the admin, copy the generated commands, run them locally with your own git or GitHub CLI credentials, return to PostSnail, verify live, then notify Forest.</p></section>
+              <section id="tokens"><h2>No Browser Token</h2><p>PostSnail does not ask for or store a GitHub token in the browser for Alpha 1B. GitHub credentials stay with your local git tooling.</p></section>
+              <section id="limits"><h2>Sprint 1B Limit</h2><p>SnailLift prepares commands and checks public proof files. It does not configure GitHub Pages settings for you or write to GitHub through the browser.</p></section>
             </div>
           </article>
     </main>

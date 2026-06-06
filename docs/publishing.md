@@ -14,6 +14,8 @@ SnailLift prepares a safe public bundle, helps deploy it, verifies the live proo
 
 SnailLift is optional. It is a deployment assistant, not hosting.
 
+Alpha 1B includes command assistants for Cloudflare Pages and GitHub Pages. The creator still controls the hosting account and runs provider commands locally.
+
 ## Forest
 
 Forest should be notified only after the new public ZIP contents are live and live verification passes. This keeps search updates tied to the actual deployed fingerprint.

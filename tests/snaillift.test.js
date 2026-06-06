@@ -16,6 +16,11 @@ import {
   cloudflarePagesProvider,
   validateCloudflarePagesSettings,
 } from "../src/snaillift/providers/cloudflarePages.js";
+import {
+  buildGithubPagesCommands,
+  githubPagesProvider,
+  validateGithubPagesSettings,
+} from "../src/snaillift/providers/githubPages.js";
 import { runSnailLiftSafety } from "../src/snaillift/safety.js";
 
 const root = process.cwd();
@@ -82,11 +87,85 @@ test("deployment logs redact secrets and never store provider tokens", () => {
 test("provider manifests validate required fields", () => {
   const valid = validateProviderManifest(cloudflarePagesProvider);
   assert.equal(valid.ok, true, valid.errors.join("\n"));
+  const github = validateProviderManifest(githubPagesProvider);
+  assert.equal(github.ok, true, github.errors.join("\n"));
 
   const invalid = validateProviderManifest({ id: "bad-provider" });
   assert.equal(invalid.ok, false);
   assert.match(invalid.errors.join("\n"), /provider name is required/);
   assert.match(invalid.errors.join("\n"), /provider deploy function is required/);
+});
+
+test("GitHub Pages settings validate required deploy fields and safe paths", () => {
+  const missing = validateGithubPagesSettings({});
+  assert.equal(missing.ok, false);
+  assert.match(missing.errors.join("\n"), /owner is required/);
+  assert.match(missing.errors.join("\n"), /repo is required/);
+  assert.match(missing.errors.join("\n"), /siteUrl is required/);
+
+  for (const targetDir of ["/public", "../public", ".git", "docs/../site", "bad dir"]) {
+    const invalid = validateGithubPagesSettings({
+      owner: "boaz",
+      repo: "postsnail-site",
+      targetDir,
+      siteUrl: "https://boaz.github.io/postsnail-site/",
+    });
+    assert.equal(invalid.ok, false, targetDir);
+    assert.match(invalid.errors.join("\n"), /targetDir is invalid/);
+  }
+
+  const valid = validateGithubPagesSettings({
+    owner: "Boaz",
+    repo: "PostSnail Site",
+    targetDir: "blog",
+    siteUrl: "https://boaz.github.io/postsnail-site",
+  });
+  assert.equal(valid.ok, true, valid.errors.join("\n"));
+  assert.equal(valid.normalized.owner, "boaz");
+  assert.equal(valid.normalized.repo, "postsnail-site");
+  assert.equal(valid.normalized.branch, "gh-pages");
+  assert.equal(valid.normalized.targetDir, "blog");
+  assert.equal(valid.normalized.siteUrl, "https://boaz.github.io/postsnail-site/");
+});
+
+test("GitHub Pages provider builds command-assistant commands without token placeholders", async () => {
+  const commands = buildGithubPagesCommands({
+    owner: "boaz",
+    repo: "postsnail-site",
+    branch: "gh-pages",
+    targetDir: "blog",
+    siteUrl: "https://boaz.github.io/postsnail-site/",
+    directory: "postsnail-public",
+    token: "secret-token-value",
+  });
+
+  const joined = commands.join("\n");
+  assert.match(joined, /git clone https:\/\/github\.com\/boaz\/postsnail-site\.git postsnail-github-pages/);
+  assert.match(joined, /git checkout gh-pages \|\| git checkout --orphan gh-pages/);
+  assert.match(joined, /rsync -a --delete \.\.\/postsnail-public\/ blog\//);
+  assert.match(joined, /git add blog/);
+  assert.match(joined, /git commit -m "Publish PostSnail site" \|\| true/);
+  assert.match(joined, /git push origin gh-pages/);
+  assert.doesNotMatch(joined, /secret-token-value|token|password|authorization/iu);
+
+  const result = await githubPagesProvider.deploy({
+    files: { "index.html": encodeText("ok") },
+    settings: {
+      owner: "boaz",
+      repo: "postsnail-site",
+      branch: "gh-pages",
+      targetDir: "blog",
+      siteUrl: "https://boaz.github.io/postsnail-site/",
+    },
+    secrets: { token: "secret-token-value" },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "command-assistant");
+  assert.match(result.message, /Run these commands locally/);
+  assert.equal(result.commands.length >= 6, true);
+  assert.equal(result.safety.ok, true);
+  assert.doesNotMatch(JSON.stringify(result), /secret-token-value|authorization/iu);
 });
 
 test("Cloudflare Pages settings validate required deploy fields", () => {

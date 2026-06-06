@@ -23,6 +23,7 @@ import {
   buildCloudflarePagesCommand,
   cloudflarePagesProvider,
   createDeploymentLogEntry,
+  githubPagesProvider,
   runSnailLiftSafety,
   verifySnailLiftLiveSite,
 } from "./src/snaillift/index.js";
@@ -50,6 +51,11 @@ const defaultSettings = {
   snailLiftCloudflareProjectName: "",
   snailLiftCloudflareBranch: "main",
   snailLiftSiteUrl: "",
+  snailLiftGithubOwner: "",
+  snailLiftGithubRepo: "",
+  snailLiftGithubBranch: "gh-pages",
+  snailLiftGithubTargetDir: ".",
+  snailLiftGithubSiteUrl: "",
 };
 
 const state = {
@@ -84,6 +90,7 @@ const state = {
   lastAnnounceStatus: null,
   lastSnailLiftSafety: null,
   lastSnailLiftCommand: "",
+  lastSnailLiftCommands: [],
   lastSnailLiftVerification: null,
   lastSnailLiftLog: null,
   verifyResult: null,
@@ -270,6 +277,10 @@ async function handleAction(button) {
     await prepareSnailLiftCloudflare();
     return;
   }
+  if (action === "prepare-snaillift-github") {
+    await prepareSnailLiftGithub();
+    return;
+  }
   if (action === "verify-snaillift-live") {
     await verifySnailLiftLive();
     return;
@@ -281,6 +292,11 @@ async function handleAction(button) {
   if (action === "copy-snaillift-command") {
     await copyText(state.lastSnailLiftCommand || "");
     setStatus("Copied the SnailLift Wrangler command.");
+    return;
+  }
+  if (action === "copy-snaillift-commands") {
+    await copyText((state.lastSnailLiftCommands || []).join("\n"));
+    setStatus("Copied the SnailLift GitHub commands.");
     return;
   }
   if (action === "go-verify") {
@@ -542,6 +558,7 @@ async function generateSiteZip() {
   state.lastAnnounceStatus = null;
   state.lastSnailLiftSafety = null;
   state.lastSnailLiftCommand = "";
+  state.lastSnailLiftCommands = [];
   state.lastSnailLiftVerification = null;
   state.lastSnailLiftLog = null;
   state.notifyForestAttention = true;
@@ -606,6 +623,7 @@ async function prepareSnailLiftCloudflare() {
   state.lastSnailLiftVerification = null;
   if (!safety.ok) {
     state.lastSnailLiftCommand = "";
+    state.lastSnailLiftCommands = [];
     state.lastSnailLiftLog = createDeploymentLogEntry({
       provider: "cloudflare-pages",
       siteUrl: settings.siteUrl,
@@ -624,7 +642,12 @@ async function prepareSnailLiftCloudflare() {
     settings,
     secrets: {},
   });
-  state.lastSnailLiftCommand = deploy.fallbackCommand || (deploy.code === "invalid-cloudflare-settings" ? "" : buildCloudflarePagesCommand({ ...settings, directory: "postsnail-public" }));
+  state.lastSnailLiftCommand =
+    deploy.fallbackCommand ||
+    (deploy.code === "invalid-cloudflare-settings"
+      ? ""
+      : buildCloudflarePagesCommand({ ...settings, directory: "postsnail-public" }));
+  state.lastSnailLiftCommands = [];
   state.lastSnailLiftLog = createDeploymentLogEntry({
     provider: "cloudflare-pages",
     siteUrl: settings.siteUrl,
@@ -641,12 +664,60 @@ async function prepareSnailLiftCloudflare() {
   render();
 }
 
+async function prepareSnailLiftGithub() {
+  if (!state.lastExportResult) {
+    setStatus("Export a Website ZIP first so SnailLift can prepare the public deployment bundle.");
+    return;
+  }
+  const settings = snailLiftGithubSettings();
+  const safety = runSnailLiftSafety(state.lastExportResult.files || {});
+  state.lastSnailLiftSafety = safety;
+  state.lastSnailLiftVerification = null;
+  if (!safety.ok) {
+    state.lastSnailLiftCommand = "";
+    state.lastSnailLiftCommands = [];
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "github-pages",
+      siteUrl: settings.siteUrl,
+      bundleFingerprint: state.lastExportResult.bundleFingerprint,
+      status: "failed",
+      message: safety.errors[0] || "SnailLift safety check failed.",
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+    setStatus(`SnailLift blocked deploy: ${safety.errors[0]}`);
+    render();
+    return;
+  }
+
+  const deploy = await githubPagesProvider.deploy({
+    files: state.lastExportResult.files,
+    settings,
+    secrets: {},
+  });
+  state.lastSnailLiftCommand = "";
+  state.lastSnailLiftCommands = deploy.commands || [];
+  state.lastSnailLiftLog = createDeploymentLogEntry({
+    provider: "github-pages",
+    siteUrl: settings.siteUrl,
+    bundleFingerprint: state.lastExportResult.bundleFingerprint,
+    status: deploy.code === "invalid-github-settings" ? "failed" : "prepared",
+    message: deploy.message,
+  });
+  await rememberSnailLiftLog(state.lastSnailLiftLog);
+  setStatus(
+    deploy.code === "invalid-github-settings"
+      ? deploy.message
+      : "SnailLift prepared safe GitHub Pages commands. Extract the ZIP, run the commands locally, then verify live.",
+  );
+  render();
+}
+
 async function verifySnailLiftLive() {
   if (!state.lastExportResult) {
     setStatus("Export a Website ZIP first so SnailLift knows which fingerprint to verify.");
     return;
   }
-  const siteUrl = state.settings.snailLiftSiteUrl || state.profile.siteUrl;
+  const siteUrl = snailLiftLiveSiteUrl();
   setStatus("Verifying the live PostSnail proof files...");
   await nextFrame();
   const verification = await verifySnailLiftLiveSite({
@@ -655,7 +726,7 @@ async function verifySnailLiftLive() {
   });
   state.lastSnailLiftVerification = verification;
   state.lastSnailLiftLog = createDeploymentLogEntry({
-    provider: "cloudflare-pages",
+    provider: state.lastSnailLiftLog?.provider || "manual",
     siteUrl,
     bundleFingerprint: state.lastExportResult.bundleFingerprint,
     status: verification.ok ? "verified" : "failed",
@@ -797,6 +868,7 @@ function restoreImportedState(nextState) {
   state.lastAnnounceStatus = null;
   state.lastSnailLiftSafety = null;
   state.lastSnailLiftCommand = "";
+  state.lastSnailLiftCommands = [];
   state.lastSnailLiftVerification = null;
   state.lastSnailLiftLog = null;
   state.notifyForestAttention = false;
@@ -1251,15 +1323,51 @@ function renderGenerate() {
           </div>
           <div class="actions">
             <button class="btn small primary" type="button" data-action="prepare-snaillift-cloudflare" ${state.lastExportResult ? "" : "disabled"}>Prepare Cloudflare deploy</button>
-            <button class="btn small" type="button" data-action="verify-snaillift-live" ${state.lastExportResult ? "" : "disabled"}>Verify live site</button>
-            <button class="btn small" type="button" data-action="announce-snaillift-forest" ${state.lastSnailLiftVerification?.ok ? "" : "disabled"}>Notify Forest after verify</button>
           </div>
-          <p class="help">Forest notify unlocks only after live verification passes.</p>
           ${state.lastSnailLiftCommand ? `
             <pre class="deploy-command"><code>${escapeHtml(state.lastSnailLiftCommand)}</code></pre>
             <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-command">Copy command</button></div>
           ` : ""}
+          <h3 class="panel-title">GitHub Pages</h3>
+          <p class="help">GitHub Pages support is a command assistant. It does not ask for or store a GitHub token.</p>
+          <div class="grid-2 snaillift-fields">
+            <label class="field">
+              <span>Owner</span>
+              <input data-settings-field="snailLiftGithubOwner" value="${escapeAttr(state.settings.snailLiftGithubOwner || "")}" placeholder="github-user">
+            </label>
+            <label class="field">
+              <span>Repository</span>
+              <input data-settings-field="snailLiftGithubRepo" value="${escapeAttr(state.settings.snailLiftGithubRepo || "")}" placeholder="postsnail-site">
+            </label>
+            <label class="field">
+              <span>Branch</span>
+              <input data-settings-field="snailLiftGithubBranch" value="${escapeAttr(state.settings.snailLiftGithubBranch || "gh-pages")}">
+            </label>
+            <label class="field">
+              <span>Target folder</span>
+              <input data-settings-field="snailLiftGithubTargetDir" value="${escapeAttr(state.settings.snailLiftGithubTargetDir || ".")}" placeholder=".">
+            </label>
+            <label class="field wide">
+              <span>Live site URL</span>
+              <input data-settings-field="snailLiftGithubSiteUrl" value="${escapeAttr(state.settings.snailLiftGithubSiteUrl || state.profile.siteUrl || "")}" placeholder="https://user.github.io/repo/">
+            </label>
+          </div>
+          <div class="actions">
+            <button class="btn small primary" type="button" data-action="prepare-snaillift-github" ${state.lastExportResult ? "" : "disabled"}>Prepare GitHub deploy</button>
+          </div>
+          ${state.lastSnailLiftCommands?.length ? `
+            <ol class="deploy-commands">
+              ${state.lastSnailLiftCommands.map((command) => `<li><code>${escapeHtml(command)}</code></li>`).join("")}
+            </ol>
+            <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-commands">Copy commands</button></div>
+          ` : ""}
+          <div class="actions">
+            <button class="btn small" type="button" data-action="verify-snaillift-live" ${state.lastExportResult ? "" : "disabled"}>Verify live site</button>
+            <button class="btn small" type="button" data-action="announce-snaillift-forest" ${state.lastSnailLiftVerification?.ok ? "" : "disabled"}>Notify Forest after verify</button>
+          </div>
+          <p class="help">Forest notify unlocks only after live verification passes.</p>
           ${renderSnailLiftStatus()}
+          ${renderSnailLiftLog()}
         </section>
       </section>
     </div>
@@ -1276,6 +1384,28 @@ function renderSnailLiftStatus() {
       ${safety ? `<p><strong>Safety:</strong> ${safety.ok ? "Passed" : escapeHtml(safety.errors[0] || "Blocked")}</p>` : ""}
       ${verification ? `<p><strong>Live verification:</strong> ${verification.ok ? "Passed" : escapeHtml(verification.errors[0] || "Failed")}</p>` : ""}
       ${log?.message ? `<p><strong>Deploy log:</strong> ${escapeHtml(log.message)}</p>` : ""}
+    </div>
+  `;
+}
+
+function renderSnailLiftLog() {
+  const logs = state.exportHistory
+    .filter((entry) => ["cloudflare-pages", "github-pages"].includes(entry?.provider))
+    .slice(-5)
+    .reverse();
+  if (!logs.length) return "";
+  return `
+    <div class="deploy-log">
+      <h3>Deployment log</h3>
+      ${logs.map((log) => `
+        <div class="deploy-log-row">
+          <strong>${escapeHtml(log.provider || "provider")}</strong>
+          <span>${escapeHtml(log.status || "status")}</span>
+          <span>${escapeHtml(log.siteUrl || "")}</span>
+          <span class="hash-cell">${escapeHtml(log.bundleFingerprint || "")}</span>
+          ${log.message ? `<p>${escapeHtml(log.message)}</p>` : ""}
+        </div>
+      `).join("")}
     </div>
   `;
 }
@@ -1534,6 +1664,25 @@ function snailLiftCloudflareSettings() {
     branch: state.settings.snailLiftCloudflareBranch || "main",
     siteUrl: state.settings.snailLiftSiteUrl || state.profile.siteUrl,
   };
+}
+
+function snailLiftGithubSettings() {
+  return {
+    owner: state.settings.snailLiftGithubOwner,
+    repo: state.settings.snailLiftGithubRepo,
+    branch: state.settings.snailLiftGithubBranch || "gh-pages",
+    targetDir: state.settings.snailLiftGithubTargetDir || ".",
+    siteUrl: state.settings.snailLiftGithubSiteUrl || state.profile.siteUrl,
+  };
+}
+
+function snailLiftLiveSiteUrl() {
+  return (
+    state.lastSnailLiftLog?.siteUrl ||
+    state.settings.snailLiftSiteUrl ||
+    state.settings.snailLiftGithubSiteUrl ||
+    state.profile.siteUrl
+  );
 }
 
 async function rememberSnailLiftLog(log) {

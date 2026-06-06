@@ -53,11 +53,11 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 
 ## SnailLift
 
-SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, helps with Cloudflare Pages deployment, verifies the live proof files, and only then notifies Forest.
+SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, helps with Cloudflare Pages and GitHub Pages command-assisted deployment, verifies the live proof files, and only then notifies Forest.
 
 SnailLift is built in for Alpha 1 but isolated from PostSnail Core. Provider-specific deployment code lives under `src/snaillift/`; exporter, workspace, identity, manifest, protocol, and signing modules stay provider-neutral so SnailLift can later move to `plugins/postsnail-snaillift`.
 
-SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [Cloudflare Pages](docs/snaillift-cloudflare.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
+SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [Cloudflare Pages](docs/snaillift-cloudflare.md), [GitHub Pages](docs/snaillift-github.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
 
 ## What “Post-Quantum Signed Fingerprint” Means
 
