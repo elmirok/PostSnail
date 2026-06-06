@@ -195,6 +195,11 @@ const pages = [
         <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the public Website ZIP contents and verify public proof files.</span></a>
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
+        <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
+        <a href="/docs/plugin-system/"><strong>Plugin System</strong><span>Manifest validation, permissions, capabilities, route-scoped runtime declarations, and private-state rules.</span></a>
+        <a href="/docs/theme-system/"><strong>Theme System</strong><span>Frontend theme manifests, admin theme tokens, and compatibility rules.</span></a>
+        <a href="/docs/route-assets/"><strong>Route Assets</strong><span>Declare public CSS and JS per route so plugins and themes do not load globally by default.</span></a>
+        <a href="/docs/permissions/"><strong>Permission Model</strong><span>Plugin permissions, sensitive permissions, and boundaries for future PSEPs.</span></a>
         <a href="/docs/security/"><strong>Security Notes</strong><span>What workspace encryption protects, what proof files prove, and what passphrase loss means.</span></a>
         <a href="/docs/compatibility/"><strong>Compatibility Contract</strong><span>Stable core, optional extensions, required features, legacy warnings, and migration promises.</span></a>
         <a href="/docs/protocol/"><strong>Protocol Reference</strong><span>Manifest, well-known identity, commit proofs, Shell vaults, and tracker announce records.</span></a>
@@ -301,6 +306,63 @@ const pages = [
       ["forest", "Forest Worker", "Forest fetches public proof metadata, verifies signatures and digests, indexes site/post summaries in D1, and exposes search plus registration APIs."],
       ["compatibility", "Compatibility Layer", "Protocol constants and compatibility helpers keep legacy manifests, workspaces, and ZIP exports working while new optional extensions are added safely."],
       ["extend", "Extend", "Future tools can build new themes, alternate trackers, local deployment helpers, registry sync, or independent verifiers. Protocol-risk changes should use the PSEP process."],
+    ]),
+  },
+  {
+    path: "docs/core-foundation/index.html",
+    title: "PostSnail Core Foundation - Alpha 1",
+    description: "The PostSnail Core boundary: workspace, ZIP export, proofs, migrations, plugin/theme manifests, route assets, and export safety.",
+    canonical: "https://postsnail.org/docs/core-foundation/",
+    body: docPage("Core Foundation sections", "Core Foundation", "The Core Foundation documents what PostSnail Core owns and what stays out of Core.", [
+      ["owns", "What PostSnail Core Owns", "PostSnail Core owns encrypted Shells, workspace schema and migrations, public Website ZIP export, proof files, identity signing boundaries, compatibility rules, plugin/theme manifest foundations, route-level asset declarations, and public export safety checks."],
+      ["outside", "What Stays Out Of Core", "SnailLift, Forest product policy, ShellNames, Pages CMS, Comments, Reader, Canopy, ShellSeed, PostMail, plugin marketplaces, and arbitrary plugin execution stay outside Core unless they change the stable source/export/proof boundary."],
+      ["extensions", "Extension Rule", "New features should be optional extensions first. Unknown optional fields are ignored safely. Unknown required features fail clearly before import, verification, or export could become misleading."],
+      ["apis", "Current APIs", "Alpha 1 exposes validatePluginManifest, validatePluginPermissions, validateThemeManifest, createRouteAssetMap, and validatePublicExportFiles under src/core without moving the stable existing modules yet."],
+    ]),
+  },
+  {
+    path: "docs/plugin-system/index.html",
+    title: "PostSnail Plugin System - Alpha 1",
+    description: "Plugin manifest foundations, permissions, capabilities, route-scoped runtime declarations, and private-state safety rules.",
+    canonical: "https://postsnail.org/docs/plugin-system/",
+    body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Alpha 1 defines validation boundaries, not a full runtime.", [
+      ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
+      ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],
+      ["private-state", "Private State", "Private plugin state remains inside the encrypted Shell. It may survive workspace migrations, but it must not be copied into the public Website ZIP."],
+      ["required", "Feature Gates", "Unknown optional plugin features are ignored safely. Unknown required plugin features fail clearly."],
+    ]),
+  },
+  {
+    path: "docs/theme-system/index.html",
+    title: "PostSnail Theme System - Alpha 1",
+    description: "Frontend theme and admin theme manifest foundations for PostSnail.",
+    canonical: "https://postsnail.org/docs/theme-system/",
+    body: docPage("Theme system sections", "Theme System", "Themes change presentation while Core keeps proof, workspace, and export rules stable.", [
+      ["frontend", "Frontend Themes", "Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates."],
+      ["admin", "Admin Themes", "Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets."],
+      ["compatibility", "Compatibility", "Theme manifests follow requiredFeatures and optionalFeatures. Unknown optional theme data is ignored safely; unknown required theme features fail clearly."],
+    ]),
+  },
+  {
+    path: "docs/route-assets/index.html",
+    title: "PostSnail Route Assets - Alpha 1",
+    description: "Route-level public asset declarations for PostSnail plugins and themes.",
+    canonical: "https://postsnail.org/docs/route-assets/",
+    body: docPage("Route asset sections", "Route Assets", "Public runtime assets are declared per route, not globally.", [
+      ["why", "Why Route Assets", "A plugin or theme install should not make every generated page load extra JavaScript or CSS. Route maps keep asset loading explicit and inspectable."],
+      ["shape", "Route Map Shape", "Each route declares route, type, template, theme, plugins, and assets. Duplicate assets are removed per route, and assets from one route do not leak into another route."],
+      ["paths", "Safe Paths", "Public asset paths must start with a slash and must not contain protocols, backtracking, or unsafe path syntax."],
+    ]),
+  },
+  {
+    path: "docs/permissions/index.html",
+    title: "PostSnail Permission Model - Alpha 1",
+    description: "PostSnail plugin permission allowlist and sensitive permission review notes.",
+    canonical: "https://postsnail.org/docs/permissions/",
+    body: docPage("Permission sections", "Permission Model", "Plugin permissions are explicit strings validated before a plugin can be treated as compatible.", [
+      ["permissions", "Plugin Permissions", "Plugin permissions include read/write access for posts, pages, assets, profile, manifest extensions, plugin state, export hooks, tracker fetches, external fetches, and deploy providers."],
+      ["sensitive", "Sensitive Permissions", "write:posts, write:profile, write:manifestExtensions, fetch:external, and deploy:provider require extra creator review because they can alter public output or contact external services."],
+      ["boundaries", "Boundary Rules", "Permissions describe intent. They do not grant automatic runtime execution, and public plugin assets still need route declarations plus export safety checks."],
     ]),
   },
   {

@@ -18,6 +18,11 @@ const projectHtmlPages = [
   "docs/publish-cloudflare/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
+  "docs/core-foundation/index.html",
+  "docs/plugin-system/index.html",
+  "docs/theme-system/index.html",
+  "docs/route-assets/index.html",
+  "docs/permissions/index.html",
   "docs/compatibility/index.html",
   "docs/protocol/index.html",
   "docs/workspace-vault/index.html",
@@ -158,6 +163,11 @@ test("alpha public pages and documentation are present", () => {
     ["docs/publish-cloudflare/index.html", /Publish On Cloudflare Pages/],
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
+    ["docs/core-foundation/index.html", /Core Foundation/],
+    ["docs/plugin-system/index.html", /Plugin System/],
+    ["docs/theme-system/index.html", /Theme System/],
+    ["docs/route-assets/index.html", /Route Assets/],
+    ["docs/permissions/index.html", /Permission Model/],
     ["docs/compatibility/index.html", /Compatibility Contract/],
     ["docs/protocol/index.html", /Protocol Reference/],
     ["docs/legal/index.html", /PostSnail Legal/],
@@ -175,10 +185,22 @@ test("alpha public pages and documentation are present", () => {
   assert.match(read("docs/workspace-vault/index.html"), /\.postsnail/);
   assert.match(read("docs/workspace-vault/index.html"), /public Website ZIP/);
   assert.match(read("docs/compatibility/index.html"), /Unknown required features fail/);
+  assert.match(read("docs/core-foundation/index.html"), /what PostSnail Core owns/);
+  assert.match(read("docs/plugin-system/index.html"), /route-scoped runtime declarations/);
+  assert.match(read("docs/theme-system/index.html"), /Admin themes/);
+  assert.match(read("docs/route-assets/index.html"), /declared per route/);
+  assert.match(read("docs/permissions/index.html"), /Plugin permissions/);
   assert.match(read("docs/protocol/index.html"), /requiredFeatures/);
   assert.match(read("docs/psep/index.html"), /PSEP-0001/);
   assert.ok(existsSync(join(root, "docs/compatibility.md")));
   assert.ok(existsSync(join(root, "docs/protocol.md")));
+  assert.ok(existsSync(join(root, "docs/core-foundation.md")));
+  assert.ok(existsSync(join(root, "docs/plugin-system.md")));
+  assert.ok(existsSync(join(root, "docs/theme-system.md")));
+  assert.ok(existsSync(join(root, "docs/route-assets.md")));
+  assert.ok(existsSync(join(root, "docs/permissions.md")));
+  assert.ok(existsSync(join(root, "docs/roadmap/postsnail-master-roadmap-for-codex.md")));
+  assert.ok(existsSync(join(root, "docs/roadmap/postsnail-core-foundation-plan.md")));
   assert.ok(existsSync(join(root, "docs/psep.md")));
   assert.ok(existsSync(join(root, "docs/pseps/PSEP-template.md")));
   assert.ok(existsSync(join(root, "docs/pseps/PSEP-0001-protocol-compatibility.md")));
@@ -249,6 +271,11 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "manifesto/index.html")));
   assert.ok(existsSync(join(outDir, "media-kit/index.html")));
   assert.ok(existsSync(join(outDir, "docs/architecture/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/core-foundation/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/plugin-system/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/theme-system/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/route-assets/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/permissions/index.html")));
   assert.ok(existsSync(join(outDir, "docs/compatibility/index.html")));
   assert.ok(existsSync(join(outDir, "docs/protocol/index.html")));
   assert.ok(existsSync(join(outDir, "docs/legal/index.html")));
@@ -258,6 +285,13 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "docs/security/index.html")));
   assert.ok(existsSync(join(outDir, "docs/compatibility.md")));
   assert.ok(existsSync(join(outDir, "docs/protocol.md")));
+  assert.ok(existsSync(join(outDir, "docs/core-foundation.md")));
+  assert.ok(existsSync(join(outDir, "docs/plugin-system.md")));
+  assert.ok(existsSync(join(outDir, "docs/theme-system.md")));
+  assert.ok(existsSync(join(outDir, "docs/route-assets.md")));
+  assert.ok(existsSync(join(outDir, "docs/permissions.md")));
+  assert.ok(existsSync(join(outDir, "docs/roadmap/postsnail-master-roadmap-for-codex.md")));
+  assert.ok(existsSync(join(outDir, "docs/roadmap/postsnail-core-foundation-plan.md")));
   assert.ok(existsSync(join(outDir, "docs/psep.md")));
   assert.ok(existsSync(join(outDir, "docs/pseps/PSEP-template.md")));
   assert.ok(existsSync(join(outDir, "docs/pseps/PSEP-0001-protocol-compatibility.md")));

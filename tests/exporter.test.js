@@ -69,6 +69,12 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   );
 
   const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
+  assert.ok(result.files["index.html"]);
+  assert.ok(result.files["postsnail.manifest.json"]);
+  assert.deepEqual(Object.keys(result.files).sort(), names);
+  assert.deepEqual(result.fileDigests, manifest.files);
+  assert.equal(result.bundleFingerprint, manifest.bundleFingerprint);
+  assert.equal(result.exportSafety.ok, true);
   assert.equal(manifest.manifestVersion, 1);
   assert.equal(manifest.algorithm.signature, "ML-DSA-65");
   assert.equal(manifest.algorithm.digest, "SHA3-512");

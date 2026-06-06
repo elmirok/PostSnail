@@ -78,6 +78,12 @@ PostSnail uses a stable-core, optional-extension model so old valid Shells and o
 
 Future protocol-risk changes should go through a PostSnail Enhancement Proposal. See [compatibility](docs/compatibility.md), [protocol](docs/protocol.md), and [PSEP process](docs/psep.md).
 
+## Core Foundation
+
+PostSnail Core owns the stable local Shell, public ZIP, proof, migration, plugin/theme manifest, route asset, and export safety boundaries. Product areas such as SnailLift, ShellNames, Pages, Comments, Forest UX, Canopy, and ShellSeed stay outside Core unless they change those boundaries.
+
+The first Core Foundation APIs live under `src/core/` and cover plugin manifest validation, permission validation, theme manifest validation, route-scoped asset maps, and public export safety checks. See [Core Foundation](docs/core-foundation.md), [plugin system](docs/plugin-system.md), [theme system](docs/theme-system.md), [route assets](docs/route-assets.md), and [permission model](docs/permissions.md).
+
 ## Privacy and Recovery
 
 - Browser-local editable Shell data is encrypted in IndexedDB and requires the Shell passphrase to reopen.

@@ -36,6 +36,7 @@ import {
   signatureToText,
 } from "./crypto.js";
 import { renderMarkdown } from "./markdown.js";
+import { validatePublicExportFiles } from "./core/export/safety.js";
 
 export const GENERATOR_VERSION = "0.1.0";
 const POSTSNAIL_HOME_URL = "https://postsnail.org/";
@@ -152,10 +153,18 @@ export async function buildStaticExport({
   files[WELL_KNOWN_PATH] = htmlBytes(JSON.stringify(identity, null, 2));
   files[LATEST_COMMIT_PATH] = htmlBytes(JSON.stringify(latestCommit, null, 2));
   files[COMMITS_PATH] = htmlBytes(JSON.stringify(commitLog, null, 2));
+  const exportSafety = validatePublicExportFiles(files);
+  if (!exportSafety.ok) {
+    throw new Error(`Public export safety check failed: ${exportSafety.errors.join("; ")}`);
+  }
 
   return {
     filename: `postsnail-${slugify(cleanProfile.siteTitle)}.zip`,
     zipBytes: zipSync(files, { level: 9 }),
+    files: cloneFiles(files),
+    fileDigests,
+    bundleFingerprint,
+    exportSafety,
     manifest,
     wellKnown: identity,
     latestCommit,
@@ -207,6 +216,10 @@ function digestFiles(files) {
       .sort()
       .map((name) => [name, sha3Hex(files[name])]),
   );
+}
+
+function cloneFiles(files) {
+  return Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, new Uint8Array(bytes)]));
 }
 
 function buildAssetMap(assets) {
