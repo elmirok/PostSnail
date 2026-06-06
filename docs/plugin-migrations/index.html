@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Theme System - Alpha 1</title>
-    <meta name="description" content="Frontend theme and admin theme manifest foundations for PostSnail.">
-    <link rel="canonical" href="https://postsnail.org/docs/theme-system/">
+    <title>PostSnail Plugin Migrations - Alpha 1</title>
+    <meta name="description" content="How PostSnail preserves private plugin state across Shell migrations and missing plugin code.">
+    <link rel="canonical" href="https://postsnail.org/docs/plugin-migrations/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,17 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Theme System</h1>
-            <p class="lede">Themes change presentation while Core keeps proof, workspace, and export rules stable.</p>
+            <h1>Plugin Migrations</h1>
+            <p class="lede">Plugin state is private Shell data: missing plugin state is preserved, not deleted.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Theme system sections"><a href="#frontend">Frontend Themes</a><a href="#quiet">Quiet Feed Default</a><a href="#admin">Admin Themes</a><a href="#appearance">Shell Appearance State</a><a href="#compatibility">Compatibility</a></nav>
+            <nav class="doc-nav" aria-label="Plugin migration sections"><a href="#private">Private State</a><a href="#missing">Missing Plugins</a><a href="#unknown">Unknown Fields</a><a href="#future">Future Migrations</a></nav>
             <div class="doc-content">
-              <section id="frontend"><h2>Frontend Themes</h2><p>Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates.</p></section>
-              <section id="quiet"><h2>Quiet Feed Default</h2><p>The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells.</p></section>
-              <section id="admin"><h2>Admin Themes</h2><p>Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets.</p></section>
-              <section id="appearance"><h2>Shell Appearance State</h2><p>Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings.</p></section>
-              <section id="compatibility"><h2>Compatibility</h2><p>Theme manifests follow requiredFeatures and optionalFeatures. Unknown optional theme data is ignored safely; unknown required theme features fail clearly.</p></section>
+              <section id="private"><h2>Private State</h2><p>Plugin state lives inside the encrypted .postsnail Shell and must never enter the public Website ZIP.</p></section>
+              <section id="missing"><h2>Missing Plugins</h2><p>If a Shell contains state for a plugin that is not installed, PostSnail returns a warning and preserves the state untouched.</p></section>
+              <section id="unknown"><h2>Unknown Fields</h2><p>Unknown plugin fields and future schema data are preserved without interpretation whenever possible.</p></section>
+              <section id="future"><h2>Future Migrations</h2><p>Future official plugins can add deterministic migrations through declared hooks and PSEP-reviewed compatibility rules.</p></section>
             </div>
           </article>
     </main>

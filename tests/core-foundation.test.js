@@ -115,6 +115,7 @@ test("plugin manifests validate ids, capabilities, permissions, feature gates, a
 
 test("theme manifests validate frontend and admin themes with required feature checks", () => {
   const frontend = validateThemeManifest({
+    protocol: "postsnail-theme-v1",
     type: "postsnail-frontend-theme",
     id: "quiet-feed",
     name: "Quiet Feed",
@@ -133,6 +134,7 @@ test("theme manifests validate frontend and admin themes with required feature c
   assert.equal(frontend.ok, true, frontend.errors?.join("\n"));
 
   const admin = validateThemeManifest({
+    protocol: "postsnail-theme-v1",
     type: "postsnail-admin-theme",
     id: "shell-coral",
     name: "Shell Coral",
@@ -147,6 +149,7 @@ test("theme manifests validate frontend and admin themes with required feature c
   assert.equal(admin.ok, true, admin.errors?.join("\n"));
 
   const badAdmin = validateThemeManifest({
+    protocol: "postsnail-theme-v1",
     type: "postsnail-admin-theme",
     id: "unsafe-admin",
     name: "Unsafe Admin",

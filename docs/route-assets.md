@@ -31,4 +31,6 @@ PostSnail generated sites should stay small, static, and easy to inspect. A plug
 - Asset paths must be public absolute paths like `/assets/theme.css`.
 - Asset paths must not contain `..`, protocols, or unsafe path syntax.
 
-This keeps plugin and theme runtime behavior inspectable before static export.
+`resolveRouteAssets(route, theme, enabledPlugins)` combines the active theme assets with enabled plugin runtime declarations only when the route matches `loadWhen`.
+
+This keeps plugin and theme runtime behavior inspectable before static export. The generated manifest may include optional `extensions.routeAssets` metadata so verifiers and future tools can see which routes planned which public assets.

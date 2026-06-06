@@ -71,6 +71,12 @@ The workspace schema has its own version and migration path. A public ZIP must n
 
 ShellName metadata may appear in `postsnail.manifest.json` and `.well-known/postsnail.json` under the optional `shellnames` feature. Older tools ignore it safely.
 
+## Plugin, Theme, And Route Asset Extensions
+
+Alpha 1 public manifests may include optional `themes`, `plugins`, and `route-assets` features. Their data lives under `extensions`.
+
+These fields describe active frontend theme metadata, enabled plugin public output metadata, and per-route public asset declarations. They are optional compatibility metadata. Older verifiers ignore them safely, and unknown required plugin/theme features still fail clearly when a tool is asked to interpret those manifests.
+
 ## Recovery Boundary
 
 Importing `.postsnail` restores the real project. Importing a public ZIP or site can only recover public content and public proof files.

@@ -44,3 +44,4 @@ These permissions require extra creator review because they can change public ou
 - Private plugin state remains in the encrypted Shell.
 - Public plugin assets must still pass route asset declarations and public export safety checks.
 - Future permissions that change proof semantics should go through a PSEP.
+- Permissions describe what a plugin may ask for; they do not grant automatic execution or access to private identity keys.

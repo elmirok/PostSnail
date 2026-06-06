@@ -17,6 +17,9 @@ export function validateThemeManifest(manifest) {
   if (source !== manifest || Object.keys(source).length === 0) {
     errors.push("Theme manifest must be an object.");
   }
+  if (source.protocol !== "postsnail-theme-v1") {
+    errors.push("Theme manifest protocol must be postsnail-theme-v1.");
+  }
   if (!["postsnail-frontend-theme", "postsnail-admin-theme"].includes(source.type)) {
     errors.push("Theme type must be postsnail-frontend-theme or postsnail-admin-theme.");
   }
@@ -45,6 +48,7 @@ export function validateThemeManifest(manifest) {
     errors,
     warnings,
     normalized: {
+      protocol: "postsnail-theme-v1",
       type: String(source.type || ""),
       id: String(source.id || "").trim(),
       name: String(source.name || "").trim(),

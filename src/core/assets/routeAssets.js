@@ -15,6 +15,39 @@ export function createRouteAssetMap(routes = []) {
   return map;
 }
 
+export function resolveRouteAssets(route = {}, theme = {}, enabledPlugins = []) {
+  const source = objectRecord(route);
+  const routeType = String(source.type || "");
+  const routeTemplate = String(source.template || routeType || "");
+  const features = new Set(uniqueStrings(source.features));
+  const themeAssets = assetsForTheme(theme);
+  const pluginAssets = [];
+  const pluginIds = [];
+
+  for (const plugin of Array.isArray(enabledPlugins) ? enabledPlugins : []) {
+    const manifest = objectRecord(plugin.manifest || plugin);
+    const runtime = objectRecord(manifest.runtime);
+    const loadWhen = uniqueStrings(runtime.loadWhen);
+    if (!loadWhen.length || !matchesLoadWhen(loadWhen, routeType, routeTemplate, features)) continue;
+    const pluginId = String(manifest.id || plugin.id || "").trim();
+    if (!pluginId) continue;
+    pluginIds.push(pluginId);
+    if (runtime.entry) pluginAssets.push(`/plugins/${pluginId}/${runtime.entry}`);
+    for (const path of uniqueStrings(runtime.js)) pluginAssets.push(`/plugins/${pluginId}/${path}`);
+    for (const path of uniqueStrings(runtime.css)) pluginAssets.push(`/plugins/${pluginId}/${path}`);
+  }
+
+  return {
+    route: normalizeRoutePath(source.route || source.path || "/"),
+    type: routeType,
+    template: routeTemplate,
+    theme: String(theme.id || ""),
+    features: [...features],
+    plugins: uniqueStrings(pluginIds),
+    assets: uniqueStrings([...themeAssets, ...pluginAssets]).filter(isSafePublicAssetPath),
+  };
+}
+
 export function normalizeRoutePath(value) {
   let route = String(value || "/").trim().split(/[?#]/u)[0] || "/";
   if (!route.startsWith("/")) route = `/${route}`;
@@ -45,4 +78,26 @@ function uniqueStrings(value = []) {
 
 function objectRecord(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function assetsForTheme(theme) {
+  const publicAssets = objectRecord(theme.publicAssets);
+  const legacyAssets = objectRecord(theme.assets);
+  const id = String(theme.id || "").trim();
+  const css = uniqueStrings(publicAssets.css).length
+    ? uniqueStrings(publicAssets.css)
+    : uniqueStrings(legacyAssets.css).map((path) => `/themes/${id}/${path}`);
+  const js = uniqueStrings(publicAssets.js).length
+    ? uniqueStrings(publicAssets.js)
+    : uniqueStrings(legacyAssets.js).map((path) => `/themes/${id}/${path}`);
+  return [...css, ...js];
+}
+
+function matchesLoadWhen(loadWhen, routeType, routeTemplate, features) {
+  return loadWhen.every((condition) => {
+    if (condition.startsWith("routeType:")) return condition.slice("routeType:".length) === routeType;
+    if (condition.startsWith("template:")) return condition.slice("template:".length) === routeTemplate;
+    if (condition.startsWith("feature:")) return features.has(condition.slice("feature:".length));
+    return false;
+  });
 }

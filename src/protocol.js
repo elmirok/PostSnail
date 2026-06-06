@@ -22,6 +22,8 @@ export const KNOWN_OPTIONAL_FEATURES = [
   "shellnames",
   "comments",
   "deployment-assistant",
+  "themes",
+  "route-assets",
   "plugins",
 ];
 

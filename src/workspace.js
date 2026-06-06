@@ -56,6 +56,7 @@ export function workspaceToAppState(workspace) {
     moderation: clean.moderation,
     trackerUrls: clean.trackerUrls,
     shellNames: clean.shellNames,
+    appearance: clean.appearance,
     exportHistory: clean.exportHistory,
     extensions: clean.extensions,
   };

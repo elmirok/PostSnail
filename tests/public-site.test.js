@@ -28,9 +28,12 @@ const projectHtmlPages = [
   "docs/architecture/index.html",
   "docs/core-foundation/index.html",
   "docs/plugin-system/index.html",
+  "docs/plugin-migrations/index.html",
   "docs/theme-system/index.html",
+  "docs/theme-manifests/index.html",
   "docs/route-assets/index.html",
   "docs/permissions/index.html",
+  "docs/extension-security/index.html",
   "docs/compatibility/index.html",
   "docs/protocol/index.html",
   "docs/workspace-vault/index.html",
@@ -217,9 +220,12 @@ test("alpha public pages and documentation are present", () => {
     ["docs/architecture/index.html", /PostSnail Architecture/],
     ["docs/core-foundation/index.html", /Core Foundation/],
     ["docs/plugin-system/index.html", /Plugin System/],
+    ["docs/plugin-migrations/index.html", /Plugin Migrations/],
     ["docs/theme-system/index.html", /Theme System/],
+    ["docs/theme-manifests/index.html", /Theme Manifests/],
     ["docs/route-assets/index.html", /Route Assets/],
     ["docs/permissions/index.html", /Permission Model/],
+    ["docs/extension-security/index.html", /Extension Security/],
     ["docs/compatibility/index.html", /Compatibility Contract/],
     ["docs/protocol/index.html", /Protocol Reference/],
     ["docs/legal/index.html", /PostSnail Legal/],
@@ -246,9 +252,12 @@ test("alpha public pages and documentation are present", () => {
   assert.match(read("docs/compatibility/index.html"), /Unknown required features fail/);
   assert.match(read("docs/core-foundation/index.html"), /what PostSnail Core owns/);
   assert.match(read("docs/plugin-system/index.html"), /route-scoped runtime declarations/);
+  assert.match(read("docs/plugin-migrations/index.html"), /missing plugin state is preserved/);
   assert.match(read("docs/theme-system/index.html"), /Admin themes/);
+  assert.match(read("docs/theme-manifests/index.html"), /quiet-feed/);
   assert.match(read("docs/route-assets/index.html"), /declared per route/);
   assert.match(read("docs/permissions/index.html"), /Plugin permissions/);
+  assert.match(read("docs/extension-security/index.html"), /Install does not mean load/);
   assert.match(read("docs/protocol/index.html"), /requiredFeatures/);
   assert.match(read("docs/psep/index.html"), /PSEP-0001/);
   assert.ok(existsSync(join(root, "docs/compatibility.md")));
@@ -260,9 +269,12 @@ test("alpha public pages and documentation are present", () => {
   assert.ok(existsSync(join(root, "docs/snaillift-security.md")));
   assert.ok(existsSync(join(root, "docs/core-foundation.md")));
   assert.ok(existsSync(join(root, "docs/plugin-system.md")));
+  assert.ok(existsSync(join(root, "docs/plugin-migrations.md")));
   assert.ok(existsSync(join(root, "docs/theme-system.md")));
+  assert.ok(existsSync(join(root, "docs/theme-manifests.md")));
   assert.ok(existsSync(join(root, "docs/route-assets.md")));
   assert.ok(existsSync(join(root, "docs/permissions.md")));
+  assert.ok(existsSync(join(root, "docs/extension-security.md")));
   assert.ok(existsSync(join(root, "docs/roadmap/postsnail-master-roadmap-for-codex.md")));
   assert.ok(existsSync(join(root, "docs/roadmap/postsnail-core-foundation-plan.md")));
   assert.ok(existsSync(join(root, "docs/psep.md")));
@@ -342,9 +354,12 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "docs/snaillift-security/index.html")));
   assert.ok(existsSync(join(outDir, "docs/core-foundation/index.html")));
   assert.ok(existsSync(join(outDir, "docs/plugin-system/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/plugin-migrations/index.html")));
   assert.ok(existsSync(join(outDir, "docs/theme-system/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/theme-manifests/index.html")));
   assert.ok(existsSync(join(outDir, "docs/route-assets/index.html")));
   assert.ok(existsSync(join(outDir, "docs/permissions/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/extension-security/index.html")));
   assert.ok(existsSync(join(outDir, "docs/compatibility/index.html")));
   assert.ok(existsSync(join(outDir, "docs/protocol/index.html")));
   assert.ok(existsSync(join(outDir, "docs/legal/index.html")));
@@ -361,9 +376,12 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "docs/snaillift-security.md")));
   assert.ok(existsSync(join(outDir, "docs/core-foundation.md")));
   assert.ok(existsSync(join(outDir, "docs/plugin-system.md")));
+  assert.ok(existsSync(join(outDir, "docs/plugin-migrations.md")));
   assert.ok(existsSync(join(outDir, "docs/theme-system.md")));
+  assert.ok(existsSync(join(outDir, "docs/theme-manifests.md")));
   assert.ok(existsSync(join(outDir, "docs/route-assets.md")));
   assert.ok(existsSync(join(outDir, "docs/permissions.md")));
+  assert.ok(existsSync(join(outDir, "docs/extension-security.md")));
   assert.ok(existsSync(join(outDir, "docs/roadmap/postsnail-master-roadmap-for-codex.md")));
   assert.ok(existsSync(join(outDir, "docs/roadmap/postsnail-core-foundation-plan.md")));
   assert.ok(existsSync(join(outDir, "docs/psep.md")));

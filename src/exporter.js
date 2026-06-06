@@ -37,6 +37,9 @@ import {
 } from "./crypto.js";
 import { renderMarkdown } from "./markdown.js";
 import { validatePublicExportFiles } from "./core/export/safety.js";
+import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
+import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
+import { resolveRouteAssets } from "./core/assets/routeAssets.js";
 
 export const GENERATOR_VERSION = "0.1.0";
 const POSTSNAIL_HOME_URL = "https://postsnail.org/";
@@ -52,6 +55,8 @@ export async function buildStaticExport({
   assets = [],
   settings = {},
   commitHistory = [],
+  plugins = { installed: [], lock: {}, state: {} },
+  appearance = {},
   shellNames = [],
   publicKey,
   secretKey,
@@ -61,6 +66,7 @@ export async function buildStaticExport({
   const cleanSettings = normalizeDiscoverySettings(settings);
   const attribution = normalizeAttributionSettings(settings, cleanSettings);
   const publicShellNames = normalizeShellNames(shellNames);
+  const extensionContext = buildExtensionContext({ plugins, appearance });
   const publishedPosts = posts
     .filter((post) => post.status === "published")
     .slice()
@@ -104,13 +110,33 @@ export async function buildStaticExport({
 
   const fileDigests = digestFiles(files);
   const bundleFingerprint = fingerprintForBytes(encodeText(canonicalJson({ files: fileDigests, posts: postProofs })));
+  const manifestExtensions = buildManifestExtensions({
+    theme: extensionContext.theme,
+    enabledPlugins: extensionContext.enabledPlugins,
+    routeAssets: buildRouteAssetMapForExport({
+      publishedPosts,
+      attribution,
+      theme: extensionContext.theme,
+      enabledPlugins: extensionContext.enabledPlugins,
+    }),
+  });
   const manifestPayload = {
     protocol: POSTSNAIL_PROTOCOL,
     version: POSTSNAIL_PROTOCOL_VERSION,
     manifestVersion: MANIFEST_VERSION,
     requiredFeatures: [...REQUIRED_CORE_FEATURES],
-    optionalFeatures: ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker", ...(publicShellNames.length ? ["shellnames"] : [])],
-    extensions: {},
+    optionalFeatures: [
+      "identity-document",
+      "commit-history",
+      "sitemap",
+      "tracker-announce",
+      "forest-tracker",
+      "themes",
+      "route-assets",
+      ...(extensionContext.enabledPlugins.length ? ["plugins"] : []),
+      ...(publicShellNames.length ? ["shellnames"] : []),
+    ],
+    extensions: manifestExtensions,
     generator: { name: "PostSnail", version: GENERATOR_VERSION },
     generatedAt,
     site: cleanProfile,
@@ -174,6 +200,70 @@ export async function buildStaticExport({
     latestCommit,
     commitHistory: nextCommitHistory,
     announcePayload,
+  };
+}
+
+function buildExtensionContext({ plugins, appearance }) {
+  const registry = createPluginRegistry([], plugins);
+  const themeRegistry = createThemeRegistry([]);
+  return {
+    pluginRegistry: registry,
+    enabledPlugins: registry.listEnabled(),
+    theme: resolveFrontendTheme(appearance, themeRegistry),
+  };
+}
+
+function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins }) {
+  const routes = [
+    { route: "/", type: "home", template: "home", features: [] },
+    { route: "/archive/", type: "archive", template: "archive", features: [] },
+    { route: "/about/", type: "about", template: "page", features: [] },
+    ...(attribution.trackerUrls.length ? [{ route: "/trackers/", type: "trackers", template: "page", features: [] }] : []),
+    ...publishedPosts.map((post) => ({
+      route: `/posts/${post.slug}/`,
+      type: "post",
+      template: "post",
+      features: post.features || [],
+    })),
+    ...tagsForPosts(publishedPosts).map((tag) => ({
+      route: `/tags/${tag}/`,
+      type: "tag",
+      template: "tag",
+      features: [],
+    })),
+  ];
+  return Object.fromEntries(
+    routes.map((route) => {
+      const resolved = resolveRouteAssets(route, theme, enabledPlugins);
+      return [resolved.route, resolved];
+    }),
+  );
+}
+
+function buildManifestExtensions({ theme, enabledPlugins, routeAssets }) {
+  const plugins = Object.fromEntries(
+    enabledPlugins.map((plugin) => {
+      const publicFiles = Object.values(routeAssets)
+        .flatMap((route) => route.assets || [])
+        .filter((assetPath) => assetPath.startsWith(`/plugins/${plugin.id}/`));
+      return [
+        plugin.id,
+        {
+          version: plugin.version || plugin.manifest?.version || "",
+          publicFiles: [...new Set(publicFiles)].sort(),
+        },
+      ];
+    }),
+  );
+  return {
+    themes: {
+      frontend: {
+        id: theme.id,
+        version: theme.version,
+      },
+    },
+    ...(Object.keys(plugins).length ? { plugins } : {}),
+    routeAssets,
   };
 }
 

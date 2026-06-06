@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Theme System - Alpha 1</title>
-    <meta name="description" content="Frontend theme and admin theme manifest foundations for PostSnail.">
-    <link rel="canonical" href="https://postsnail.org/docs/theme-system/">
+    <title>PostSnail Theme Manifests - Alpha 1</title>
+    <meta name="description" content="Frontend and admin theme manifest shapes for PostSnail.">
+    <link rel="canonical" href="https://postsnail.org/docs/theme-manifests/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,17 +29,15 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Theme System</h1>
-            <p class="lede">Themes change presentation while Core keeps proof, workspace, and export rules stable.</p>
+            <h1>Theme Manifests</h1>
+            <p class="lede">Theme manifests style PostSnail without becoming plugins.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Theme system sections"><a href="#frontend">Frontend Themes</a><a href="#quiet">Quiet Feed Default</a><a href="#admin">Admin Themes</a><a href="#appearance">Shell Appearance State</a><a href="#compatibility">Compatibility</a></nav>
+            <nav class="doc-nav" aria-label="Theme manifest sections"><a href="#frontend">Frontend Manifest</a><a href="#admin">Admin Manifest</a><a href="#storage">Theme Settings</a></nav>
             <div class="doc-content">
-              <section id="frontend"><h2>Frontend Themes</h2><p>Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates.</p></section>
-              <section id="quiet"><h2>Quiet Feed Default</h2><p>The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells.</p></section>
-              <section id="admin"><h2>Admin Themes</h2><p>Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets.</p></section>
-              <section id="appearance"><h2>Shell Appearance State</h2><p>Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings.</p></section>
-              <section id="compatibility"><h2>Compatibility</h2><p>Theme manifests follow requiredFeatures and optionalFeatures. Unknown optional theme data is ignored safely; unknown required theme features fail clearly.</p></section>
+              <section id="frontend"><h2>Frontend Manifest</h2><p>Frontend themes use protocol postsnail-theme-v1, type postsnail-frontend-theme, safe template paths, assets, slots, settings, and budgets. quiet-feed is the built-in default.</p></section>
+              <section id="admin"><h2>Admin Manifest</h2><p>Admin themes use protocol postsnail-theme-v1, type postsnail-admin-theme, and --ps-* CSS variables. JavaScript runtime assets are rejected.</p></section>
+              <section id="storage"><h2>Theme Settings</h2><p>Theme settings are stored privately in the encrypted Shell under appearance.themeSettings.</p></section>
             </div>
           </article>
     </main>

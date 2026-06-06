@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Theme System - Alpha 1</title>
-    <meta name="description" content="Frontend theme and admin theme manifest foundations for PostSnail.">
-    <link rel="canonical" href="https://postsnail.org/docs/theme-system/">
+    <title>PostSnail Extension Security - Alpha 1</title>
+    <meta name="description" content="Security boundaries for PostSnail plugins, themes, hook planning, route assets, and export safety.">
+    <link rel="canonical" href="https://postsnail.org/docs/extension-security/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,17 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Theme System</h1>
-            <p class="lede">Themes change presentation while Core keeps proof, workspace, and export rules stable.</p>
+            <h1>Extension Security</h1>
+            <p class="lede">Install does not mean load. Enable does not mean load everywhere. Routes decide what assets load.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Theme system sections"><a href="#frontend">Frontend Themes</a><a href="#quiet">Quiet Feed Default</a><a href="#admin">Admin Themes</a><a href="#appearance">Shell Appearance State</a><a href="#compatibility">Compatibility</a></nav>
+            <nav class="doc-nav" aria-label="Extension security sections"><a href="#validation">Validated Manifests</a><a href="#execution">No Arbitrary Execution</a><a href="#privacy">Private Data</a><a href="#safety">Public Export Safety</a></nav>
             <div class="doc-content">
-              <section id="frontend"><h2>Frontend Themes</h2><p>Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates.</p></section>
-              <section id="quiet"><h2>Quiet Feed Default</h2><p>The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells.</p></section>
-              <section id="admin"><h2>Admin Themes</h2><p>Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets.</p></section>
-              <section id="appearance"><h2>Shell Appearance State</h2><p>Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings.</p></section>
-              <section id="compatibility"><h2>Compatibility</h2><p>Theme manifests follow requiredFeatures and optionalFeatures. Unknown optional theme data is ignored safely; unknown required theme features fail clearly.</p></section>
+              <section id="validation"><h2>Validated Manifests</h2><p>Plugins and themes must pass manifest validation before PostSnail treats them as compatible.</p></section>
+              <section id="execution"><h2>No Arbitrary Execution</h2><p>Alpha 1 plans hooks and assets declaratively; it does not load third-party packages or run arbitrary plugin code.</p></section>
+              <section id="privacy"><h2>Private Data</h2><p>Private plugin state and theme settings stay in the encrypted Shell and are blocked from public ZIP exports.</p></section>
+              <section id="safety"><h2>Public Export Safety</h2><p>Plugin and theme output still goes through public export safety checks before ZIP generation.</p></section>
             </div>
           </article>
     </main>

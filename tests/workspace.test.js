@@ -82,6 +82,14 @@ function sampleState() {
         },
       },
     ],
+    appearance: {
+      frontendTheme: "quiet-feed",
+      adminTheme: "shell-night",
+      themeSettings: {
+        "quiet-feed": { accentColor: "#ef4056" },
+        "unknown-theme": { preserved: true },
+      },
+    },
     exportHistory: [{ filename: "postsnail-vault-test.zip", exportedAt: now }],
   };
 }
@@ -104,6 +112,7 @@ test("encrypted .postsnail workspace round trips editable state without plaintex
   assert.deepEqual(imported.state.commitHistory, sampleState().commitHistory);
   assert.deepEqual(imported.state.moderation, sampleState().moderation);
   assert.deepEqual(imported.state.shellNames, sampleState().shellNames);
+  assert.deepEqual(imported.state.appearance, sampleState().appearance);
 });
 
 test("workspace import fails safely for wrong passphrase and tampered ciphertext", async () => {
@@ -173,6 +182,11 @@ test("workspace migration v1 defaults missing containers and rejects future vers
   assert.deepEqual(migrated.moderation, { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] });
   assert.deepEqual(migrated.trackerUrls, []);
   assert.deepEqual(migrated.shellNames, []);
+  assert.deepEqual(migrated.appearance, {
+    frontendTheme: "quiet-feed",
+    adminTheme: "default",
+    themeSettings: {},
+  });
   assert.deepEqual(migrated.exportHistory, []);
 
   assert.throws(

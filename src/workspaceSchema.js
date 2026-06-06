@@ -22,6 +22,7 @@ export function createWorkspaceData(source = {}, options = {}) {
     moderation: normalizeModeration(source.moderation),
     trackerUrls: normalizeTrackerUrls(source.trackerUrls, settings),
     shellNames: cleanArray(source.shellNames),
+    appearance: normalizeAppearance(source.appearance),
     exportHistory: normalizeExportHistory(source.exportHistory),
     extensions: cleanObject(source.extensions),
   };
@@ -81,6 +82,15 @@ function normalizeTrackerUrls(value, settings) {
     .split(/[\n,]/u)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeAppearance(value) {
+  const source = cleanObject(value);
+  return {
+    frontendTheme: String(source.frontendTheme || "quiet-feed").trim() || "quiet-feed",
+    adminTheme: String(source.adminTheme || "default").trim() || "default",
+    themeSettings: cleanObject(source.themeSettings),
+  };
 }
 
 function normalizeExportHistory(value) {

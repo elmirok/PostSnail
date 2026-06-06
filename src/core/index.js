@@ -1,4 +1,10 @@
-export { createRouteAssetMap, isSafePublicAssetPath, normalizeRoutePath } from "./assets/routeAssets.js";
+export { createRouteAssetMap, isSafePublicAssetPath, normalizeRoutePath, resolveRouteAssets } from "./assets/routeAssets.js";
 export { isSafePublicPath, validatePublicExportFiles } from "./export/safety.js";
 export { validatePluginManifest, validatePluginPermissions } from "./plugins/pluginManifest.js";
+export { createPluginRegistry, disablePlugin, enablePlugin, installPlugin } from "./plugins/pluginRegistry.js";
+export { planPluginHooks, SUPPORTED_PLUGIN_HOOKS } from "./plugins/pluginHooks.js";
+export { migratePluginState } from "./plugins/pluginMigrations.js";
+export { BUILTIN_THEMES, DEFAULT_ADMIN_THEME, QUIET_FEED_THEME } from "./themes/builtinThemes.js";
 export { validateThemeManifest } from "./themes/themeManifest.js";
+export { createThemeRegistry, resolveAdminThemeTokens, resolveFrontendTheme } from "./themes/themeRegistry.js";
+export { TEMPLATE_SLOTS } from "./themes/templateSlots.js";

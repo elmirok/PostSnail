@@ -38,6 +38,8 @@ Examples include:
 - `shellnames`
 - `comments`
 - `deployment-assistant`
+- `themes`
+- `route-assets`
 - `plugins`
 
 Unknown optional fields must not break import, verification, or indexing. Tools may preserve unknown extension data when practical, but they must not interpret it unless they know the feature.

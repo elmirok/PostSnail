@@ -3,7 +3,7 @@ const DB_VERSION = 1;
 export const LOCAL_SHELL_ENVELOPE_KEY = "localShellEnvelope";
 
 export async function loadAppState() {
-  const [profile, identity, settings, commitHistory, plugins, moderation, trackerUrls, exportHistory, posts, assets] = await Promise.all([
+  const [profile, identity, settings, commitHistory, plugins, moderation, trackerUrls, shellNames, appearance, exportHistory, posts, assets] = await Promise.all([
     getKv("profile"),
     getKv("identity"),
     getKv("settings"),
@@ -11,6 +11,8 @@ export async function loadAppState() {
     getKv("plugins"),
     getKv("moderation"),
     getKv("trackerUrls"),
+    getKv("shellNames"),
+    getKv("appearance"),
     getKv("exportHistory"),
     getAll("posts"),
     getAll("assets"),
@@ -23,9 +25,21 @@ export async function loadAppState() {
     plugins: normalizePlugins(plugins),
     moderation: normalizeModeration(moderation),
     trackerUrls: Array.isArray(trackerUrls) ? trackerUrls : [],
+    shellNames: Array.isArray(shellNames) ? shellNames : [],
+    appearance: normalizeAppearance(appearance),
     exportHistory: Array.isArray(exportHistory) ? exportHistory : [],
     posts: posts.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     assets: assets.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))),
+  };
+}
+
+function normalizeAppearance(value) {
+  return {
+    frontendTheme: String(value?.frontendTheme || "quiet-feed").trim() || "quiet-feed",
+    adminTheme: String(value?.adminTheme || "default").trim() || "default",
+    themeSettings: value?.themeSettings && typeof value.themeSettings === "object" && !Array.isArray(value.themeSettings)
+      ? value.themeSettings
+      : {},
   };
 }
 

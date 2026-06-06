@@ -96,7 +96,9 @@ Future protocol-risk changes should go through a PostSnail Enhancement Proposal.
 
 PostSnail Core owns the stable local Shell, public ZIP, proof, migration, plugin/theme manifest, route asset, and export safety boundaries. Product areas such as SnailLift, ShellNames, Pages, Comments, Forest UX, Canopy, and ShellSeed stay outside Core unless they change those boundaries.
 
-The first Core Foundation APIs live under `src/core/` and cover plugin manifest validation, permission validation, theme manifest validation, route-scoped asset maps, and public export safety checks. See [Core Foundation](docs/core-foundation.md), [plugin system](docs/plugin-system.md), [theme system](docs/theme-system.md), [route assets](docs/route-assets.md), and [permission model](docs/permissions.md).
+The Core Foundation APIs live under `src/core/` and cover plugin manifest validation, permission validation, plugin registry state, deterministic hook planning, plugin migrations, theme manifest validation, theme registries, route-scoped asset maps, and public export safety checks. See [Core Foundation](docs/core-foundation.md), [plugin system](docs/plugin-system.md), [plugin migrations](docs/plugin-migrations.md), [theme system](docs/theme-system.md), [theme manifests](docs/theme-manifests.md), [route assets](docs/route-assets.md), [permission model](docs/permissions.md), and [extension security](docs/extension-security.md).
+
+Alpha 1 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
 
 ## Privacy and Recovery
 

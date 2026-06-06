@@ -36,4 +36,12 @@ Alpha 1 Core Foundation adds lightweight APIs under `src/core/` without moving s
 - `createRouteAssetMap(routes)`
 - `validatePublicExportFiles(files)`
 
-This is a foundation, not the full plugin runtime.
+The Plugin System Core + Theme System MVP adds:
+
+- plugin registry helpers for install, enable, disable, list, and resolve
+- deterministic hook planning without arbitrary code execution
+- plugin state migration helpers that preserve missing plugin state
+- theme registries, the built-in `quiet-feed` frontend theme, admin theme tokens, and template slots
+- optional manifest extension metadata for themes, plugins, and route assets
+
+This is a foundation, not the full plugin runtime or marketplace.

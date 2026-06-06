@@ -84,6 +84,7 @@ const state = {
   moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
   trackerUrls: [],
   shellNames: [],
+  appearance: { frontendTheme: "quiet-feed", adminTheme: "default", themeSettings: {} },
   exportHistory: [],
   form: emptyPostForm(),
   secretKey: null,
@@ -630,6 +631,8 @@ async function generateSiteZip() {
     assets: state.assets,
     settings: state.settings,
     commitHistory: state.commitHistory,
+    plugins: state.plugins,
+    appearance: state.appearance,
     shellNames: state.shellNames,
     publicKey: textToBytes(state.identity.publicKey),
     secretKey: state.secretKey,
@@ -1715,6 +1718,12 @@ function applyLoadedState(loaded) {
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = loaded.trackerUrls || [];
   state.shellNames = loaded.shellNames || [];
+  state.appearance = {
+    frontendTheme: "quiet-feed",
+    adminTheme: "default",
+    themeSettings: {},
+    ...(loaded.appearance || {}),
+  };
   state.exportHistory = loaded.exportHistory || [];
   state.posts = loaded.posts || [];
   state.assets = loaded.assets || [];
@@ -1730,6 +1739,7 @@ function resetEditableState() {
   state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = [];
   state.shellNames = [];
+  state.appearance = { frontendTheme: "quiet-feed", adminTheme: "default", themeSettings: {} };
   state.exportHistory = [];
   state.posts = [];
   state.assets = [];
@@ -1762,6 +1772,7 @@ function hasLegacyLocalData(loaded) {
       (loaded?.moderation?.blockedPublicKeys || []).length ||
       (loaded?.trackerUrls || []).length ||
       (loaded?.shellNames || []).length ||
+      Object.keys(loaded?.appearance?.themeSettings || {}).length ||
       (loaded?.exportHistory || []).length,
   );
 }
@@ -1840,6 +1851,7 @@ function snapshotState() {
     moderation: state.moderation,
     trackerUrls: state.trackerUrls,
     shellNames: state.shellNames,
+    appearance: state.appearance,
     exportHistory: state.exportHistory,
   };
 }

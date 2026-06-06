@@ -204,10 +204,13 @@ const pages = [
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
-        <a href="/docs/plugin-system/"><strong>Plugin System</strong><span>Manifest validation, permissions, capabilities, route-scoped runtime declarations, and private-state rules.</span></a>
-        <a href="/docs/theme-system/"><strong>Theme System</strong><span>Frontend theme manifests, admin theme tokens, and compatibility rules.</span></a>
+        <a href="/docs/plugin-system/"><strong>Plugin System</strong><span>Validated manifests, registry state, deterministic hook plans, permissions, and route-scoped runtime declarations.</span></a>
+        <a href="/docs/plugin-migrations/"><strong>Plugin Migrations</strong><span>Preserve missing plugin state, unknown fields, and private extension data inside the encrypted Shell.</span></a>
+        <a href="/docs/theme-system/"><strong>Theme System</strong><span>Frontend theme registries, admin theme tokens, Quiet Feed defaults, and compatibility rules.</span></a>
+        <a href="/docs/theme-manifests/"><strong>Theme Manifests</strong><span>Frontend and admin manifest shapes for themes that style without becoming plugins.</span></a>
         <a href="/docs/route-assets/"><strong>Route Assets</strong><span>Declare public CSS and JS per route so plugins and themes do not load globally by default.</span></a>
         <a href="/docs/permissions/"><strong>Permission Model</strong><span>Plugin permissions, sensitive permissions, and boundaries for future PSEPs.</span></a>
+        <a href="/docs/extension-security/"><strong>Extension Security</strong><span>Install does not mean load; route scoping and export safety keep extensions contained.</span></a>
         <a href="/docs/security/"><strong>Security Notes</strong><span>What workspace encryption protects, what proof files prove, and what passphrase loss means.</span></a>
         <a href="/docs/compatibility/"><strong>Compatibility Contract</strong><span>Stable core, optional extensions, required features, legacy warnings, and migration promises.</span></a>
         <a href="/docs/protocol/"><strong>Protocol Reference</strong><span>Manifest, well-known identity, commit proofs, Shell vaults, and tracker announce records.</span></a>
@@ -420,7 +423,7 @@ const pages = [
       ["owns", "What PostSnail Core Owns", "PostSnail Core owns encrypted Shells, workspace schema and migrations, public Website ZIP export, proof files, identity signing boundaries, compatibility rules, plugin/theme manifest foundations, route-level asset declarations, and public export safety checks."],
       ["outside", "What Stays Out Of Core", "SnailLift, Forest product policy, ShellNames, Pages CMS, Comments, Reader, Canopy, ShellSeed, PostMail, plugin marketplaces, and arbitrary plugin execution stay outside Core unless they change the stable source/export/proof boundary."],
       ["extensions", "Extension Rule", "New features should be optional extensions first. Unknown optional fields are ignored safely. Unknown required features fail clearly before import, verification, or export could become misleading."],
-      ["apis", "Current APIs", "Alpha 1 exposes validatePluginManifest, validatePluginPermissions, validateThemeManifest, createRouteAssetMap, and validatePublicExportFiles under src/core without moving the stable existing modules yet."],
+      ["apis", "Current APIs", "Alpha 1 exposes plugin registries, hook planning, plugin migration helpers, theme registries, Quiet Feed defaults, route asset resolution, and public export safety under src/core without moving stable modules yet."],
     ]),
   },
   {
@@ -428,11 +431,25 @@ const pages = [
     title: "PostSnail Plugin System - Alpha 1",
     description: "Plugin manifest foundations, permissions, capabilities, route-scoped runtime declarations, and private-state safety rules.",
     canonical: "https://postsnail.org/docs/plugin-system/",
-    body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Alpha 1 defines validation boundaries, not a full runtime.", [
+    body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.", [
       ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
+      ["registry", "Plugin Registry", "createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code."],
+      ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript."],
       ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],
       ["private-state", "Private State", "Private plugin state remains inside the encrypted Shell. It may survive workspace migrations, but it must not be copied into the public Website ZIP."],
       ["required", "Feature Gates", "Unknown optional plugin features are ignored safely. Unknown required plugin features fail clearly."],
+    ]),
+  },
+  {
+    path: "docs/plugin-migrations/index.html",
+    title: "PostSnail Plugin Migrations - Alpha 1",
+    description: "How PostSnail preserves private plugin state across Shell migrations and missing plugin code.",
+    canonical: "https://postsnail.org/docs/plugin-migrations/",
+    body: docPage("Plugin migration sections", "Plugin Migrations", "Plugin state is private Shell data: missing plugin state is preserved, not deleted.", [
+      ["private", "Private State", "Plugin state lives inside the encrypted .postsnail Shell and must never enter the public Website ZIP."],
+      ["missing", "Missing Plugins", "If a Shell contains state for a plugin that is not installed, PostSnail returns a warning and preserves the state untouched."],
+      ["unknown", "Unknown Fields", "Unknown plugin fields and future schema data are preserved without interpretation whenever possible."],
+      ["future", "Future Migrations", "Future official plugins can add deterministic migrations through declared hooks and PSEP-reviewed compatibility rules."],
     ]),
   },
   {
@@ -442,8 +459,21 @@ const pages = [
     canonical: "https://postsnail.org/docs/theme-system/",
     body: docPage("Theme system sections", "Theme System", "Themes change presentation while Core keeps proof, workspace, and export rules stable.", [
       ["frontend", "Frontend Themes", "Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates."],
+      ["quiet", "Quiet Feed Default", "The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells."],
       ["admin", "Admin Themes", "Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets."],
+      ["appearance", "Shell Appearance State", "Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings."],
       ["compatibility", "Compatibility", "Theme manifests follow requiredFeatures and optionalFeatures. Unknown optional theme data is ignored safely; unknown required theme features fail clearly."],
+    ]),
+  },
+  {
+    path: "docs/theme-manifests/index.html",
+    title: "PostSnail Theme Manifests - Alpha 1",
+    description: "Frontend and admin theme manifest shapes for PostSnail.",
+    canonical: "https://postsnail.org/docs/theme-manifests/",
+    body: docPage("Theme manifest sections", "Theme Manifests", "Theme manifests style PostSnail without becoming plugins.", [
+      ["frontend", "Frontend Manifest", "Frontend themes use protocol postsnail-theme-v1, type postsnail-frontend-theme, safe template paths, assets, slots, settings, and budgets. quiet-feed is the built-in default."],
+      ["admin", "Admin Manifest", "Admin themes use protocol postsnail-theme-v1, type postsnail-admin-theme, and --ps-* CSS variables. JavaScript runtime assets are rejected."],
+      ["storage", "Theme Settings", "Theme settings are stored privately in the encrypted Shell under appearance.themeSettings."],
     ]),
   },
   {
@@ -466,6 +496,18 @@ const pages = [
       ["permissions", "Plugin Permissions", "Plugin permissions include read/write access for posts, pages, assets, profile, manifest extensions, plugin state, export hooks, tracker fetches, external fetches, and deploy providers."],
       ["sensitive", "Sensitive Permissions", "write:posts, write:profile, write:manifestExtensions, fetch:external, and deploy:provider require extra creator review because they can alter public output or contact external services."],
       ["boundaries", "Boundary Rules", "Permissions describe intent. They do not grant automatic runtime execution, and public plugin assets still need route declarations plus export safety checks."],
+    ]),
+  },
+  {
+    path: "docs/extension-security/index.html",
+    title: "PostSnail Extension Security - Alpha 1",
+    description: "Security boundaries for PostSnail plugins, themes, hook planning, route assets, and export safety.",
+    canonical: "https://postsnail.org/docs/extension-security/",
+    body: docPage("Extension security sections", "Extension Security", "Install does not mean load. Enable does not mean load everywhere. Routes decide what assets load.", [
+      ["validation", "Validated Manifests", "Plugins and themes must pass manifest validation before PostSnail treats them as compatible."],
+      ["execution", "No Arbitrary Execution", "Alpha 1 plans hooks and assets declaratively; it does not load third-party packages or run arbitrary plugin code."],
+      ["privacy", "Private Data", "Private plugin state and theme settings stay in the encrypted Shell and are blocked from public ZIP exports."],
+      ["safety", "Public Export Safety", "Plugin and theme output still goes through public export safety checks before ZIP generation."],
     ]),
   },
   {
