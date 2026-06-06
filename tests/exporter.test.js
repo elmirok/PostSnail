@@ -6,6 +6,8 @@ import { decodeText } from "../src/bytes.js";
 import { buildStaticExport } from "../src/exporter.js";
 import { generateSigningKeyPair } from "../src/crypto.js";
 import { normalizePost } from "../src/content.js";
+import { enablePlugin, installPlugin } from "../src/core/plugins/pluginRegistry.js";
+import { getOfficialPluginManifest, POSTSNAIL_SNAILLIFT_PLUGIN_ID } from "../src/core/plugins/officialCatalog.js";
 
 test("buildStaticExport creates the expected signed static bundle", async () => {
   const keys = generateSigningKeyPair();
@@ -269,4 +271,62 @@ test("buildStaticExport keeps workspace-only data out of the public ZIP", async 
   assert.doesNotMatch(combined, /\.postsnail/);
   assert.doesNotMatch(combined, /encryptedSecretKey|secretKey|privateKey|rawPrivateKey/);
   assert.equal(Object.keys(files).some((name) => name.endsWith(".postsnail")), false);
+});
+
+test("buildStaticExport does not publish SnailLift settings or private plugin state", async () => {
+  const keys = generateSigningKeyPair();
+  const published = normalizePost({
+    id: "p1",
+    title: "SnailLift Privacy",
+    body: "Public post body.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+  const plugins = enablePlugin(
+    installPlugin(
+      {
+        installed: [],
+        lock: {},
+        state: {
+          [POSTSNAIL_SNAILLIFT_PLUGIN_ID]: {
+            schemaVersion: 1,
+            provider: "cloudflare-pages",
+            apiToken: "private-provider-token",
+          },
+        },
+      },
+      getOfficialPluginManifest(POSTSNAIL_SNAILLIFT_PLUGIN_ID),
+    ),
+    POSTSNAIL_SNAILLIFT_PLUGIN_ID,
+  );
+
+  const result = await buildStaticExport({
+    profile: { siteTitle: "SnailLift Privacy", handle: "privacy", siteUrl: "https://example.com" },
+    posts: [published],
+    assets: [],
+    settings: {
+      snailLiftCloudflareAccountId: "private-account-id",
+      snailLiftCloudflareProjectName: "private-project-name",
+      snailLiftGithubRepo: "private-repo",
+      snailLiftGithubToken: "private-github-token",
+    },
+    plugins,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const files = unzipSync(result.zipBytes);
+  const combined = Object.entries(files)
+    .map(([name, bytes]) => `${name}\n${decodeText(bytes)}`)
+    .join("\n");
+  const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
+
+  assert.equal(manifest.extensions.plugins[POSTSNAIL_SNAILLIFT_PLUGIN_ID].version, "0.1.0");
+  assert.deepEqual(manifest.extensions.plugins[POSTSNAIL_SNAILLIFT_PLUGIN_ID].publicFiles, []);
+  assert.doesNotMatch(combined, /private-provider-token/);
+  assert.doesNotMatch(combined, /private-account-id/);
+  assert.doesNotMatch(combined, /private-project-name/);
+  assert.doesNotMatch(combined, /private-repo/);
+  assert.doesNotMatch(combined, /private-github-token/);
 });

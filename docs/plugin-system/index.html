@@ -33,9 +33,10 @@
             <p class="lede">Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Plugin system sections"><a href="#manifest">Plugin Manifest</a><a href="#registry">Plugin Registry</a><a href="#hooks">Hook Planning</a><a href="#route-runtime">Route Runtime</a><a href="#private-state">Private State</a><a href="#required">Feature Gates</a></nav>
+            <nav class="doc-nav" aria-label="Plugin system sections"><a href="#manifest">Plugin Manifest</a><a href="#official">Official Bundled Plugins</a><a href="#registry">Plugin Registry</a><a href="#hooks">Hook Planning</a><a href="#route-runtime">Route Runtime</a><a href="#private-state">Private State</a><a href="#required">Feature Gates</a></nav>
             <div class="doc-content">
               <section id="manifest"><h2>Plugin Manifest</h2><p>Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets.</p></section>
+              <section id="official"><h2>Official Bundled Plugins</h2><p>The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift is the first bundled plugin.</p></section>
               <section id="registry"><h2>Plugin Registry</h2><p>createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code.</p></section>
               <section id="hooks"><h2>Hook Planning</h2><p>planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript.</p></section>
               <section id="route-runtime"><h2>Route Runtime</h2><p>Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default.</p></section>

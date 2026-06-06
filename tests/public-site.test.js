@@ -115,6 +115,16 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /src="\.\.\/btc-wallet-qr\.svg"/);
   assert.match(appJs, /Export Shell/);
   assert.match(appJs, /ShellNames/);
+  assert.match(appJs, /Extensions/);
+  assert.match(appJs, /renderExtensions/);
+  assert.match(appJs, /Official bundled plugins/);
+  assert.match(appJs, /postsnail-snaillift/);
+  assert.match(appJs, /data-action="install-plugin"/);
+  assert.match(appJs, /data-action="enable-plugin"/);
+  assert.match(appJs, /data-action="disable-plugin"/);
+  assert.match(appJs, /Review permissions/);
+  assert.match(appJs, /deploy:provider/);
+  assert.match(appJs, /Enable SnailLift in Extensions/);
   assert.match(appJs, /@name@forest\.postsnail\.org/);
   assert.match(appJs, /data-settings-field="shellNameForestUrl"/);
   assert.match(appJs, /data-settings-field="shellNameDesiredName"/);
@@ -169,6 +179,7 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /--brand:\s*#ef4056/);
   assert.match(css, /--brand-ink:\s*#cf1e3d/);
   assert.match(css, /--line:\s*#16163c/);
+  assert.match(css, /\[hidden\]\s*\{[\s\S]*display:\s*none\s*!important/);
   assert.match(css, /\.app-footer/);
   assert.match(css, /image-rendering:\s*pixelated/);
   assert.match(css, /\.shell-card-grid/);

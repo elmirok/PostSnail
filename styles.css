@@ -29,6 +29,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;
@@ -419,6 +423,80 @@ textarea:disabled {
 
 .shellname-record span,
 .shellname-record code {
+  color: var(--muted);
+}
+
+.extensions-grid {
+  grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1fr);
+}
+
+.extension-list {
+  display: grid;
+  gap: 14px;
+}
+
+.extension-card {
+  display: grid;
+  gap: 12px;
+}
+
+.extension-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.extension-card-head h3,
+.extension-card-head p,
+.permission-review dl,
+.permission-review p {
+  margin: 0;
+}
+
+.plugin-status {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-weight: 800;
+}
+
+.plugin-status.good {
+  background: #e4f4e9;
+}
+
+.plugin-status.warning {
+  background: #fff9ee;
+}
+
+.permission-review {
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px;
+  background: #fffdf7;
+}
+
+.permission-review summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.permission-review dl {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.permission-review dt {
+  font-weight: 900;
+}
+
+.permission-review dd {
+  margin: 0;
   color: var(--muted);
 }
 
@@ -848,6 +926,7 @@ code {
 
   .grid-2,
   .grid-3,
+  .extensions-grid,
   .info-layout,
   .shell-gate,
   .shell-card-grid,

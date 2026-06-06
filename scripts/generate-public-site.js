@@ -204,7 +204,7 @@ const pages = [
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
-        <a href="/docs/plugin-system/"><strong>Plugin System</strong><span>Validated manifests, registry state, deterministic hook plans, permissions, and route-scoped runtime declarations.</span></a>
+        <a href="/docs/plugin-system/"><strong>Plugin System</strong><span>Official bundled plugins, validated manifests, registry state, hook plans, permissions, and route-scoped runtime declarations.</span></a>
         <a href="/docs/plugin-migrations/"><strong>Plugin Migrations</strong><span>Preserve missing plugin state, unknown fields, and private extension data inside the encrypted Shell.</span></a>
         <a href="/docs/theme-system/"><strong>Theme System</strong><span>Frontend theme registries, admin theme tokens, Quiet Feed defaults, and compatibility rules.</span></a>
         <a href="/docs/theme-manifests/"><strong>Theme Manifests</strong><span>Frontend and admin manifest shapes for themes that style without becoming plugins.</span></a>
@@ -280,10 +280,11 @@ const pages = [
     canonical: "https://postsnail.org/docs/snaillift/",
     body: docPage("SnailLift sections", "SnailLift", "Your shell stays private. Your trail goes live.", [
       ["role", "Deployment Assistant", "SnailLift helps deploy public generated files. It is not hosting and does not own your Shell, key, account, source, or domain."],
-      ["isolation", "Core Isolation", "SnailLift is built in for Alpha 1, but provider-specific deployment logic stays under src/snaillift. Core exporter, workspace, identity, manifest, protocol, and signing modules must stay provider-neutral so SnailLift can later move to plugins/postsnail-snaillift."],
+      ["isolation", "Official Bundled Plugin", "SnailLift is surfaced as the official bundled plugin postsnail-snaillift in the admin Extensions tab. Provider-specific deployment logic still stays isolated under src/snaillift and out of Core modules."],
+      ["enable", "Enable In Extensions", "Disabling the plugin hides SnailLift provider panels but does not delete deployment settings. Download Website ZIP remains available either way."],
       ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, prepare Cloudflare Pages or GitHub Pages commands, deploy public static files from a trusted terminal, verify the live PostSnail proof files, then notify Forest."],
       ["boundaries", "Boundaries", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
-      ["fallback", "ZIP Fallback", "Download ZIP remains the universal fallback for every creator. SnailLift is optional."],
+      ["fallback", "ZIP Fallback", "Download ZIP remains the universal fallback for every creator. SnailLift is optional and must be enabled before deployment assistants appear."],
     ]),
   },
   {
@@ -433,6 +434,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/plugin-system/",
     body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.", [
       ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
+      ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift is the first bundled plugin."],
       ["registry", "Plugin Registry", "createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code."],
       ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript."],
       ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],
@@ -505,7 +507,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/extension-security/",
     body: docPage("Extension security sections", "Extension Security", "Install does not mean load. Enable does not mean load everywhere. Routes decide what assets load.", [
       ["validation", "Validated Manifests", "Plugins and themes must pass manifest validation before PostSnail treats them as compatible."],
-      ["execution", "No Arbitrary Execution", "Alpha 1 plans hooks and assets declaratively; it does not load third-party packages or run arbitrary plugin code."],
+      ["execution", "No Arbitrary Execution", "Alpha 1 plans hooks and assets declaratively; the Extensions tab supports official bundled plugins only and does not load third-party packages or run arbitrary plugin code."],
       ["privacy", "Private Data", "Private plugin state and theme settings stay in the encrypted Shell and are blocked from public ZIP exports."],
       ["safety", "Public Export Safety", "Plugin and theme output still goes through public export safety checks before ZIP generation."],
     ]),

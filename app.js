@@ -20,6 +20,15 @@ import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import {
+  disablePlugin,
+  enablePlugin,
+  getOfficialPluginCatalog,
+  getOfficialPluginManifest,
+  installPlugin,
+  isPluginEnabled,
+  POSTSNAIL_SNAILLIFT_PLUGIN_ID,
+} from "./src/core/index.js";
+import {
   announceForestAfterLiveVerification,
   buildCloudflarePagesCommand,
   cloudflarePagesProvider,
@@ -255,6 +264,24 @@ async function handleAction(button) {
     setStatus("Public key copied.");
     return;
   }
+  if (action === "install-plugin") {
+    await installOfficialPlugin(button.dataset.pluginId);
+    return;
+  }
+  if (action === "enable-plugin") {
+    await enableOfficialPlugin(button.dataset.pluginId);
+    return;
+  }
+  if (action === "disable-plugin") {
+    await disableOfficialPlugin(button.dataset.pluginId);
+    return;
+  }
+  if (action === "go-extensions") {
+    state.activeTab = "extensions";
+    setStatus("Review official bundled plugins.");
+    render();
+    return;
+  }
   if (action === "register-shellname") {
     await submitShellName("register");
     return;
@@ -296,18 +323,42 @@ async function handleAction(button) {
     return;
   }
   if (action === "prepare-snaillift-cloudflare") {
+    if (!snailLiftEnabled()) {
+      state.activeTab = "extensions";
+      setStatus("Enable SnailLift in Extensions before preparing deploy commands.");
+      render();
+      return;
+    }
     await prepareSnailLiftCloudflare();
     return;
   }
   if (action === "prepare-snaillift-github") {
+    if (!snailLiftEnabled()) {
+      state.activeTab = "extensions";
+      setStatus("Enable SnailLift in Extensions before preparing deploy commands.");
+      render();
+      return;
+    }
     await prepareSnailLiftGithub();
     return;
   }
   if (action === "verify-snaillift-live") {
+    if (!snailLiftEnabled()) {
+      state.activeTab = "extensions";
+      setStatus("Enable SnailLift in Extensions before live deployment checks.");
+      render();
+      return;
+    }
     await verifySnailLiftLive();
     return;
   }
   if (action === "announce-snaillift-forest") {
+    if (!snailLiftEnabled()) {
+      state.activeTab = "extensions";
+      setStatus("Enable SnailLift in Extensions before notifying Forest through SnailLift.");
+      render();
+      return;
+    }
     await announceSnailLiftForest();
     return;
   }
@@ -982,6 +1033,7 @@ function render() {
       ${renderPanel("write", renderWrite())}
       ${renderPanel("library", renderLibrary())}
       ${renderPanel("identity", renderIdentity())}
+      ${renderPanel("extensions", renderExtensions())}
       ${renderPanel("generate", renderGenerate())}
       ${renderPanel("verify", renderVerify())}
       ${renderPanel("info", renderInfo())}
@@ -1027,6 +1079,7 @@ function renderTabs() {
         ["write", "Write"],
         ["library", "Library"],
         ["identity", "Identity"],
+        ["extensions", "Extensions"],
         ["generate", "Generate"],
         ["verify", "Verify"],
         ["info", "Info"],
@@ -1287,6 +1340,72 @@ function renderIdentity() {
   `;
 }
 
+function renderExtensions() {
+  const catalog = getOfficialPluginCatalog();
+  const warnings = missingPluginWarnings();
+  return `
+    <div class="grid-2 extensions-grid">
+      <section class="panel-box">
+        <div>
+          <p class="kicker">Official bundled plugins</p>
+          <h2 class="panel-title">Extensions</h2>
+          <p class="help">Install and enable official plugins shipped with PostSnail. No marketplace, upload, remote code, or third-party plugin execution exists in Alpha 1.</p>
+        </div>
+        <div class="notice">
+          <strong>Install does not mean load</strong>
+          <p>Enable only what you use. Public runtime assets still load only on routes that declare them, and admin-only plugins do not enter the Website ZIP.</p>
+        </div>
+        ${warnings.length ? `
+          <div class="notice warning">
+            <strong>Missing plugin state preserved</strong>
+            ${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}
+          </div>
+        ` : ""}
+      </section>
+      <section class="extension-list">
+        ${catalog.map(renderOfficialPluginCard).join("")}
+      </section>
+    </div>
+  `;
+}
+
+function renderOfficialPluginCard(manifest) {
+  const installed = pluginInstalled(manifest.id);
+  const enabled = isPluginEnabled(state.plugins, manifest.id);
+  const permissions = manifest.permissions || [];
+  const sensitive = permissions.filter((permission) => ["deploy:provider", "fetch:external", "write:pluginState", "write:manifestExtensions"].includes(permission));
+  return `
+    <article class="panel-box extension-card" data-plugin-id="${escapeAttr(manifest.id)}">
+      <div class="extension-card-head">
+        <div>
+          <p class="kicker">${escapeHtml(manifest.type || "official")} plugin</p>
+          <h3>${escapeHtml(manifest.name)}</h3>
+          <p>${escapeHtml(manifest.description || "")}</p>
+        </div>
+        <span class="plugin-status ${enabled ? "good" : installed ? "warning" : ""}">${enabled ? "Enabled" : installed ? "Installed" : "Available"}</span>
+      </div>
+      <details class="permission-review">
+        <summary>Review permissions</summary>
+        <dl>
+          <dt>Capabilities</dt>
+          <dd>${(manifest.capabilities || []).map((item) => `<code>${escapeHtml(item)}</code>`).join(" ") || "None"}</dd>
+          <dt>Permissions</dt>
+          <dd>${permissions.map((item) => `<code>${escapeHtml(item)}</code>`).join(" ") || "None"}</dd>
+          <dt>Runtime assets</dt>
+          <dd>${manifest.runtime && Object.keys(manifest.runtime).length ? "Route-scoped public assets declared." : "No public runtime assets."}</dd>
+        </dl>
+        ${sensitive.length ? `<p class="help">Sensitive permissions: ${sensitive.map((item) => `<code>${escapeHtml(item)}</code>`).join(" ")}. Review them before enabling.</p>` : ""}
+      </details>
+      <div class="actions">
+        <button class="btn small" type="button" data-action="install-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${installed ? "disabled" : ""}>Install</button>
+        <button class="btn small primary" type="button" data-action="enable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "disabled" : ""}>Enable</button>
+        <button class="btn small" type="button" data-action="disable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "" : "disabled"}>Disable</button>
+      </div>
+      ${manifest.id === "postsnail-snaillift" ? `<p class="help">SnailLift appears in Generate only when enabled. Download ZIP stays available either way.</p>` : ""}
+    </article>
+  `;
+}
+
 function renderGenerate() {
   const publishedCount = state.posts.filter((post) => post.status === "published").length;
   const canGenerate = Boolean(state.secretKey && state.identity?.publicKey && publishedCount);
@@ -1411,7 +1530,8 @@ function renderGenerate() {
             <p>${state.lastExportVerification?.ok ? "The downloaded ZIP was verified locally immediately after generation." : "Choose the downloaded ZIP in Verify to inspect the proof."}</p>
           </div>
         ` : ""}
-        <section class="snaillift-panel">
+        ${snailLiftEnabled() ? "" : renderSnailLiftDisabledPrompt()}
+        <section class="snaillift-panel" ${snailLiftEnabled() ? "" : "hidden"}>
           <div>
             <h3>SnailLift</h3>
             <p>Your shell stays private. Your trail goes live.</p>
@@ -1489,6 +1609,24 @@ function renderGenerate() {
         </section>
       </section>
     </div>
+  `;
+}
+
+function renderSnailLiftDisabledPrompt() {
+  return `
+    <section class="snaillift-panel snaillift-disabled">
+      <div>
+        <h3>SnailLift</h3>
+        <p>Your shell stays private. Your trail goes live.</p>
+      </div>
+      <div class="notice warning">
+        <strong>Enable SnailLift in Extensions</strong>
+        <p>SnailLift is an official bundled plugin. Enable it to show Cloudflare Pages and GitHub Pages command assistants. Export Website ZIP remains available without it.</p>
+      </div>
+      <div class="actions">
+        <button class="btn small primary" type="button" data-action="go-extensions">Open Extensions</button>
+      </div>
+    </section>
   `;
 }
 
@@ -1784,6 +1922,67 @@ function updateSettingFromInput(input) {
 
 function settingEnabled(field) {
   return state.settings[field] !== false && state.settings[field] !== "false";
+}
+
+function snailLiftEnabled() {
+  return isPluginEnabled(state.plugins, POSTSNAIL_SNAILLIFT_PLUGIN_ID);
+}
+
+function pluginInstalled(id) {
+  return state.plugins.installed.some((entry) => entry.id === id);
+}
+
+async function installOfficialPlugin(id) {
+  try {
+    state.plugins = installPlugin(state.plugins, getOfficialPluginManifest(id));
+    await persistLocalShellNow();
+    setStatus(`${pluginDisplayName(id)} installed. Enable it when you want it active.`);
+    render();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Could not install official plugin.");
+    render();
+  }
+}
+
+async function enableOfficialPlugin(id) {
+  try {
+    const manifest = getOfficialPluginManifest(id);
+    const next = pluginInstalled(id) ? state.plugins : installPlugin(state.plugins, manifest);
+    state.plugins = enablePlugin(next, id);
+    await persistLocalShellNow();
+    setStatus(`${pluginDisplayName(id)} enabled.`);
+    render();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Could not enable official plugin.");
+    render();
+  }
+}
+
+async function disableOfficialPlugin(id) {
+  try {
+    state.plugins = disablePlugin(state.plugins, id);
+    await persistLocalShellNow();
+    setStatus(`${pluginDisplayName(id)} disabled. Its settings remain in this Shell.`);
+    render();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Could not disable official plugin.");
+    render();
+  }
+}
+
+function pluginDisplayName(id) {
+  try {
+    return getOfficialPluginManifest(id).name;
+  } catch {
+    return String(id || "Plugin");
+  }
+}
+
+function missingPluginWarnings() {
+  const officialIds = new Set(getOfficialPluginCatalog().map((plugin) => plugin.id));
+  return state.plugins.installed
+    .filter((entry) => !officialIds.has(entry.id))
+    .map((entry) => `This Shell uses plugin ${entry.id}, but it is not installed. Its state is preserved.`);
 }
 
 function snailLiftCloudflareSettings() {

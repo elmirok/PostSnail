@@ -1,6 +1,6 @@
 # PostSnail Plugin System
 
-Plugins extend PostSnail without becoming part of Core. Alpha 1 defines validated manifests, permission review, deterministic registries, hook plans, and route-scoped runtime declarations.
+Plugins extend PostSnail without becoming part of Core. Alpha 1 defines validated manifests, permission review, deterministic registries, hook plans, route-scoped runtime declarations, and an admin Extensions screen for official bundled plugins.
 
 The rule is:
 
@@ -53,5 +53,11 @@ Plugin manifests use:
 `installPlugin`, `enablePlugin`, and `disablePlugin` are pure state helpers. They never run plugin code.
 
 `planPluginHooks(registry, hookName)` returns a deterministic structured plan for declared hooks. It does not execute arbitrary JavaScript.
+
+## Official Bundled Plugins
+
+The admin Extensions tab can install, enable, and disable official plugin manifests that ship with PostSnail. This is not a marketplace and does not upload plugin ZIP files.
+
+`postsnail-snaillift` is the first official bundled plugin. It exposes the existing SnailLift deployment assistant when enabled, but its provider logic still lives under `src/snaillift/` and stays out of PostSnail Core.
 
 Third-party plugin loading, plugin ZIP packages, marketplaces, and dynamic imports are future work.

@@ -21,6 +21,12 @@ import {
 import { QUIET_FEED_THEME } from "../src/core/themes/builtinThemes.js";
 import { TEMPLATE_SLOTS } from "../src/core/themes/templateSlots.js";
 import { resolveRouteAssets } from "../src/core/assets/routeAssets.js";
+import {
+  getOfficialPluginCatalog,
+  getOfficialPluginManifest,
+  isPluginEnabled,
+  POSTSNAIL_SNAILLIFT_PLUGIN_ID,
+} from "../src/core/plugins/officialCatalog.js";
 
 const decoder = new TextDecoder();
 
@@ -198,4 +204,24 @@ test("static export declares optional plugin, theme, and route asset metadata wi
   assert.equal(manifest.extensions.plugins["postsnail-comments"].version, "0.1.0");
   assert.deepEqual(manifest.extensions.routeAssets["/posts/extension-metadata/"].plugins, ["postsnail-comments"]);
   assert.doesNotMatch(combined, /private-plugin-token/);
+});
+
+test("official plugin catalog exposes SnailLift as a bundled admin-only extension", () => {
+  const catalog = getOfficialPluginCatalog();
+  const manifest = getOfficialPluginManifest(POSTSNAIL_SNAILLIFT_PLUGIN_ID);
+
+  assert.equal(catalog.length, 1);
+  assert.equal(manifest.id, "postsnail-snaillift");
+  assert.equal(manifest.name, "SnailLift");
+  assert.deepEqual(manifest.capabilities, ["adminPanel", "storePluginState"]);
+  assert.deepEqual(manifest.permissions, ["deploy:provider", "fetch:external", "write:pluginState"]);
+  assert.deepEqual(manifest.runtime, {});
+  assert.equal(isPluginEnabled({ installed: [] }, "postsnail-snaillift"), false);
+
+  const installed = enablePlugin(
+    installPlugin({ installed: [], lock: {}, state: { "postsnail-snaillift": { provider: "cloudflare-pages" } } }, manifest),
+    "postsnail-snaillift",
+  );
+  assert.equal(isPluginEnabled(installed, "postsnail-snaillift"), true);
+  assert.deepEqual(installed.state["postsnail-snaillift"], { provider: "cloudflare-pages" });
 });
