@@ -7,7 +7,11 @@ import { buildStaticExport } from "../src/exporter.js";
 import { generateSigningKeyPair } from "../src/crypto.js";
 import { normalizePost } from "../src/content.js";
 import { enablePlugin, installPlugin } from "../src/core/plugins/pluginRegistry.js";
-import { getOfficialPluginManifest, POSTSNAIL_SNAILLIFT_PLUGIN_ID } from "../src/core/plugins/officialCatalog.js";
+import {
+  getOfficialPluginManifest,
+  POSTSNAIL_PAGES_PLUGIN_ID,
+  POSTSNAIL_SNAILLIFT_PLUGIN_ID,
+} from "../src/core/plugins/officialCatalog.js";
 
 test("buildStaticExport creates the expected signed static bundle", async () => {
   const keys = generateSigningKeyPair();
@@ -329,4 +333,112 @@ test("buildStaticExport does not publish SnailLift settings or private plugin st
   assert.doesNotMatch(combined, /private-project-name/);
   assert.doesNotMatch(combined, /private-repo/);
   assert.doesNotMatch(combined, /private-github-token/);
+});
+
+test("buildStaticExport publishes Pages routes and moves blog index when homepage is overridden", async () => {
+  const keys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Blog Note",
+    body: "The blog feed moved.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+  const plugins = enablePlugin(
+    installPlugin(
+      {
+        installed: [],
+        lock: {},
+        state: {
+          [POSTSNAIL_PAGES_PLUGIN_ID]: {
+            schemaVersion: 1,
+            pages: [
+              {
+                id: "home",
+                title: "Custom Home",
+                path: "/",
+                status: "published",
+                body: "Welcome to the Pages homepage.",
+                seo: { description: "Custom home description." },
+              },
+              {
+                id: "private-page",
+                title: "Private Page",
+                path: "/private/",
+                status: "draft",
+                body: "Draft page body must stay private.",
+              },
+            ],
+            docs: [
+              {
+                id: "protocol",
+                title: "Protocol",
+                slug: "protocol",
+                status: "published",
+                body: "Protocol docs are public.",
+                seo: { description: "Protocol docs description." },
+              },
+              {
+                id: "private-doc",
+                title: "Private Doc",
+                slug: "private-doc",
+                status: "archived",
+                body: "Archived doc body must stay private.",
+              },
+            ],
+            navigation: [
+              { label: "Home", url: "/" },
+              { label: "Docs", url: "/docs/" },
+              { label: "Blog", url: "/blog/" },
+            ],
+            settings: { blogIndexPath: "/blog/" },
+            privateNote: "private-pages-state",
+          },
+        },
+      },
+      getOfficialPluginManifest(POSTSNAIL_PAGES_PLUGIN_ID),
+    ),
+    POSTSNAIL_PAGES_PLUGIN_ID,
+  );
+
+  const result = await buildStaticExport({
+    profile: { siteTitle: "Pages Site", handle: "pages", siteUrl: "https://pages.example" },
+    posts: [post],
+    plugins,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const files = unzipSync(result.zipBytes);
+  const names = Object.keys(files).sort();
+  const homeHtml = decodeText(files["index.html"]);
+  const blogHtml = decodeText(files["blog/index.html"]);
+  const docsIndexHtml = decodeText(files["docs/index.html"]);
+  const docHtml = decodeText(files["docs/protocol/index.html"]);
+  const sitemap = decodeText(files["sitemap.xml"]);
+  const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
+  const combined = Object.values(files).map(decodeText).join("\n");
+
+  assert.ok(names.includes("index.html"));
+  assert.ok(names.includes("blog/index.html"));
+  assert.ok(names.includes("docs/index.html"));
+  assert.ok(names.includes("docs/protocol/index.html"));
+  assert.match(homeHtml, /Custom Home/);
+  assert.match(homeHtml, /Welcome to the Pages homepage/);
+  assert.doesNotMatch(homeHtml, /Blog Note/);
+  assert.match(blogHtml, /Blog Note/);
+  assert.match(docsIndexHtml, /Protocol/);
+  assert.match(docHtml, /Protocol docs are public/);
+  assert.match(sitemap, /https:\/\/pages\.example\//);
+  assert.match(sitemap, /https:\/\/pages\.example\/blog\//);
+  assert.match(sitemap, /https:\/\/pages\.example\/docs\/protocol\//);
+  assert.deepEqual(manifest.extensions.plugins[POSTSNAIL_PAGES_PLUGIN_ID], {
+    version: "0.1.0",
+    publicFiles: [],
+    contentTypes: ["page", "doc"],
+    routes: ["/", "/docs/", "/docs/protocol/"],
+  });
+  assert.doesNotMatch(combined, /Draft page body/);
+  assert.doesNotMatch(combined, /Archived doc body/);
+  assert.doesNotMatch(combined, /private-pages-state/);
 });

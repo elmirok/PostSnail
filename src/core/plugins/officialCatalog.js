@@ -1,6 +1,7 @@
 import { createPluginRegistry } from "./pluginRegistry.js";
 
 export const POSTSNAIL_SNAILLIFT_PLUGIN_ID = "postsnail-snaillift";
+export const POSTSNAIL_PAGES_PLUGIN_ID = "postsnail-pages";
 
 export const POSTSNAIL_SNAILLIFT_MANIFEST = {
   protocol: "postsnail-plugin-v1",
@@ -35,8 +36,43 @@ export const POSTSNAIL_SNAILLIFT_MANIFEST = {
   },
 };
 
+export const POSTSNAIL_PAGES_MANIFEST = {
+  protocol: "postsnail-plugin-v1",
+  id: POSTSNAIL_PAGES_PLUGIN_ID,
+  name: "PostSnail Pages",
+  version: "0.1.0",
+  description: "Official CMS plugin for static pages, docs, navigation, and SEO fields.",
+  author: "PostSnail",
+  type: "official",
+  requiredFeatures: [],
+  optionalFeatures: ["route-assets", "themes"],
+  extensions: {
+    official: true,
+    builtIn: true,
+    cms: true,
+  },
+  capabilities: ["adminPanel", "contentTypes", "exportRoutes", "exportSitemap", "storePluginState"],
+  permissions: ["read:posts", "read:assets", "write:pluginState", "export:routes", "export:sitemap", "export:manifestExtensions"],
+  admin: {
+    entry: "admin/pages.js",
+    loadWhen: ["admin:pages"],
+  },
+  export: {
+    hooks: ["export:routes", "export:sitemap", "export:manifestExtensions"],
+  },
+  runtime: {},
+  state: {
+    schemaVersion: 1,
+  },
+  budgets: {
+    exportTimeMaxMs: 1000,
+  },
+};
+
 export function getOfficialPluginCatalog() {
-  return [cloneJson(POSTSNAIL_SNAILLIFT_MANIFEST)];
+  return [POSTSNAIL_SNAILLIFT_MANIFEST, POSTSNAIL_PAGES_MANIFEST]
+    .map(cloneJson)
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }
 
 export function getOfficialPluginManifest(id) {

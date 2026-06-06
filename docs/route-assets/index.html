@@ -33,10 +33,11 @@
             <p class="lede">Public runtime assets are declared per route, not globally.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Route asset sections"><a href="#why">Why Route Assets</a><a href="#shape">Route Map Shape</a><a href="#paths">Safe Paths</a></nav>
+            <nav class="doc-nav" aria-label="Route asset sections"><a href="#why">Why Route Assets</a><a href="#shape">Route Map Shape</a><a href="#pages">Pages Routes</a><a href="#paths">Safe Paths</a></nav>
             <div class="doc-content">
               <section id="why"><h2>Why Route Assets</h2><p>A plugin or theme install should not make every generated page load extra JavaScript or CSS. Route maps keep asset loading explicit and inspectable.</p></section>
               <section id="shape"><h2>Route Map Shape</h2><p>Each route declares route, type, template, theme, plugins, and assets. Duplicate assets are removed per route, and assets from one route do not leak into another route.</p></section>
+              <section id="pages"><h2>Pages Routes</h2><p>PostSnail Pages adds page and docs routes to the route asset map, but Alpha 1A does not add public runtime JavaScript by default.</p></section>
               <section id="paths"><h2>Safe Paths</h2><p>Public asset paths must start with a slash and must not contain protocols, backtracking, or unsafe path syntax.</p></section>
             </div>
           </article>

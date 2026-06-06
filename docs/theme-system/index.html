@@ -33,9 +33,10 @@
             <p class="lede">Themes change presentation while Core keeps proof, workspace, and export rules stable.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Theme system sections"><a href="#frontend">Frontend Themes</a><a href="#quiet">Quiet Feed Default</a><a href="#admin">Admin Themes</a><a href="#appearance">Shell Appearance State</a><a href="#compatibility">Compatibility</a></nav>
+            <nav class="doc-nav" aria-label="Theme system sections"><a href="#frontend">Frontend Themes</a><a href="#pages">Pages Integration</a><a href="#quiet">Quiet Feed Default</a><a href="#admin">Admin Themes</a><a href="#appearance">Shell Appearance State</a><a href="#compatibility">Compatibility</a></nav>
             <div class="doc-content">
               <section id="frontend"><h2>Frontend Themes</h2><p>Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates.</p></section>
+              <section id="pages"><h2>Pages Integration</h2><p>PostSnail Pages 1A uses the current built-in public shell and template slots for page and docs routes. Future Pages sprints can deepen template support without moving CMS state into Core.</p></section>
               <section id="quiet"><h2>Quiet Feed Default</h2><p>The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells.</p></section>
               <section id="admin"><h2>Admin Themes</h2><p>Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets.</p></section>
               <section id="appearance"><h2>Shell Appearance State</h2><p>Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings.</p></section>

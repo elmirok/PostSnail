@@ -60,7 +60,17 @@ function sampleState() {
     plugins: {
       installed: [{ id: "proof-widget", version: "1.0.0" }],
       lock: { "proof-widget": "sha3-locked" },
-      state: { "proof-widget": { token: "plugin-private-token" } },
+      state: {
+        "proof-widget": { token: "plugin-private-token" },
+        "postsnail-pages": {
+          schemaVersion: 1,
+          pages: [{ id: "home", title: "Home", path: "/", status: "published", body: "CMS homepage body" }],
+          docs: [{ id: "protocol", title: "Protocol", slug: "protocol", status: "draft", body: "Private draft doc" }],
+          navigation: [{ label: "Home", url: "/" }],
+          settings: { blogIndexPath: "/blog/" },
+          unknownFutureField: { keep: true },
+        },
+      },
     },
     moderation: {
       approvedComments: [{ id: "c1", body: "Approved public comment" }],
@@ -103,6 +113,8 @@ test("encrypted .postsnail workspace round trips editable state without plaintex
   assert.doesNotMatch(exported.text, /Private draft body/);
   assert.doesNotMatch(exported.text, /Published body survives/);
   assert.doesNotMatch(exported.text, /plugin-private-token/);
+  assert.doesNotMatch(exported.text, /CMS homepage body/);
+  assert.doesNotMatch(exported.text, /Private draft doc/);
 
   const imported = await importWorkspaceVault(exported.text, passphrase);
   assert.equal(imported.workspace.version, CURRENT_WORKSPACE_VERSION);

@@ -100,7 +100,9 @@ The Core Foundation APIs live under `src/core/` and cover plugin manifest valida
 
 Alpha 1 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
 
-The admin Extensions tab currently supports official bundled plugins only. `postsnail-snaillift` is the first bundled plugin; enabling it reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback.
+The admin Extensions tab currently supports official bundled plugins only. `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback. `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
+
+See [PostSnail Pages](docs/postsnail-pages.md) for the Alpha 1A CMS plugin boundary.
 
 ## Privacy and Recovery
 

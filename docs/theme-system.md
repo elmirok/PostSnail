@@ -32,6 +32,8 @@ Frontend themes declare templates and public assets for generated pages:
 }
 ```
 
+PostSnail Pages 1A uses the current built-in public shell and template slots for page and docs routes. Future Pages sprints can deepen theme template support without moving CMS state into Core.
+
 ## Admin Themes
 
 Admin themes are intentionally narrower. They may declare design tokens only:

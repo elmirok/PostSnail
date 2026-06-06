@@ -15,6 +15,7 @@ export const KNOWN_PLUGIN_PERMISSIONS = [
   "export:assets",
   "export:sitemap",
   "export:feeds",
+  "export:manifestExtensions",
   "fetch:trackers",
   "fetch:external",
   "deploy:provider",

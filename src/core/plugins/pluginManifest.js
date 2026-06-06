@@ -20,8 +20,12 @@ const KNOWN_PLUGIN_CAPABILITIES = new Set([
   "contentTypes",
   "exportAssets",
   "exportRoutes",
+  "exportSitemap",
+  "exportFeeds",
+  "exportManifestExtensions",
   "runtimeAssets",
   "storePluginState",
+  "themeSlots",
 ]);
 
 export function validatePluginManifest(manifest) {
@@ -125,7 +129,7 @@ function validateExportDeclaration(exportDeclaration, errors) {
   const record = objectRecord(exportDeclaration);
   if (!record.hooks) return;
   for (const hook of normalizeStringList(record.hooks)) {
-    if (!/^[a-z]+:[a-z-]+$/u.test(hook)) {
+    if (!/^[a-z]+:[A-Za-z-]+$/u.test(hook)) {
       errors.push(`Plugin export hook is not valid: ${hook}`);
     }
   }

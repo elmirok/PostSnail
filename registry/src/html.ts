@@ -20,20 +20,23 @@ export function renderSearchPage(): string {
     .btn, button { border:2px solid var(--line); background:var(--paper); border-radius:0; min-height:40px; padding:0 14px; font:inherit; font-weight:800; color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
     .btn.primary, button.primary { background:var(--accent); border-color:var(--accent); color:white; }
     button:disabled { cursor:not-allowed; opacity:.58; }
-    .hero { padding: 34px 0 24px; display:grid; gap:10px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+    .hero { padding: 58px 0 30px; display:grid; gap:12px; }
     .kicker { color:var(--coral); font-weight:900; text-transform:uppercase; font-size:.76rem; letter-spacing:0; margin:0; }
     h1 { margin:0; font-size: clamp(2rem, 6vw, 4.6rem); line-height:.98; letter-spacing:0; max-width: 900px; }
     h2 { margin:0; font-size:1.16rem; letter-spacing:0; }
-    .hero p:last-child { margin:0; color:var(--muted); max-width:760px; font-size:1.05rem; line-height:1.55; }
+    .hero p { margin:0; color:var(--muted); line-height:1.45; }
     .panels { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; align-items:start; }
     .panel { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:12px; min-width:0; box-shadow:6px 6px 0 rgba(8,10,47,.11); }
-    .forest-search-panel { padding:18px; gap:14px; background:#ffffff; }
-    .forest-search-panel h2 { font-size:1.45rem; text-align:center; }
+    .forest-search-panel { width:min(880px, 100%); justify-self:center; display:grid; padding:0; gap:12px; background:transparent; border:0; box-shadow:none; }
     .forest-search-panel p { text-align:center; max-width:720px; justify-self:center; }
     .creator-action { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:.92rem; }
     .register-toggle { background:var(--paper); color:var(--accent); border-color:var(--accent); }
     .register-toggle[aria-expanded="true"] { background:var(--green-soft); color:var(--ink); }
     .register-panel[hidden] { display:none; }
+    .saved-submission-summary[hidden] { display:none; }
+    .saved-submission-summary { width:min(720px, 100%); justify-self:center; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:.9rem; }
+    .saved-submission-summary strong { color:var(--ink); }
     .panel p { margin:0; color:var(--muted); line-height:1.45; }
     form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
     .search-form { width:min(880px, 100%); justify-self:center; grid-template-columns:1fr; gap:10px; }
@@ -43,6 +46,9 @@ export function renderSearchPage(): string {
     .search-box button { min-height:64px; border-width:0 0 0 3px; padding:0 22px; font-size:1.02rem; }
     .tag-row { display:grid; grid-template-columns:auto minmax(160px, 260px); align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:.9rem; }
     .tag-row input { min-height:40px; background:var(--paper); }
+    .results-filter-bar[hidden] { display:none; }
+    .results-filter-bar { margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border:2px solid var(--line); background:var(--paper); box-shadow:6px 6px 0 rgba(47,122,85,.12); padding:10px 12px; }
+    .results-filter-bar .tag-row { justify-content:start; }
     .scope-control { border:0; padding:0; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
     .scope-control legend { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
     .scope-control label { display:inline-flex; align-items:center; gap:0; color:var(--ink); font-size:.92rem; }
@@ -82,7 +88,7 @@ export function renderSearchPage(): string {
     footer a { color:var(--ink); font-weight:800; text-decoration-thickness:.08em; }
     .legal-links { display:flex; gap:10px; flex-wrap:wrap; font-size:.9rem; }
     @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
-    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel { padding:14px; } .forest-search-panel h2 { text-align:left; } .forest-search-panel p { text-align:left; } .creator-action { justify-content:flex-start; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
+    @media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } .hero { padding:34px 0 22px; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel p { text-align:left; } .creator-action, .saved-submission-summary { justify-content:flex-start; } .results-filter-bar { align-items:stretch; flex-direction:column; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
   </style>
 </head>
 <body>
@@ -94,34 +100,26 @@ export function renderSearchPage(): string {
         <a class="btn" href="/api/search">JSON API</a>
       </nav>
     </header>
-    <section class="hero">
-      <p class="kicker">Forest / Verified public summaries / No login</p>
-      <h1>Find and register creator-owned microblogs.</h1>
-      <p>PostSnail Forest verifies public proof files, then indexes only site metadata plus post titles, tags, excerpts, dates, and digests.</p>
-    </section>
-    <section class="panels" aria-label="Forest actions">
-      <section class="panel forest-search-panel" aria-labelledby="search-title">
-        <h2 id="search-title">Search Forest</h2>
-        <p>Search indexed public summaries. Full bundle verification still belongs in the PostSnail admin verifier.</p>
+    <section class="hero" aria-labelledby="forest-title">
+      <h1 id="forest-title" class="sr-only">Search PostSnail Forest</h1>
+      <section class="forest-search-panel" aria-labelledby="search-label">
         <form id="search-form" class="search-form" role="search">
           <div class="search-box">
-            <input id="q" name="q" aria-label="Search Forest" autocomplete="off" placeholder="Search microblogs, creators, tags, content">
-            <button class="primary" type="submit">Search Forest</button>
+            <label class="sr-only" id="search-label" for="q">Search PostSnail Forest</label>
+            <input id="q" name="q" aria-label="Search PostSnail Forest" autocomplete="off" placeholder="Search PostSnail Forest">
+            <button class="primary" type="submit">Search</button>
           </div>
-          <label class="tag-row" for="tag"><span>Filter by tag</span><input id="tag" name="tag" autocomplete="off" placeholder="optional tag"></label>
-          <fieldset class="scope-control" aria-label="Search scope">
-            <legend>Search scope</legend>
-            <label><input type="radio" name="scope" value="all" checked><span>All</span></label>
-            <label><input type="radio" name="scope" value="content"><span>Content</span></label>
-            <label><input type="radio" name="scope" value="shell"><span>Shell</span></label>
-          </fieldset>
         </form>
+        <p>Verified public summaries only: site metadata, titles, tags, excerpts, dates, and digests.</p>
         <div class="creator-action">
           <span>Have a published PostSnail site?</span>
           <button class="register-toggle" id="toggle-register" type="button" aria-expanded="false" aria-controls="register-panel">Register your microblog</button>
         </div>
+        <div class="saved-submission-summary" id="saved-submission-summary" aria-live="polite" hidden></div>
         <div class="status" id="status">Search Forest.</div>
       </section>
+    </section>
+    <section class="panels" aria-label="Forest actions">
       <section class="panel register-panel" id="register-panel" aria-labelledby="register-title" hidden>
         <h2 id="register-title">Register your microblog</h2>
         <p>Use the public homepage URL of a PostSnail site. Registration verifies proofs; it does not create an account or transfer ownership.</p>
@@ -132,6 +130,15 @@ export function renderSearchPage(): string {
         <div class="notice" id="registration-status" aria-live="polite">Paste a public https PostSnail URL to register it in Forest.</div>
         <div id="registration-details"></div>
       </section>
+    </section>
+    <section class="results-filter-bar" id="result-filters" aria-label="Result filters" hidden>
+      <label class="tag-row" for="tag"><span>Filter by tag</span><input id="tag" name="tag" form="search-form" autocomplete="off" placeholder="optional tag"></label>
+      <fieldset class="scope-control" aria-label="Search scope">
+        <legend>Search scope</legend>
+        <label><input type="radio" name="scope" value="all" form="search-form" checked><span>All</span></label>
+        <label><input type="radio" name="scope" value="content" form="search-form"><span>Content</span></label>
+        <label><input type="radio" name="scope" value="shell" form="search-form"><span>Shell</span></label>
+      </fieldset>
     </section>
     <section class="results" id="results"></section>
     <footer>
@@ -150,12 +157,14 @@ export function renderSearchPage(): string {
     const registerButton = document.getElementById('register-button');
     const registrationStatusEl = document.getElementById('registration-status');
     const registrationDetailsEl = document.getElementById('registration-details');
+    const savedSubmissionSummaryEl = document.getElementById('saved-submission-summary');
     const form = document.getElementById('search-form');
     const qInput = document.getElementById('q');
     const tagInput = document.getElementById('tag');
     const scopeInputs = Array.from(document.querySelectorAll('input[name="scope"]'));
     const statusEl = document.getElementById('status');
     const resultsEl = document.getElementById('results');
+    const resultFilters = document.getElementById('result-filters');
     let pollTimer = 0;
     toggleRegister.addEventListener('click', () => {
       setRegistrationOpen(registerPanel.hidden);
@@ -168,6 +177,10 @@ export function renderSearchPage(): string {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       search();
+    });
+    tagInput.addEventListener('change', () => search());
+    scopeInputs.forEach((input) => {
+      input.addEventListener('change', () => search());
     });
     const params = new URLSearchParams(window.location.search);
     const initialQ = params.get('q') || '';
@@ -250,6 +263,7 @@ export function renderSearchPage(): string {
     }
 
     function renderSubmission(submission) {
+      renderSavedSubmissionSummary(submission);
       const status = submission.status || 'queued';
       if (status === 'indexed') {
         renderRegistrationMessage('Your microblog is indexed.', 'ok');
@@ -258,7 +272,6 @@ export function renderSearchPage(): string {
         if (searchIndexed) searchIndexed.addEventListener('click', () => {
           qInput.value = hostFromUrl(submission.siteUrl);
           search();
-          form.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
         return;
       }
@@ -278,6 +291,36 @@ export function renderSearchPage(): string {
     function siteActionLink(submission) {
       if (submission.siteId) return '<a class="btn" href="/api/sites/' + encodeURIComponent(submission.siteId) + '">View site JSON</a>';
       return '<a class="btn" href="#search-form">Search below</a>';
+    }
+
+    function renderSavedSubmissionSummary(submission) {
+      if (!submission || !submission.submissionId) {
+        savedSubmissionSummaryEl.hidden = true;
+        savedSubmissionSummaryEl.innerHTML = '';
+        return;
+      }
+      const status = submission.status || 'queued';
+      const site = hostFromUrl(submission.siteUrl || '');
+      savedSubmissionSummaryEl.hidden = false;
+      savedSubmissionSummaryEl.innerHTML = '<strong>Last registration:</strong><span>' + escapeHtml(statusLabel(status)) + (site ? ' · ' + escapeHtml(site) : '') + '</span><button class="btn" type="button" id="resume-registration">View status</button>' + (status === 'indexed' ? '<button class="btn primary" type="button" id="search-last-submission">Search it</button>' : '');
+      const resume = document.getElementById('resume-registration');
+      if (resume) resume.addEventListener('click', () => {
+        setRegistrationOpen(true);
+        renderSubmission(submission);
+        registerPanel.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      });
+      const searchLast = document.getElementById('search-last-submission');
+      if (searchLast) searchLast.addEventListener('click', () => {
+        qInput.value = hostFromUrl(submission.siteUrl || '');
+        search();
+      });
+    }
+
+    function statusLabel(status) {
+      if (status === 'indexed') return 'Indexed';
+      if (status === 'failed') return 'Failed';
+      if (status === 'crawling') return 'Verifying';
+      return 'Queued';
     }
 
     function renderRegistrationMessage(message, tone) {
@@ -300,10 +343,8 @@ export function renderSearchPage(): string {
     function restoreLastSubmission() {
       const submission = loadSubmission();
       if (!submission || !submission.submissionId) return;
-      const shouldOpen = submission.status === 'queued' || submission.status === 'crawling' || submission.status === 'failed';
-      setRegistrationOpen(shouldOpen);
       if (submission.siteUrl) siteUrlInput.value = submission.siteUrl;
-      renderSubmission(submission);
+      renderSavedSubmissionSummary(submission);
       if (submission.status === 'queued' || submission.status === 'crawling') {
         checkSubmission(submission.submissionId);
       }
@@ -346,7 +387,9 @@ export function renderSearchPage(): string {
     }
 
     async function search() {
-      const params = new URLSearchParams(new FormData(form));
+      const params = searchParams();
+      syncUrlParams(params);
+      setFiltersVisible(true);
       statusEl.textContent = 'Searching...';
       resultsEl.innerHTML = '';
       try {
@@ -355,10 +398,50 @@ export function renderSearchPage(): string {
         const items = Array.isArray(data.items) ? data.items : [];
         statusEl.textContent = items.length ? items.length + ' result(s).' : 'No matching results.';
         resultsEl.innerHTML = items.length ? items.map(renderResult).join('') : '<div class="empty">No signed summaries matched this search.</div>';
+        if (items.length) window.requestAnimationFrame(scrollToFirstResult);
       } catch {
         statusEl.textContent = 'Search failed.';
         resultsEl.innerHTML = '<div class="empty">Forest could not be searched right now.</div>';
       }
+    }
+
+    function searchParams() {
+      const params = new URLSearchParams();
+      params.set('q', qInput.value.trim());
+      params.set('tag', tagInput.value.trim());
+      params.set('scope', currentScope());
+      return params;
+    }
+
+    function currentScope() {
+      return (scopeInputs.find((input) => input.checked) || {}).value || 'all';
+    }
+
+    function setFiltersVisible(visible) {
+      resultFilters.hidden = !visible;
+    }
+
+    function syncUrlParams(params) {
+      const next = new URLSearchParams();
+      const q = params.get('q') || '';
+      const tag = params.get('tag') || '';
+      const scope = params.get('scope') || 'all';
+      if (q) next.set('q', q);
+      if (tag) next.set('tag', tag);
+      if (scope !== 'all') next.set('scope', scope);
+      const query = next.toString();
+      const nextUrl = window.location.pathname + (query ? '?' + query : '');
+      window.history.replaceState(null, '', nextUrl);
+    }
+
+    function scrollToFirstResult() {
+      const first = resultsEl.querySelector('.result');
+      if (!first) return;
+      first.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    }
+
+    function reducedMotion() {
+      return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
     function renderResult(item) {
       if (item.type === 'shellname') return renderShellNameResult(item);

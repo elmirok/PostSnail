@@ -40,6 +40,7 @@ import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
 import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
 import { resolveRouteAssets } from "./core/assets/routeAssets.js";
+import { buildPagesPublicData, POSTSNAIL_PAGES_PLUGIN_ID, routeToFilePath } from "./pages/plugin.js";
 
 export const GENERATOR_VERSION = "0.1.0";
 const POSTSNAIL_HOME_URL = "https://postsnail.org/";
@@ -67,6 +68,8 @@ export async function buildStaticExport({
   const attribution = normalizeAttributionSettings(settings, cleanSettings);
   const publicShellNames = normalizeShellNames(shellNames);
   const extensionContext = buildExtensionContext({ plugins, appearance });
+  const pagesOutput = buildEnabledPagesOutput(extensionContext.enabledPlugins, plugins);
+  const siteNavigation = pagesOutput?.navigation || null;
   const publishedPosts = posts
     .filter((post) => post.status === "published")
     .slice()
@@ -85,20 +88,34 @@ export async function buildStaticExport({
   });
 
   const files = {};
-  files["index.html"] = htmlBytes(renderIndex(cleanProfile, publishedPosts, postProofs, assetMap, attribution));
-  files["archive/index.html"] = htmlBytes(renderArchive(cleanProfile, publishedPosts, attribution));
-  files["about/index.html"] = htmlBytes(renderAbout(cleanProfile, attribution));
+  if (pagesOutput?.usesHomepageOverride) {
+    files[routeToFilePath(pagesOutput.blogIndexPath)] = htmlBytes(renderIndex(cleanProfile, publishedPosts, postProofs, assetMap, attribution, {
+      title: `Blog - ${cleanProfile.siteTitle}`,
+      path: pagesOutput.blogIndexPath,
+      rootPrefix: rootPrefixForRoute(pagesOutput.blogIndexPath),
+      navigation: siteNavigation,
+    }));
+  } else {
+    files["index.html"] = htmlBytes(renderIndex(cleanProfile, publishedPosts, postProofs, assetMap, attribution, { navigation: siteNavigation }));
+  }
+  files["archive/index.html"] = htmlBytes(renderArchive(cleanProfile, publishedPosts, attribution, siteNavigation));
+  files["about/index.html"] = htmlBytes(renderAbout(cleanProfile, attribution, siteNavigation));
   files["feed.json"] = htmlBytes(renderFeedJson(cleanProfile, publishedPosts, postProofs));
   files["rss.xml"] = htmlBytes(renderRss(cleanProfile, publishedPosts));
-  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts, attribution.trackerUrls.length > 0));
+  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts, attribution.trackerUrls.length > 0, pagesSitemapEntries(pagesOutput)));
   if (attribution.trackerUrls.length) {
-    files["trackers/index.html"] = htmlBytes(renderTrackers(cleanProfile, attribution));
+    files["trackers/index.html"] = htmlBytes(renderTrackers(cleanProfile, attribution, siteNavigation));
   }
   for (const post of publishedPosts) {
-    files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap, attribution));
+    files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap, attribution, siteNavigation));
   }
   for (const tag of tagsForPosts(publishedPosts)) {
-    files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts, attribution));
+    files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts, attribution, siteNavigation));
+  }
+  if (pagesOutput) {
+    for (const route of pagesOutput.routes) {
+      files[route.filePath] = htmlBytes(renderPagesRoute(cleanProfile, route, pagesOutput, attribution));
+    }
   }
   for (const asset of assetMap.values()) {
     files[`assets/${asset.fileName}`] = decodeBase64(asset.dataBase64);
@@ -118,7 +135,9 @@ export async function buildStaticExport({
       attribution,
       theme: extensionContext.theme,
       enabledPlugins: extensionContext.enabledPlugins,
+      pagesOutput,
     }),
+    pluginMetadata: pagesOutput ? { [POSTSNAIL_PAGES_PLUGIN_ID]: pagesOutput.metadata } : {},
   });
   const manifestPayload = {
     protocol: POSTSNAIL_PROTOCOL,
@@ -213,12 +232,23 @@ function buildExtensionContext({ plugins, appearance }) {
   };
 }
 
-function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins }) {
+function buildEnabledPagesOutput(enabledPlugins, plugins) {
+  if (!enabledPlugins.some((plugin) => plugin.id === POSTSNAIL_PAGES_PLUGIN_ID)) return null;
+  return buildPagesPublicData(plugins?.state?.[POSTSNAIL_PAGES_PLUGIN_ID] || {});
+}
+
+function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins, pagesOutput = null }) {
   const routes = [
-    { route: "/", type: "home", template: "home", features: [] },
+    { route: pagesOutput?.usesHomepageOverride ? pagesOutput.blogIndexPath : "/", type: "home", template: "home", features: [] },
     { route: "/archive/", type: "archive", template: "archive", features: [] },
     { route: "/about/", type: "about", template: "page", features: [] },
     ...(attribution.trackerUrls.length ? [{ route: "/trackers/", type: "trackers", template: "page", features: [] }] : []),
+    ...(pagesOutput?.routes || []).map((route) => ({
+      route: route.route,
+      type: route.type,
+      template: route.type === "doc" ? "doc" : "page",
+      features: ["postsnail-pages"],
+    })),
     ...publishedPosts.map((post) => ({
       route: `/posts/${post.slug}/`,
       type: "post",
@@ -240,7 +270,7 @@ function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabl
   );
 }
 
-function buildManifestExtensions({ theme, enabledPlugins, routeAssets }) {
+function buildManifestExtensions({ theme, enabledPlugins, routeAssets, pluginMetadata = {} }) {
   const plugins = Object.fromEntries(
     enabledPlugins.map((plugin) => {
       const publicFiles = Object.values(routeAssets)
@@ -251,6 +281,7 @@ function buildManifestExtensions({ theme, enabledPlugins, routeAssets }) {
         {
           version: plugin.version || plugin.manifest?.version || "",
           publicFiles: [...new Set(publicFiles)].sort(),
+          ...(pluginMetadata[plugin.id] || {}),
         },
       ];
     }),
@@ -361,10 +392,11 @@ function extensionForAsset(asset) {
   return ".png";
 }
 
-function renderIndex(profile, posts, proofs, assetMap, attribution) {
+function renderIndex(profile, posts, proofs, assetMap, attribution, options = {}) {
+  const rootPrefix = options.rootPrefix || "";
   return renderPage(profile, {
-    title: profile.siteTitle,
-    path: "",
+    title: options.title || profile.siteTitle,
+    path: options.path || "",
     body: `
       <section class="hero">
         <p class="kicker">@${escapeHtml(profile.handle)}</p>
@@ -372,14 +404,16 @@ function renderIndex(profile, posts, proofs, assetMap, attribution) {
         <p>${escapeHtml(profile.description)}</p>
       </section>
       <section class="feed">
-        ${posts.map((post) => renderPostCard(post, proofs, assetMap)).join("") || "<p>No posts yet.</p>"}
+        ${posts.map((post) => renderPostCard(post, proofs, assetMap, rootPrefix)).join("") || "<p>No posts yet.</p>"}
       </section>
     `,
+    rootPrefix,
     attribution,
+    navigation: options.navigation || null,
   });
 }
 
-function renderArchive(profile, posts, attribution) {
+function renderArchive(profile, posts, attribution, navigation = null) {
   return renderPage(profile, {
     title: `Archive - ${profile.siteTitle}`,
     path: "archive/",
@@ -391,10 +425,11 @@ function renderArchive(profile, posts, attribution) {
     `,
     rootPrefix: "../",
     attribution,
+    navigation,
   });
 }
 
-function renderAbout(profile, attribution) {
+function renderAbout(profile, attribution, navigation = null) {
   const body = profile.about ? renderMarkdown(profile.about) : `<p>${escapeHtml(profile.description)}</p>`;
   return renderPage(profile, {
     title: `About - ${profile.siteTitle}`,
@@ -402,10 +437,11 @@ function renderAbout(profile, attribution) {
     body: `<h1>About</h1>${body}`,
     rootPrefix: "../",
     attribution,
+    navigation,
   });
 }
 
-function renderPost(profile, post, proofs, assetMap, attribution) {
+function renderPost(profile, post, proofs, assetMap, attribution, navigation = null) {
   const proof = proofs.find((item) => item.slug === post.slug);
   const images = post.imageIds
     .map((id) => assetMap.get(id))
@@ -429,10 +465,11 @@ function renderPost(profile, post, proofs, assetMap, attribution) {
     `,
     rootPrefix: "../../",
     attribution,
+    navigation,
   });
 }
 
-function renderTag(profile, tag, posts, attribution) {
+function renderTag(profile, tag, posts, attribution, navigation = null) {
   const tagged = posts.filter((post) => post.tags.includes(tag));
   return renderPage(profile, {
     title: `#${tag} - ${profile.siteTitle}`,
@@ -440,10 +477,11 @@ function renderTag(profile, tag, posts, attribution) {
     body: `<h1>#${escapeHtml(tag)}</h1><section class="feed">${tagged.map((post) => renderPostCard(post, [], new Map(), "../../")).join("")}</section>`,
     rootPrefix: "../../",
     attribution,
+    navigation,
   });
 }
 
-function renderTrackers(profile, attribution) {
+function renderTrackers(profile, attribution, navigation = null) {
   return renderPage(profile, {
     title: `Tracker credits - ${profile.siteTitle}`,
     path: "trackers/",
@@ -461,6 +499,50 @@ function renderTrackers(profile, attribution) {
     `,
     rootPrefix: "../",
     attribution,
+    navigation,
+  });
+}
+
+function renderPagesRoute(profile, route, pagesOutput, attribution) {
+  const rootPrefix = rootPrefixForRoute(route.route);
+  const navigation = pagesOutput.navigation;
+  if (route.type === "docs-index") {
+    return renderPage(profile, {
+      title: `Docs - ${profile.siteTitle}`,
+      path: route.route,
+      description: route.seo?.description || "Documentation",
+      body: `
+        <section class="cms-page">
+          <p class="kicker">Docs</p>
+          <h1>Docs</h1>
+          <div class="docs-list">
+            ${(route.items || [])
+              .map((doc) => `<article class="post-card"><div><h2><a href="${rootPrefix}docs/${escapeAttr(doc.slug)}/">${escapeHtml(doc.title)}</a></h2><p>${escapeHtml(doc.seo?.description || buildExcerpt(doc.body))}</p></div></article>`)
+              .join("")}
+          </div>
+        </section>
+      `,
+      rootPrefix,
+      attribution,
+      navigation,
+    });
+  }
+
+  return renderPage(profile, {
+    title: `${route.seo?.title || route.title} - ${profile.siteTitle}`,
+    path: route.route,
+    description: route.seo?.description || route.excerpt || profile.description,
+    noindex: Boolean(route.seo?.noindex),
+    body: `
+      <article class="cms-page">
+        <p class="kicker">${route.type === "doc" ? "Doc" : "Page"}</p>
+        <h1>${escapeHtml(route.title)}</h1>
+        <div class="markdown">${renderMarkdown(route.body)}</div>
+      </article>
+    `,
+    rootPrefix,
+    attribution,
+    navigation,
   });
 }
 
@@ -528,7 +610,7 @@ function renderRss(profile, posts) {
 </rss>`;
 }
 
-function renderSitemap(profile, posts, hasTrackerPage = false) {
+function renderSitemap(profile, posts, hasTrackerPage = false, extraEntries = []) {
   const urls = [
     ["", latestPostDate(posts)],
     ["archive/", latestPostDate(posts)],
@@ -536,6 +618,7 @@ function renderSitemap(profile, posts, hasTrackerPage = false) {
     ...(hasTrackerPage ? [["trackers/", latestPostDate(posts)]] : []),
     [FEED_PATH, latestPostDate(posts)],
     [RSS_PATH, latestPostDate(posts)],
+    ...extraEntries.map((entry) => [entry.path, entry.updatedAt || latestPostDate(posts)]),
     ...posts.map((post) => [`posts/${post.slug}/`, post.updatedAt || post.publishedAt || post.createdAt]),
     ...tagsForPosts(posts).map((tag) => [`tags/${tag}/`, latestPostDate(posts.filter((post) => post.tags.includes(tag)))]),
   ];
@@ -550,7 +633,7 @@ ${urls
 </urlset>`;
 }
 
-function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null, attribution = normalizeAttributionSettings() }) {
+function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null, attribution = normalizeAttributionSettings(), description = profile.description, noindex = false, navigation = null }) {
   const canonicalUrl = siteUrlForPath(profile.siteUrl, path);
   const jsonLd = post ? articleJsonLd(profile, post, canonicalUrl) : siteJsonLd(profile, canonicalUrl);
   const footer = renderPublicFooter(rootPrefix, attribution);
@@ -560,7 +643,8 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <meta name="description" content="${escapeHtml(profile.description)}">
+  <meta name="description" content="${escapeHtml(description)}">
+  ${noindex ? `<meta name="robots" content="noindex">` : ""}
   <link rel="canonical" href="${escapeAttr(canonicalUrl)}">
   <link rel="icon" href="data:,">
   <link rel="alternate" type="application/rss+xml" href="${rootPrefix}${RSS_PATH}">
@@ -569,12 +653,12 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
   <link rel="sitemap" type="application/xml" href="${rootPrefix}${SITEMAP_PATH}">
   <meta property="og:type" content="${type === "article" ? "article" : "website"}">
   <meta property="og:title" content="${escapeAttr(title)}">
-  <meta property="og:description" content="${escapeAttr(post?.excerpt || profile.description)}">
+  <meta property="og:description" content="${escapeAttr(post?.excerpt || description)}">
   <meta property="og:url" content="${escapeAttr(canonicalUrl)}">
   <meta property="og:site_name" content="${escapeAttr(profile.siteTitle)}">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${escapeAttr(title)}">
-  <meta name="twitter:description" content="${escapeAttr(post?.excerpt || profile.description)}">
+  <meta name="twitter:description" content="${escapeAttr(post?.excerpt || description)}">
   ${post ? `<meta property="article:published_time" content="${escapeAttr(post.publishedAt || post.createdAt || "")}">
   <meta property="article:modified_time" content="${escapeAttr(post.updatedAt || post.publishedAt || post.createdAt || "")}">
   ${post.tags.map((tag) => `<meta property="article:tag" content="${escapeAttr(tag)}">`).join("\n  ")}` : ""}
@@ -584,7 +668,7 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
 <body>
   <header class="site-header">
     <a href="${rootPrefix}">${escapeHtml(profile.siteTitle)}</a>
-    <nav><a href="${rootPrefix}archive/">Archive</a><a href="${rootPrefix}about/">About</a></nav>
+    ${renderSiteNavigation(rootPrefix, navigation)}
   </header>
   <main>${body}</main>
   ${footer}
@@ -605,6 +689,44 @@ function renderPublicFooter(rootPrefix, attribution) {
     ${poweredBy}
     ${trackedBy}
   </footer>`;
+}
+
+function renderSiteNavigation(rootPrefix, navigation = null) {
+  const items = Array.isArray(navigation) && navigation.length
+    ? navigation
+    : [
+        { label: "Archive", url: "/archive/" },
+        { label: "About", url: "/about/" },
+      ];
+  return `<nav>${items
+    .map((item) => `<a href="${escapeAttr(navigationHref(rootPrefix, item.url))}">${escapeHtml(item.label)}</a>`)
+    .join("")}</nav>`;
+}
+
+function navigationHref(rootPrefix, url) {
+  const value = String(url || "").trim();
+  if (!value) return rootPrefix || "./";
+  if (/^[a-z]+:/iu.test(value) || value.startsWith("#")) return value;
+  if (!value.startsWith("/")) return value;
+  return `${rootPrefix}${value.replace(/^\//u, "")}` || "./";
+}
+
+function rootPrefixForRoute(route) {
+  const normalized = String(route || "/").trim();
+  if (normalized === "/" || normalized === "") return "";
+  const depth = normalized.replace(/^\/|\/$/gu, "").split("/").filter(Boolean).length;
+  return "../".repeat(depth);
+}
+
+function pagesSitemapEntries(pagesOutput) {
+  if (!pagesOutput) return [];
+  return [
+    ...(pagesOutput.usesHomepageOverride ? [{ path: pagesOutput.blogIndexPath }] : []),
+    ...pagesOutput.routes.map((route) => ({
+      path: route.route,
+      updatedAt: route.item?.updatedAt || route.item?.publishedAt || "",
+    })),
+  ];
 }
 
 function siteJsonLd(profile, url) {

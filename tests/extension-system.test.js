@@ -25,6 +25,7 @@ import {
   getOfficialPluginCatalog,
   getOfficialPluginManifest,
   isPluginEnabled,
+  POSTSNAIL_PAGES_PLUGIN_ID,
   POSTSNAIL_SNAILLIFT_PLUGIN_ID,
 } from "../src/core/plugins/officialCatalog.js";
 
@@ -210,7 +211,10 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   const catalog = getOfficialPluginCatalog();
   const manifest = getOfficialPluginManifest(POSTSNAIL_SNAILLIFT_PLUGIN_ID);
 
-  assert.equal(catalog.length, 1);
+  assert.deepEqual(catalog.map((plugin) => plugin.id).sort(), [
+    "postsnail-pages",
+    "postsnail-snaillift",
+  ]);
   assert.equal(manifest.id, "postsnail-snaillift");
   assert.equal(manifest.name, "SnailLift");
   assert.deepEqual(manifest.capabilities, ["adminPanel", "storePluginState"]);
@@ -224,4 +228,28 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   );
   assert.equal(isPluginEnabled(installed, "postsnail-snaillift"), true);
   assert.deepEqual(installed.state["postsnail-snaillift"], { provider: "cloudflare-pages" });
+});
+
+test("official plugin catalog exposes PostSnail Pages as a bundled CMS extension", () => {
+  const manifest = getOfficialPluginManifest(POSTSNAIL_PAGES_PLUGIN_ID);
+
+  assert.equal(manifest.id, "postsnail-pages");
+  assert.equal(manifest.name, "PostSnail Pages");
+  assert.deepEqual(manifest.capabilities, [
+    "adminPanel",
+    "contentTypes",
+    "exportRoutes",
+    "exportSitemap",
+    "storePluginState",
+  ]);
+  assert.deepEqual(manifest.permissions, [
+    "read:posts",
+    "read:assets",
+    "write:pluginState",
+    "export:routes",
+    "export:sitemap",
+    "export:manifestExtensions",
+  ]);
+  assert.deepEqual(manifest.runtime, {});
+  assert.equal(isPluginEnabled({ installed: [] }, "postsnail-pages"), false);
 });

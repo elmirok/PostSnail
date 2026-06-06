@@ -26,8 +26,10 @@ import {
   getOfficialPluginManifest,
   installPlugin,
   isPluginEnabled,
+  POSTSNAIL_PAGES_PLUGIN_ID,
   POSTSNAIL_SNAILLIFT_PLUGIN_ID,
 } from "./src/core/index.js";
+import { createPagesItem, normalizePagesState } from "./src/pages/plugin.js";
 import {
   announceForestAfterLiveVerification,
   buildCloudflarePagesCommand,
@@ -82,6 +84,8 @@ const state = {
   localShellSaveError: false,
   notifyForestAttention: false,
   activeTab: "write",
+  pagesSection: "pages",
+  pagesEditor: { collection: "pages", id: "" },
   status: "Ready.",
   profile: { ...defaultProfile },
   posts: [],
@@ -280,6 +284,46 @@ async function handleAction(button) {
     state.activeTab = "extensions";
     setStatus("Review official bundled plugins.");
     render();
+    return;
+  }
+  if (action === "pages-section") {
+    state.pagesSection = button.dataset.section || "pages";
+    state.pagesEditor = {
+      collection: state.pagesSection === "docs" ? "docs" : "pages",
+      id: "",
+    };
+    setStatus(`PostSnail Pages ${state.pagesSection} section ready.`);
+    render();
+    return;
+  }
+  if (action === "new-pages-item") {
+    state.pagesSection = button.dataset.collection === "docs" ? "docs" : "pages";
+    state.pagesEditor = { collection: state.pagesSection, id: "" };
+    setStatus(`New ${state.pagesSection === "docs" ? "doc" : "page"} ready.`);
+    render();
+    return;
+  }
+  if (action === "edit-pages-item") {
+    state.pagesSection = button.dataset.collection === "docs" ? "docs" : "pages";
+    state.pagesEditor = { collection: state.pagesSection, id: button.dataset.id || "" };
+    setStatus(`Editing ${state.pagesSection === "docs" ? "doc" : "page"}.`);
+    render();
+    return;
+  }
+  if (action === "save-pages-item") {
+    await savePagesItem();
+    return;
+  }
+  if (action === "delete-pages-item") {
+    await deletePagesItem(button.dataset.collection, button.dataset.id);
+    return;
+  }
+  if (action === "save-pages-navigation") {
+    await savePagesNavigation();
+    return;
+  }
+  if (action === "save-pages-settings") {
+    await savePagesSettings();
     return;
   }
   if (action === "register-shellname") {
@@ -670,8 +714,8 @@ async function generateSiteZip() {
     return;
   }
   const published = state.posts.filter((post) => post.status === "published");
-  if (!published.length) {
-    setStatus("Publish at least one post before generating the site.");
+  if (!published.length && !publishedPagesCount()) {
+    setStatus("Publish at least one post, page, or doc before generating the site.");
     return;
   }
   setStatus("Generating signed static ZIP...");
@@ -1034,6 +1078,7 @@ function render() {
       ${renderPanel("library", renderLibrary())}
       ${renderPanel("identity", renderIdentity())}
       ${renderPanel("extensions", renderExtensions())}
+      ${pagesEnabled() ? renderPanel("pages", renderPagesAdmin()) : ""}
       ${renderPanel("generate", renderGenerate())}
       ${renderPanel("verify", renderVerify())}
       ${renderPanel("info", renderInfo())}
@@ -1080,6 +1125,7 @@ function renderTabs() {
         ["library", "Library"],
         ["identity", "Identity"],
         ["extensions", "Extensions"],
+        ...(pagesEnabled() ? [["pages", "Pages"]] : []),
         ["generate", "Generate"],
         ["verify", "Verify"],
         ["info", "Info"],
@@ -1103,13 +1149,15 @@ function renderShellGate() {
         <p class="kicker">Private vault / Local-first / No login</p>
         <h1>Open your PostSnail Shell</h1>
         <p>A Shell is your private PostSnail workspace. It contains your editable blog, drafts, settings, assets, and encrypted signing identity.</p>
-        <div class="notice good">
-          <strong>Not an account</strong>
-          <p>Your identity is a signature key, not a profile login. No account. No email. No backend login.</p>
-        </div>
-        <div class="notice warning">
-          <strong>Private source, public output</strong>
-          <p>Your Shell stays private. Your Website ZIP is public.</p>
+        <div class="shell-trust-strip" aria-label="Shell trust model">
+          <div class="shell-trust-item good">
+            <strong>Not an account</strong>
+            <p>Your identity is a signature key, not a profile login. No account. No email. No backend login.</p>
+          </div>
+          <div class="shell-trust-item warning">
+            <strong>Private source, public output</strong>
+            <p>Your Shell stays private. Your Website ZIP is public.</p>
+          </div>
         </div>
       </section>
       <div class="shell-card-grid">
@@ -1402,13 +1450,193 @@ function renderOfficialPluginCard(manifest) {
         <button class="btn small" type="button" data-action="disable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "" : "disabled"}>Disable</button>
       </div>
       ${manifest.id === "postsnail-snaillift" ? `<p class="help">SnailLift appears in Generate only when enabled. Download ZIP stays available either way.</p>` : ""}
+      ${manifest.id === "postsnail-pages" ? `<p class="help">PostSnail Pages adds the Pages tab for static pages, docs, navigation, and homepage override. Draft CMS content stays private in the Shell.</p>` : ""}
     </article>
+  `;
+}
+
+function renderPagesAdmin() {
+  const pages = pagesPluginState();
+  const section = ["pages", "docs", "navigation", "settings"].includes(state.pagesSection) ? state.pagesSection : "pages";
+  return `
+    <div class="pages-admin">
+      <section class="panel-box">
+        <div>
+          <p class="kicker">Official CMS plugin</p>
+          <h2 class="panel-title">PostSnail Pages</h2>
+          <p class="help">Pages tab content lives inside your encrypted Shell. Published pages enter the Website ZIP; drafts and archived CMS content stay private.</p>
+        </div>
+        <div class="actions pages-section-tabs" role="tablist" aria-label="PostSnail Pages sections">
+          ${[
+            ["pages", "Pages"],
+            ["docs", "Docs"],
+            ["navigation", "Navigation"],
+            ["settings", "Settings"],
+          ].map(([id, label]) => `<button class="btn small ${section === id ? "primary" : ""}" type="button" data-action="pages-section" data-section="${id}">${label}</button>`).join("")}
+        </div>
+      </section>
+      ${section === "pages" ? renderPagesCollection("pages", pages.pages) : ""}
+      ${section === "docs" ? renderPagesCollection("docs", pages.docs) : ""}
+      ${section === "navigation" ? renderPagesNavigation(pages) : ""}
+      ${section === "settings" ? renderPagesSettings(pages) : ""}
+    </div>
+  `;
+}
+
+function renderPagesCollection(collection, items) {
+  const isDocs = collection === "docs";
+  const selected = state.pagesEditor.collection === collection
+    ? items.find((item) => item.id === state.pagesEditor.id)
+    : null;
+  const draft = selected || createPagesItem(isDocs ? "doc" : "page", {
+    title: "",
+    status: "draft",
+    ...(isDocs ? { slug: "" } : { path: "" }),
+  });
+  return `
+    <div class="grid-2 pages-workbench">
+      <section class="panel-box pages-list">
+        <div class="actions">
+          <div>
+            <p class="kicker">${isDocs ? "Docs" : "Pages"}</p>
+            <h3>${isDocs ? "Docs collection" : "Static pages"}</h3>
+          </div>
+          <button class="btn small primary" type="button" data-action="new-pages-item" data-collection="${collection}">New ${isDocs ? "doc" : "page"}</button>
+        </div>
+        ${items.length ? items.map((item) => renderPagesRow(collection, item)).join("") : `<div class="empty-state"><span>No ${isDocs ? "docs" : "pages"} yet</span><p>Create published CMS content or keep drafts private in the Shell.</p></div>`}
+      </section>
+      <section class="panel-box pages-editor fields">
+        <div>
+          <p class="kicker">${selected ? "Edit" : "Create"} ${isDocs ? "doc" : "page"}</p>
+          <h3>${escapeHtml(draft.title || (isDocs ? "Untitled doc" : "Untitled page"))}</h3>
+        </div>
+        <input id="pages-editor-id" value="${escapeAttr(selected?.id || "")}" hidden>
+        <input id="pages-editor-collection" value="${collection}" hidden>
+        <label class="field">
+          <span>Title</span>
+          <input data-pages-field="title" value="${escapeAttr(selected?.title || "")}" placeholder="${isDocs ? "Protocol" : "Welcome"}">
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span>Status</span>
+            <select data-pages-field="status">
+              ${["draft", "published", "archived"].map((status) => `<option value="${status}" ${(selected?.status || "draft") === status ? "selected" : ""}>${capitalize(status)}</option>`).join("")}
+            </select>
+          </label>
+          ${isDocs ? `
+            <label class="field">
+              <span>Slug</span>
+              <input data-pages-field="slug" value="${escapeAttr(selected?.slug || "")}" placeholder="protocol">
+            </label>
+          ` : `
+            <label class="field">
+              <span>Path</span>
+              <input data-pages-field="path" value="${escapeAttr(selected?.path || "")}" placeholder="/about-project/">
+            </label>
+          `}
+        </div>
+        ${isDocs ? `
+          <div class="grid-2">
+            <label class="field">
+              <span>Section</span>
+              <input data-pages-field="section" value="${escapeAttr(selected?.section || "")}" placeholder="Protocol">
+            </label>
+            <label class="field">
+              <span>Order</span>
+              <input data-pages-field="order" value="${escapeAttr(selected?.order || 0)}" inputmode="numeric">
+            </label>
+          </div>
+        ` : `
+          <label class="field">
+            <span>Excerpt</span>
+            <input data-pages-field="excerpt" value="${escapeAttr(selected?.excerpt || "")}" placeholder="Short public summary">
+          </label>
+        `}
+        <label class="field">
+          <span>Markdown body</span>
+          <textarea data-pages-field="body" placeholder="Write page Markdown.">${escapeHtml(selected?.body || "")}</textarea>
+        </label>
+        <div class="grid-2">
+          <label class="field">
+            <span>SEO title</span>
+            <input data-pages-seo-field="title" value="${escapeAttr(selected?.seo?.title || "")}">
+          </label>
+          <label class="field">
+            <span>SEO description</span>
+            <input data-pages-seo-field="description" value="${escapeAttr(selected?.seo?.description || "")}">
+          </label>
+        </div>
+        <label class="field checkbox-field">
+          <input type="checkbox" data-pages-seo-field="noindex" ${selected?.seo?.noindex ? "checked" : ""}>
+          <span>Noindex this page</span>
+        </label>
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="save-pages-item">Save ${isDocs ? "doc" : "page"}</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderPagesRow(collection, item) {
+  const route = collection === "docs" ? `/docs/${item.slug}/` : item.path;
+  return `
+    <article class="post-row pages-row">
+      <div>
+        <small>${escapeHtml(item.status)} · ${escapeHtml(route)}</small>
+        <h3>${escapeHtml(item.title || route)}</h3>
+        <p>${escapeHtml(item.excerpt || item.seo?.description || "No summary yet.")}</p>
+      </div>
+      <div class="actions">
+        <button class="btn small" type="button" data-action="edit-pages-item" data-collection="${collection}" data-id="${escapeAttr(item.id)}">Edit</button>
+        <button class="btn small danger" type="button" data-action="delete-pages-item" data-collection="${collection}" data-id="${escapeAttr(item.id)}">Delete</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderPagesNavigation(pages) {
+  const text = pages.navigation.map((item) => `${item.label} | ${item.url}`).join("\n");
+  return `
+    <section class="panel-box pages-editor fields">
+      <p class="kicker">Navigation</p>
+      <h3>Public site navigation</h3>
+      <p class="help">One item per line: <code>Label | /path/</code>. Links are exported into Pages and microblog routes.</p>
+      <label class="field">
+        <span>Navigation items</span>
+        <textarea id="pages-navigation-text" class="compact" placeholder="Home | /&#10;Docs | /docs/&#10;Blog | /blog/">${escapeHtml(text)}</textarea>
+      </label>
+      <div class="actions">
+        <button class="btn primary" type="button" data-action="save-pages-navigation">Save navigation</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderPagesSettings(pages) {
+  return `
+    <section class="panel-box pages-editor fields">
+      <p class="kicker">Settings</p>
+      <h3>Pages export settings</h3>
+      <div class="notice">
+        <strong>Homepage override</strong>
+        <p>If a published Page uses path <code>/</code>, PostSnail Pages owns the homepage and the microblog feed moves to this blog path.</p>
+      </div>
+      <label class="field">
+        <span>Blog index path</span>
+        <input id="pages-blog-index-path" value="${escapeAttr(pages.settings.blogIndexPath || "/blog/")}" placeholder="/blog/">
+      </label>
+      <div class="actions">
+        <button class="btn primary" type="button" data-action="save-pages-settings">Save settings</button>
+      </div>
+    </section>
   `;
 }
 
 function renderGenerate() {
   const publishedCount = state.posts.filter((post) => post.status === "published").length;
-  const canGenerate = Boolean(state.secretKey && state.identity?.publicKey && publishedCount);
+  const publishedCmsCount = publishedPagesCount();
+  const canGenerate = Boolean(state.secretKey && state.identity?.publicKey && (publishedCount || publishedCmsCount));
   return `
     <div class="grid-2">
       <section class="panel-box fields">
@@ -1506,6 +1734,7 @@ function renderGenerate() {
         </div>
         <div class="grid-3">
           <div class="metric"><span>Published</span><b>${publishedCount}</b></div>
+          <div class="metric"><span>Pages</span><b>${publishedCmsCount}</b></div>
           <div class="metric"><span>Images</span><b>${state.assets.length}</b></div>
           <div class="metric"><span>Key</span><b>${state.secretKey ? "Unlocked" : state.identity ? "Locked" : "Missing"}</b></div>
         </div>
@@ -1928,13 +2157,28 @@ function snailLiftEnabled() {
   return isPluginEnabled(state.plugins, POSTSNAIL_SNAILLIFT_PLUGIN_ID);
 }
 
+function pagesEnabled() {
+  return isPluginEnabled(state.plugins, POSTSNAIL_PAGES_PLUGIN_ID);
+}
+
 function pluginInstalled(id) {
   return state.plugins.installed.some((entry) => entry.id === id);
 }
 
+function ensureOfficialPluginState(id, plugins) {
+  if (id !== POSTSNAIL_PAGES_PLUGIN_ID) return plugins;
+  return {
+    ...plugins,
+    state: {
+      ...plugins.state,
+      [POSTSNAIL_PAGES_PLUGIN_ID]: normalizePagesState(plugins.state?.[POSTSNAIL_PAGES_PLUGIN_ID] || {}),
+    },
+  };
+}
+
 async function installOfficialPlugin(id) {
   try {
-    state.plugins = installPlugin(state.plugins, getOfficialPluginManifest(id));
+    state.plugins = ensureOfficialPluginState(id, installPlugin(state.plugins, getOfficialPluginManifest(id)));
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} installed. Enable it when you want it active.`);
     render();
@@ -1948,7 +2192,8 @@ async function enableOfficialPlugin(id) {
   try {
     const manifest = getOfficialPluginManifest(id);
     const next = pluginInstalled(id) ? state.plugins : installPlugin(state.plugins, manifest);
-    state.plugins = enablePlugin(next, id);
+    state.plugins = ensureOfficialPluginState(id, enablePlugin(next, id));
+    if (id === POSTSNAIL_PAGES_PLUGIN_ID) state.activeTab = "pages";
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} enabled.`);
     render();
@@ -1961,6 +2206,7 @@ async function enableOfficialPlugin(id) {
 async function disableOfficialPlugin(id) {
   try {
     state.plugins = disablePlugin(state.plugins, id);
+    if (id === POSTSNAIL_PAGES_PLUGIN_ID && state.activeTab === "pages") state.activeTab = "extensions";
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} disabled. Its settings remain in this Shell.`);
     render();
@@ -1983,6 +2229,122 @@ function missingPluginWarnings() {
   return state.plugins.installed
     .filter((entry) => !officialIds.has(entry.id))
     .map((entry) => `This Shell uses plugin ${entry.id}, but it is not installed. Its state is preserved.`);
+}
+
+function pagesPluginState() {
+  return normalizePagesState(state.plugins.state?.[POSTSNAIL_PAGES_PLUGIN_ID] || {});
+}
+
+async function savePagesPluginState(nextPagesState) {
+  state.plugins = ensureOfficialPluginState(POSTSNAIL_PAGES_PLUGIN_ID, state.plugins);
+  state.plugins = {
+    ...state.plugins,
+    state: {
+      ...state.plugins.state,
+      [POSTSNAIL_PAGES_PLUGIN_ID]: normalizePagesState(nextPagesState),
+    },
+  };
+  await persistLocalShellNow();
+}
+
+async function savePagesItem() {
+  const collection = document.getElementById("pages-editor-collection")?.value === "docs" ? "docs" : "pages";
+  const existingId = document.getElementById("pages-editor-id")?.value || "";
+  const pages = pagesPluginState();
+  const existing = pages[collection].find((item) => item.id === existingId) || {};
+  const now = new Date().toISOString();
+  const status = document.querySelector("[data-pages-field='status']")?.value || "draft";
+  const source = {
+    ...existing,
+    id: existingId || crypto.randomUUID(),
+    title: document.querySelector("[data-pages-field='title']")?.value || "",
+    status,
+    body: document.querySelector("[data-pages-field='body']")?.value || "",
+    updatedAt: now,
+    publishedAt: status === "published" ? (existing.publishedAt || now) : existing.publishedAt || "",
+    seo: {
+      ...(existing.seo || {}),
+      title: document.querySelector("[data-pages-seo-field='title']")?.value || "",
+      description: document.querySelector("[data-pages-seo-field='description']")?.value || "",
+      noindex: Boolean(document.querySelector("[data-pages-seo-field='noindex']")?.checked),
+    },
+  };
+  if (collection === "docs") {
+    source.slug = document.querySelector("[data-pages-field='slug']")?.value || source.title;
+    source.section = document.querySelector("[data-pages-field='section']")?.value || "";
+    source.order = Number(document.querySelector("[data-pages-field='order']")?.value || 0);
+  } else {
+    source.path = document.querySelector("[data-pages-field='path']")?.value || `/${source.title || "page"}/`;
+    source.excerpt = document.querySelector("[data-pages-field='excerpt']")?.value || "";
+  }
+
+  try {
+    const item = createPagesItem(collection === "docs" ? "doc" : "page", source, { now });
+    const next = {
+      ...pages,
+      [collection]: [item, ...pages[collection].filter((entry) => entry.id !== item.id)],
+    };
+    await savePagesPluginState(next);
+    state.pagesSection = collection;
+    state.pagesEditor = { collection, id: item.id };
+    setStatus(`${collection === "docs" ? "Doc" : "Page"} saved in the encrypted Shell.`);
+    render();
+  } catch (error) {
+    setStatus(error.message || "PostSnail Pages could not save this item.");
+    render();
+  }
+}
+
+async function deletePagesItem(collection, id) {
+  const bucket = collection === "docs" ? "docs" : "pages";
+  const pages = pagesPluginState();
+  const item = pages[bucket].find((entry) => entry.id === id);
+  if (!item) return;
+  if (!window.confirm(`Delete "${item.title || id}" from PostSnail Pages?`)) return;
+  await savePagesPluginState({
+    ...pages,
+    [bucket]: pages[bucket].filter((entry) => entry.id !== id),
+  });
+  state.pagesSection = bucket;
+  state.pagesEditor = { collection: bucket, id: "" };
+  setStatus(`${bucket === "docs" ? "Doc" : "Page"} deleted from the Shell.`);
+  render();
+}
+
+async function savePagesNavigation() {
+  const pages = pagesPluginState();
+  const lines = String(document.getElementById("pages-navigation-text")?.value || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const navigation = lines
+    .map((line) => {
+      const [label, url] = line.split("|").map((part) => String(part || "").trim());
+      return label && url ? { label, url } : null;
+    })
+    .filter(Boolean);
+  await savePagesPluginState({ ...pages, navigation });
+  setStatus("PostSnail Pages navigation saved.");
+  render();
+}
+
+async function savePagesSettings() {
+  const pages = pagesPluginState();
+  await savePagesPluginState({
+    ...pages,
+    settings: {
+      ...(pages.settings || {}),
+      blogIndexPath: document.getElementById("pages-blog-index-path")?.value || "/blog/",
+    },
+  });
+  setStatus("PostSnail Pages settings saved.");
+  render();
+}
+
+function publishedPagesCount() {
+  if (!pagesEnabled()) return 0;
+  const pages = pagesPluginState();
+  return [...pages.pages, ...pages.docs].filter((item) => item.status === "published").length;
 }
 
 function snailLiftCloudflareSettings() {
@@ -2197,6 +2559,11 @@ function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function capitalize(value) {
+  const text = String(value || "");
+  return text ? `${text[0].toUpperCase()}${text.slice(1)}` : "";
 }
 
 function nextFrame() {

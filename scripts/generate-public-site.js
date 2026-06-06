@@ -198,6 +198,7 @@ const pages = [
         <a href="/docs/snaillift-cloudflare/"><strong>SnailLift Cloudflare</strong><span>Use the Wrangler-assisted Cloudflare Pages path for Sprint 1A.</span></a>
         <a href="/docs/snaillift-github/"><strong>SnailLift GitHub</strong><span>Use the GitHub Pages command assistant without browser token storage.</span></a>
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
+        <a href="/docs/postsnail-pages/"><strong>PostSnail Pages</strong><span>Enable the official CMS plugin for static pages, docs, navigation, and homepage override.</span></a>
         <a href="/docs/shellnames/"><strong>ShellNames</strong><span>Claim readable Forest aliases like <code>@creator@forest.postsnail.org</code> without creating an account.</span></a>
         <a href="/docs/shellnames-protocol/"><strong>ShellNames Protocol</strong><span>Signed alias record shape, Forest endpoints, search behavior, and compatibility rules.</span></a>
         <a href="/docs/shellnames-security/"><strong>ShellNames Security</strong><span>What aliases prove, what they do not prove, and how Forest limits abuse.</span></a>
@@ -322,6 +323,19 @@ const pages = [
     ]),
   },
   {
+    path: "docs/postsnail-pages/index.html",
+    title: "PostSnail Pages - Alpha 1A",
+    description: "PostSnail Pages is the official bundled CMS plugin for static pages and docs.",
+    canonical: "https://postsnail.org/docs/postsnail-pages/",
+    body: docPage("PostSnail Pages sections", "PostSnail Pages", "A tiny CMS plugin without turning PostSnail Core into WordPress.", [
+      ["role", "Official Bundled Plugin", "PostSnail Pages uses the official plugin lifecycle. Enable postsnail-pages in Extensions to reveal the Pages tab."],
+      ["state", "Encrypted CMS State", "Pages, docs, navigation, settings, drafts, archived content, and unknown future fields live inside plugins.state[\"postsnail-pages\"] in the encrypted .postsnail Shell."],
+      ["export", "Public Export", "Only published pages and docs enter the Website ZIP. A published page at / can replace the homepage and move the microblog feed to /blog/."],
+      ["limits", "Alpha 1A Limits", "This sprint includes Pages, Docs, Navigation, Settings, and basic SEO. Tutorials, FAQ, roadmap, changelog, redirects, Markdown import, and visual building are later Pages sprints."],
+      ["core", "Core Boundary", "PostSnail Core keeps owning workspace, proof, signing, export safety, plugin manifests, and route assets. CMS behavior stays in the Pages plugin."],
+    ]),
+  },
+  {
     path: "docs/shellnames/index.html",
     title: "ShellNames - PostSnail Alpha 1",
     description: "ShellNames are Forest-scoped readable aliases for signed PostSnail Shell identities.",
@@ -434,7 +448,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/plugin-system/",
     body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.", [
       ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
-      ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift is the first bundled plugin."],
+      ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift exposes deployment assistants, and postsnail-pages exposes the Pages CMS tab."],
       ["registry", "Plugin Registry", "createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code."],
       ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript."],
       ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],
@@ -461,6 +475,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/theme-system/",
     body: docPage("Theme system sections", "Theme System", "Themes change presentation while Core keeps proof, workspace, and export rules stable.", [
       ["frontend", "Frontend Themes", "Frontend themes declare public templates and assets for generated static pages, including home, post, archive, and tag templates."],
+      ["pages", "Pages Integration", "PostSnail Pages 1A uses the current built-in public shell and template slots for page and docs routes. Future Pages sprints can deepen template support without moving CMS state into Core."],
       ["quiet", "Quiet Feed Default", "The built-in quiet-feed frontend theme represents the current generated site style and is the fallback for old Shells."],
       ["admin", "Admin Themes", "Admin themes are intentionally narrower. They may declare PostSnail CSS design tokens, but must not declare JavaScript runtime assets."],
       ["appearance", "Shell Appearance State", "Theme choices live in encrypted Shell appearance data with frontendTheme, adminTheme, and themeSettings."],
@@ -486,6 +501,7 @@ const pages = [
     body: docPage("Route asset sections", "Route Assets", "Public runtime assets are declared per route, not globally.", [
       ["why", "Why Route Assets", "A plugin or theme install should not make every generated page load extra JavaScript or CSS. Route maps keep asset loading explicit and inspectable."],
       ["shape", "Route Map Shape", "Each route declares route, type, template, theme, plugins, and assets. Duplicate assets are removed per route, and assets from one route do not leak into another route."],
+      ["pages", "Pages Routes", "PostSnail Pages adds page and docs routes to the route asset map, but Alpha 1A does not add public runtime JavaScript by default."],
       ["paths", "Safe Paths", "Public asset paths must start with a slash and must not contain protocols, backtracking, or unsafe path syntax."],
     ]),
   },
