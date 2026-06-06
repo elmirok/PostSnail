@@ -73,6 +73,12 @@ After a creator publishes a new ZIP, the admin can send Forest a signed public a
 
 Creators remain the source of truth through their own domain and signed proof files. See the public docs at `/docs/architecture/` and the repo notes in [tracker protocol notes](docs/tracker-protocol.md).
 
+## ShellNames
+
+ShellNames are readable Forest aliases like `@creator@forest.postsnail.org`. They point to a public PostSnail signing key and microblog URL, but they are not accounts, DNS, legal identity, or ownership claims.
+
+Creators can claim, update, and renew ShellNames from the admin Identity tab after unlocking the publisher key. The admin signs the public ShellName record locally and sends only that public record to Forest. Accepted ShellNames are stored inside the encrypted `.postsnail` Shell and can appear as optional public metadata in generated proof files. See [ShellNames](docs/shellnames.md), [ShellNames Protocol](docs/shellnames-protocol.md), and [ShellNames Security](docs/shellnames-security.md).
+
 ## Compatibility Contract
 
 PostSnail uses a stable-core, optional-extension model so old valid Shells and old valid public ZIP exports keep working as the protocol grows.

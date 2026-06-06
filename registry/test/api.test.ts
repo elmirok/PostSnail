@@ -2,12 +2,14 @@ import { describe, expect, test } from "vitest";
 import { unzipSync } from "../../vendor/fflate/browser.js";
 import { decodeText } from "../../src/bytes.js";
 import { normalizePost } from "../../src/content.js";
-import { generateSigningKeyPair } from "../../src/crypto.js";
+import { canonicalJson } from "../../src/canonical.js";
+import { encodeText } from "../../src/bytes.js";
+import { generateSigningKeyPair, publicKeyToText, signBytes, signatureToText } from "../../src/crypto.js";
 import { buildStaticExport } from "../../src/exporter.js";
 import { handleRequest } from "../src/app";
 import { processCrawlMessage } from "../src/crawler";
 import { processScheduledChecks } from "../src/scheduler";
-import type { CrawlMessage, RegistryQueue, RegistryStore } from "../src/types";
+import type { CrawlMessage, RegistryQueue, RegistryStore, ShellNameRecord } from "../src/types";
 
 class MemoryQueue implements RegistryQueue {
   messages: CrawlMessage[] = [];
@@ -24,6 +26,8 @@ class MemoryStore implements RegistryStore {
   rateCounts = new Map<string, number>();
   pending = new Map<string, string>();
   checked: string[] = [];
+  shellNames = new Map<string, ShellNameRecord>();
+  hiddenShellNames = new Set<string>();
 
   async incrementRateLimit(key: string): Promise<number> {
     const next = (this.rateCounts.get(key) || 0) + 1;
@@ -139,6 +143,7 @@ class MemoryStore implements RegistryStore {
 
   async search({ q, tag, scope = "content" }: { q: string; tag: string; scope?: string }): Promise<{ items: any[]; nextCursor: string | null }> {
     const items = [];
+    const now = "2026-06-05T00:00:00.000Z";
     for (const site of this.sites.values()) {
       if (site.hidden) continue;
       const siteText = `${site.siteTitle} ${site.description} ${site.handle} ${site.canonicalUrl} ${site.siteUrl}`.toLowerCase();
@@ -155,7 +160,53 @@ class MemoryStore implements RegistryStore {
         if (matchesQ && matchesTag) items.push({ type: "content", site, post });
       }
     }
+    if (scope === "all" || scope === "shell") {
+      for (const shellName of this.shellNames.values()) {
+        if (shellName.hidden || shellName.status !== "active" || shellName.expiresAt <= now) continue;
+        const matchesQ = !q || shellName.searchText.includes(q);
+        if (matchesQ && !tag) items.push({ type: "shellname", shellName, sortAt: shellName.updatedAt });
+      }
+    }
     return { items, nextCursor: null };
+  }
+
+  async getShellName(name: string): Promise<ShellNameRecord | null> {
+    return this.shellNames.get(name) || null;
+  }
+
+  async getShellNameByPublicKey(publicKey: string): Promise<ShellNameRecord | null> {
+    for (const shellName of this.shellNames.values()) {
+      if (shellName.publicKey === publicKey && shellName.status === "active" && !shellName.hidden) return shellName;
+    }
+    return null;
+  }
+
+  async upsertShellName(record: ShellNameRecord): Promise<void> {
+    this.shellNames.set(record.name, record);
+  }
+
+  async setShellNameHidden(name: string, hidden: boolean, now = "2026-06-05T00:00:00.000Z"): Promise<void> {
+    const record = this.shellNames.get(name);
+    if (record) Object.assign(record, { hidden: hidden ? 1 : 0, updatedAt: now });
+  }
+
+  async searchShellNames(q: string, limit: number, now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
+    return Array.from(this.shellNames.values())
+      .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now)
+      .filter((record) => !q || record.searchText.includes(q))
+      .slice(0, limit);
+  }
+
+  async recentShellNames(limit: number, now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
+    return Array.from(this.shellNames.values())
+      .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now)
+      .slice(-limit)
+      .reverse();
+  }
+
+  async exportShellNames(now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
+    return Array.from(this.shellNames.values())
+      .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now);
   }
 }
 
@@ -212,6 +263,45 @@ function mappedFetch(documents: { wellKnown: string; manifest: string }) {
       return new Response(documents.manifest, { headers: { "content-type": "application/json" } });
     }
     return new Response("missing", { status: 404 });
+  };
+}
+
+function signedShellNameRecord(options: {
+  name?: string;
+  siteUrl?: string;
+  publicKey?: string;
+  secretKey?: Uint8Array;
+  bundleFingerprint?: string;
+  createdAt?: string;
+} = {}) {
+  const keys = options.publicKey && options.secretKey
+    ? { publicKey: options.publicKey, secretKey: options.secretKey }
+    : (() => {
+        const pair = generateSigningKeyPair();
+        return { publicKey: publicKeyToText(pair.publicKey), secretKey: pair.secretKey };
+      })();
+  const name = options.name || "elmirok";
+  const payload = {
+    protocol: "postsnail-shellname",
+    version: 1,
+    name,
+    forest: "forest.postsnail.org",
+    fullName: `@${name}@forest.postsnail.org`,
+    siteUrl: options.siteUrl || "https://creator.example/",
+    publicKey: keys.publicKey,
+    bundleFingerprint: options.bundleFingerprint || "psn1-sha3-512-test",
+    createdAt: options.createdAt || "2026-06-05T00:00:00.000Z",
+    requiredFeatures: [],
+    optionalFeatures: ["forest-tracker"],
+    extensions: {},
+  };
+  return {
+    record: {
+      ...payload,
+      signature: signatureToText(signBytes(encodeText(canonicalJson(payload)), keys.secretKey)),
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
   };
 }
 
@@ -401,6 +491,212 @@ describe("registry API and crawl flow", () => {
     const all = await handleRequest(new Request("https://registry.example/api/search?q=search-feed&scope=all"), deps);
     const allResults = await all.json() as any;
     expect(allResults.items.map((item: any) => item.type)).toEqual(expect.arrayContaining(["shell", "content"]));
+  });
+
+  test("ShellNames registration, resolution, search, export, update, and renewal use signed records", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+    const signed = signedShellNameRecord();
+
+    const registered = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "Elmirok", record: signed.record }),
+      }),
+      deps,
+    );
+    expect(registered.status).toBe(201);
+    expect(await registered.json()).toMatchObject({
+      name: "elmirok",
+      fullName: "@elmirok@forest.postsnail.org",
+      status: "active",
+      siteUrl: "https://creator.example/",
+    });
+
+    const resolved = await handleRequest(new Request("https://forest.postsnail.org/shellnames/elmirok.json"), deps);
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toMatchObject({
+      shellName: {
+        name: "elmirok",
+        fullName: "@elmirok@forest.postsnail.org",
+        publicKey: signed.publicKey,
+        status: "active",
+      },
+    });
+
+    const profile = await handleRequest(new Request("https://forest.postsnail.org/@elmirok"), deps);
+    expect(profile.status).toBe(200);
+    expect(await profile.text()).toContain("@elmirok@forest.postsnail.org");
+
+    const slashAlias = await handleRequest(new Request("https://forest.postsnail.org/@/elmirok.json"), deps);
+    expect(slashAlias.status).toBe(200);
+    expect(await slashAlias.json()).toMatchObject({ shellName: { name: "elmirok" } });
+
+    const search = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=elmirok&scope=shell"), deps);
+    const searchJson = await search.json() as any;
+    expect(searchJson.items).toHaveLength(1);
+    expect(searchJson.items[0]).toMatchObject({ type: "shellname", shellName: { name: "elmirok" } });
+
+    const shellNameSearch = await handleRequest(new Request("https://forest.postsnail.org/shellnames/search?q=elmi"), deps);
+    expect((await shellNameSearch.json() as any).items[0]).toMatchObject({ name: "elmirok" });
+
+    const recent = await handleRequest(new Request("https://forest.postsnail.org/shellnames/recent.json"), deps);
+    expect((await recent.json() as any).items[0]).toMatchObject({ name: "elmirok" });
+
+    const exported = await handleRequest(new Request("https://forest.postsnail.org/shellnames/export.json"), deps);
+    expect((await exported.json() as any).shellNames[0]).toMatchObject({ name: "elmirok" });
+
+    const duplicate = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: signed.record }),
+      }),
+      deps,
+    );
+    expect(duplicate.status).toBe(409);
+
+    const updated = signedShellNameRecord({
+      name: "elmirok",
+      publicKey: signed.publicKey,
+      secretKey: signed.secretKey,
+      siteUrl: "https://creator.example/new/",
+      createdAt: "2026-06-05T01:00:00.000Z",
+    });
+    const update = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/update", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: updated.record }),
+      }),
+      deps,
+    );
+    expect(update.status).toBe(200);
+    expect(await update.json()).toMatchObject({ siteUrl: "https://creator.example/new/" });
+
+    const renewed = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/renew", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: updated.record }),
+      }),
+      deps,
+    );
+    expect(renewed.status).toBe(200);
+    expect((await renewed.json() as any).expiresAt).toMatch(/^2027-/);
+  });
+
+  test("ShellNames rejects invalid, reserved, tampered, wrong-owner, and rate-limited records", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+    const signed = signedShellNameRecord({ name: "elmirok" });
+
+    const invalid = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "bo", record: signed.record }),
+      }),
+      deps,
+    );
+    expect(invalid.status).toBe(400);
+
+    const reserved = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "admin", record: signedShellNameRecord({ name: "admin" }).record }),
+      }),
+      deps,
+    );
+    expect(reserved.status).toBe(400);
+
+    const tamperedRecord = { ...signed.record, siteUrl: "https://evil.example/" };
+    const tampered = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: tamperedRecord }),
+      }),
+      deps,
+    );
+    expect(tampered.status).toBe(401);
+
+    const registered = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: signed.record }),
+      }),
+      deps,
+    );
+    expect(registered.status).toBe(201);
+
+    const otherOwner = signedShellNameRecord({ name: "elmirok" });
+    const wrongOwner = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/update", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: otherOwner.record }),
+      }),
+      deps,
+    );
+    expect(wrongOwner.status).toBe(401);
+
+    for (let index = 0; index < 6; index += 1) {
+      const response = await handleRequest(
+        new Request("https://forest.postsnail.org/shellnames/register", {
+          method: "POST",
+          headers: { "cf-connecting-ip": "203.0.113.40" },
+          body: JSON.stringify({ name: `name${index}`, record: signedShellNameRecord({ name: `name${index}` }).record }),
+        }),
+        deps,
+      );
+      expect([201, 409]).toContain(response.status);
+    }
+    const limited = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.40" },
+        body: JSON.stringify({ name: "name99", record: signedShellNameRecord({ name: "name99" }).record }),
+      }),
+      deps,
+    );
+    expect(limited.status).toBe(429);
+  });
+
+  test("ShellNames admin moderation hides and unhides names from search", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, adminToken: "top-secret", now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+    const signed = signedShellNameRecord({ name: "elmirok" });
+    await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: signed.record }),
+      }),
+      deps,
+    );
+
+    const rejected = await handleRequest(new Request("https://forest.postsnail.org/api/admin/shellnames/elmirok/hide", { method: "POST" }), deps);
+    expect(rejected.status).toBe(401);
+
+    const hidden = await handleRequest(
+      new Request("https://forest.postsnail.org/api/admin/shellnames/elmirok/hide", {
+        method: "POST",
+        headers: { authorization: "Bearer top-secret" },
+      }),
+      deps,
+    );
+    expect(hidden.status).toBe(200);
+    expect((await handleRequest(new Request("https://forest.postsnail.org/api/search?q=elmirok&scope=shell"), deps).then((r) => r.json()) as any).items).toHaveLength(0);
+
+    const hiddenResolve = await handleRequest(new Request("https://forest.postsnail.org/shellnames/elmirok.json"), deps);
+    expect(await hiddenResolve.json()).toMatchObject({ shellName: { status: "hidden" } });
+
+    const unhidden = await handleRequest(
+      new Request("https://forest.postsnail.org/api/admin/shellnames/elmirok/unhide", {
+        method: "POST",
+        headers: { authorization: "Bearer top-secret" },
+      }),
+      deps,
+    );
+    expect(unhidden.status).toBe(200);
+    expect((await handleRequest(new Request("https://forest.postsnail.org/api/search?q=elmirok&scope=shell"), deps).then((r) => r.json()) as any).items).toHaveLength(1);
   });
 
   test("failed crawls store safe failure state and do not create search results", async () => {

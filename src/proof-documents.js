@@ -161,6 +161,7 @@ export function buildIdentityDocument({
   bundleFingerprint,
   generatedAt,
   secretKey,
+  shellNames = [],
 }) {
   const publicKeyText = typeof publicKey === "string" ? publicKey : publicKeyToText(publicKey);
   const discovery = buildDiscovery(profile, settings);
@@ -170,7 +171,7 @@ export function buildIdentityDocument({
     type: IDENTITY_TYPE,
     identityVersion: IDENTITY_VERSION,
     requiredFeatures: [...REQUIRED_CORE_FEATURES],
-    optionalFeatures: [...IDENTITY_OPTIONAL_FEATURES],
+    optionalFeatures: [...IDENTITY_OPTIONAL_FEATURES, ...(shellNames.length ? ["shellnames"] : [])],
     extensions: {},
     domain: domainFromSiteUrl(profile.siteUrl),
     canonicalUrl: canonicalSiteUrl(profile.siteUrl),
@@ -189,6 +190,7 @@ export function buildIdentityDocument({
     bundleFingerprint,
     generatedAt,
     preferredTrackers: discovery.preferredTrackers,
+    ...(shellNames.length ? { shellNames } : {}),
     indexingPolicy: discovery.indexingPolicy,
     // Legacy aliases keep Sprint 3 registries compatible while v1 discovery settles.
     manifest: MANIFEST_PATH,

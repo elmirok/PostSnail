@@ -52,6 +52,7 @@ export async function buildStaticExport({
   assets = [],
   settings = {},
   commitHistory = [],
+  shellNames = [],
   publicKey,
   secretKey,
   generatedAt = new Date().toISOString(),
@@ -59,6 +60,7 @@ export async function buildStaticExport({
   const cleanProfile = normalizeProfile(profile);
   const cleanSettings = normalizeDiscoverySettings(settings);
   const attribution = normalizeAttributionSettings(settings, cleanSettings);
+  const publicShellNames = normalizeShellNames(shellNames);
   const publishedPosts = posts
     .filter((post) => post.status === "published")
     .slice()
@@ -107,7 +109,7 @@ export async function buildStaticExport({
     version: POSTSNAIL_PROTOCOL_VERSION,
     manifestVersion: MANIFEST_VERSION,
     requiredFeatures: [...REQUIRED_CORE_FEATURES],
-    optionalFeatures: ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker"],
+    optionalFeatures: ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker", ...(publicShellNames.length ? ["shellnames"] : [])],
     extensions: {},
     generator: { name: "PostSnail", version: GENERATOR_VERSION },
     generatedAt,
@@ -119,6 +121,7 @@ export async function buildStaticExport({
       fingerprint: FINGERPRINT_SUITE,
     },
     publicKey: publicKeyText,
+    ...(publicShellNames.length ? { shellNames: publicShellNames } : {}),
     posts: postProofs,
     files: fileDigests,
     bundleFingerprint,
@@ -132,6 +135,7 @@ export async function buildStaticExport({
     bundleFingerprint,
     generatedAt,
     secretKey,
+    shellNames: publicShellNames,
   });
   const latestCommit = buildCommitRecord({
     commitHistory,
@@ -171,6 +175,24 @@ export async function buildStaticExport({
     commitHistory: nextCommitHistory,
     announcePayload,
   };
+}
+
+function normalizeShellNames(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const record = item.record && typeof item.record === "object" && !Array.isArray(item.record)
+        ? JSON.parse(JSON.stringify(item.record))
+        : {};
+      return {
+        forest: String(item.forest || record.forest || "").trim(),
+        name: String(item.name || record.name || "").trim().toLowerCase(),
+        fullName: String(item.fullName || record.fullName || "").trim(),
+        record,
+      };
+    })
+    .filter((item) => item && item.name && item.forest && item.fullName && Object.keys(item.record).length);
 }
 
 function normalizeProfile(profile = {}) {

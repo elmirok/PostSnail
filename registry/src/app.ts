@@ -2,8 +2,9 @@ import { encodeText } from "../../src/bytes.js";
 import { normalizeTags } from "../../src/content.js";
 import { sha3Hex } from "../../src/crypto.js";
 import { verifyAnnouncePayload } from "../../src/proof-documents.js";
+import { normalizeShellNameName, verifyShellNameRecord } from "../../src/shellnames.js";
 import { D1RegistryStore } from "./db";
-import { renderSearchPage } from "./html";
+import { renderSearchPage, renderShellNameProfile } from "./html";
 import { normalizedSearchText, randomId } from "./ids";
 import { fetchJson } from "./remote";
 import { addMinutes, createRefreshSubmission } from "./scheduler";
@@ -16,11 +17,13 @@ import type {
   RegistrySite,
   RegistryStore,
   SearchParams,
+  ShellNameRecord,
   SubmissionRecord,
 } from "./types";
 
 const MAX_SUBMIT_BYTES = 8192;
 const MAX_ANNOUNCE_BYTES = 24 * 1024;
+const MAX_SHELLNAME_BYTES = 24 * 1024;
 
 export interface AppDeps {
   store: RegistryStore;
@@ -57,6 +60,16 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
     if (request.method === "GET" && url.pathname.startsWith("/api/submissions/")) return await handleSubmission(url, deps);
     if (request.method === "GET" && url.pathname === "/api/search") return await handleSearch(url, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/sites/")) return await handleSite(url, deps);
+    if (request.method === "POST" && url.pathname === "/shellnames/register") return await handleShellNameRegister(request, url, deps);
+    if (request.method === "POST" && url.pathname === "/shellnames/update") return await handleShellNameUpdate(request, url, deps);
+    if (request.method === "POST" && url.pathname === "/shellnames/renew") return await handleShellNameRenew(request, url, deps);
+    if (request.method === "GET" && url.pathname === "/shellnames/search") return await handleShellNameSearch(url, deps);
+    if (request.method === "GET" && url.pathname === "/shellnames/recent.json") return await handleShellNameRecent(deps);
+    if (request.method === "GET" && url.pathname === "/shellnames/export.json") return await handleShellNameExport(deps);
+    if (request.method === "GET" && url.pathname.startsWith("/shellnames/") && url.pathname.endsWith(".json")) return await handleShellNameJson(url, deps);
+    if (request.method === "GET" && url.pathname.startsWith("/@/") && url.pathname.endsWith(".json")) return await handleShellNameSlashJson(url, deps);
+    if (request.method === "GET" && /^\/@[a-z0-9_-]+$/iu.test(url.pathname)) return await handleShellNameProfile(url, deps);
+    if (request.method === "POST" && url.pathname.startsWith("/api/admin/shellnames/")) return await handleShellNameAdmin(request, url, deps);
     if (request.method === "POST" && url.pathname.startsWith("/api/admin/sites/")) return await handleAdmin(request, url, deps);
     return json({ error: "Not found." }, 404);
   } catch (error) {
@@ -167,12 +180,7 @@ async function handleSearch(url: URL, deps: AppDeps): Promise<Response> {
   };
   const result = await deps.store.search(params);
   return json({
-    items: result.items.map((item) => ({
-      type: item.type || "content",
-      site: publicSite(item.site),
-      post: item.post ? publicPost(item.post) : undefined,
-      shell: item.shell ? publicShell(item.shell) : undefined,
-    })),
+    items: result.items.map((item) => publicSearchItem(item, deps.now?.() || new Date().toISOString())),
     nextCursor: result.nextCursor,
   }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
 }
@@ -221,6 +229,129 @@ async function handleAdmin(request: Request, url: URL, deps: AppDeps): Promise<R
   return json({ error: "Not found." }, 404);
 }
 
+async function handleShellNameRegister(request: Request, url: URL, deps: AppDeps): Promise<Response> {
+  const { record, name, now, requesterHash } = await readShellNameRequest(request, url, deps);
+  if (await deps.store.getShellName(name)) throw new PublicError(409, "That ShellName is already registered.");
+  const existingForKey = await deps.store.getShellNameByPublicKey(record.publicKey);
+  if (existingForKey && existingForKey.name !== name) throw new PublicError(409, "This public key already has an active ShellName.");
+  await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  const shellName = buildShellNameRecord(record, now);
+  await deps.store.upsertShellName(shellName);
+  return json(publicShellName(shellName, now), 201);
+}
+
+async function handleShellNameUpdate(request: Request, url: URL, deps: AppDeps): Promise<Response> {
+  const { record, name, now, requesterHash } = await readShellNameRequest(request, url, deps);
+  const existing = await deps.store.getShellName(name);
+  if (!existing) throw new PublicError(404, "ShellName not found.");
+  if (existing.publicKey !== record.publicKey) throw new PublicError(401, "Only the ShellName signing key can update this record.");
+  await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  const shellName = buildShellNameRecord(record, now, existing);
+  await deps.store.upsertShellName(shellName);
+  return json(publicShellName(shellName, now));
+}
+
+async function handleShellNameRenew(request: Request, url: URL, deps: AppDeps): Promise<Response> {
+  const { record, name, now, requesterHash } = await readShellNameRequest(request, url, deps);
+  const existing = await deps.store.getShellName(name);
+  if (!existing) throw new PublicError(404, "ShellName not found.");
+  if (existing.publicKey !== record.publicKey) throw new PublicError(401, "Only the ShellName signing key can renew this record.");
+  await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  const shellName = buildShellNameRecord(record, now, existing);
+  await deps.store.upsertShellName(shellName);
+  return json(publicShellName(shellName, now));
+}
+
+async function readShellNameRequest(request: Request, url: URL, deps: AppDeps): Promise<{ record: ReturnType<typeof verifyShellNameRecord>; name: string; now: string; requesterHash: string }> {
+  const body = await readJsonRequest(request, MAX_SHELLNAME_BYTES);
+  const requestedName = normalizeShellNameName(stringValue(body.name) || stringValue(objectRecord(body.record).name));
+  const verified = verifyShellNameRecord(body.record, { name: requestedName, forest: url.hostname });
+  if (!verified.ok) throw new PublicError(verified.errors.some((error) => /signature/i.test(error)) ? 401 : 400, verified.errors.join(" "));
+  const now = deps.now?.() || new Date().toISOString();
+  return {
+    record: verified,
+    name: verified.name,
+    now,
+    requesterHash: requesterHashFor(request, deps.rateLimitSecret || "postsnail-local-dev"),
+  };
+}
+
+function buildShellNameRecord(verified: ReturnType<typeof verifyShellNameRecord>, now: string, existing?: ShellNameRecord): ShellNameRecord {
+  const expiresAt = addYears(now, 1);
+  const status = existing?.hidden ? "hidden" : "active";
+  return {
+    name: verified.name,
+    fullName: verified.fullName,
+    forest: verified.forest,
+    siteUrl: verified.siteUrl,
+    publicKey: verified.publicKey,
+    bundleFingerprint: verified.bundleFingerprint,
+    record: verified.record,
+    signature: stringValue(verified.record.signature),
+    status,
+    hidden: existing?.hidden || 0,
+    expiresAt,
+    searchText: normalizedSearchText(`${verified.name} ${verified.fullName} ${verified.siteUrl} ${verified.publicKey} ${verified.bundleFingerprint}`),
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+}
+
+async function handleShellNameJson(url: URL, deps: AppDeps): Promise<Response> {
+  const name = normalizeShellNameName(url.pathname.split("/").pop()?.replace(/\.json$/u, "") || "");
+  const record = await deps.store.getShellName(name);
+  if (!record) return json({ error: "ShellName not found." }, 404, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+  return json({ shellName: publicShellName(record, deps.now?.() || new Date().toISOString()) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+}
+
+async function handleShellNameSlashJson(url: URL, deps: AppDeps): Promise<Response> {
+  const name = normalizeShellNameName(url.pathname.split("/").pop()?.replace(/\.json$/u, "") || "");
+  const record = await deps.store.getShellName(name);
+  if (!record) return json({ error: "ShellName not found." }, 404, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+  return json({ shellName: publicShellName(record, deps.now?.() || new Date().toISOString()) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+}
+
+async function handleShellNameProfile(url: URL, deps: AppDeps): Promise<Response> {
+  const name = normalizeShellNameName(url.pathname.slice(2));
+  const record = await deps.store.getShellName(name);
+  if (!record) return new Response(renderShellNameProfile(null), { status: 404, headers: htmlHeaders() });
+  return new Response(renderShellNameProfile(publicShellName(record, deps.now?.() || new Date().toISOString())), { headers: htmlHeaders() });
+}
+
+async function handleShellNameSearch(url: URL, deps: AppDeps): Promise<Response> {
+  const q = normalizedSearchText(url.searchParams.get("q") || "");
+  const limit = clampLimit(url.searchParams.get("limit"));
+  const items = await deps.store.searchShellNames(q, limit, deps.now?.() || new Date().toISOString());
+  return json({ items: items.map((item) => publicShellName(item, deps.now?.() || new Date().toISOString())) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+}
+
+async function handleShellNameRecent(deps: AppDeps): Promise<Response> {
+  const now = deps.now?.() || new Date().toISOString();
+  const items = await deps.store.recentShellNames(25, now);
+  return json({ items: items.map((item) => publicShellName(item, now)) }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
+async function handleShellNameExport(deps: AppDeps): Promise<Response> {
+  const now = deps.now?.() || new Date().toISOString();
+  const shellNames = await deps.store.exportShellNames(now);
+  return json({ protocol: "postsnail-shellnames-export", version: 1, exportedAt: now, shellNames: shellNames.map((item) => publicShellName(item, now)) }, 200, { "cache-control": "public, max-age=300, stale-while-revalidate=600" });
+}
+
+async function handleShellNameAdmin(request: Request, url: URL, deps: AppDeps): Promise<Response> {
+  if (!(await hasAdminAccess(request, deps.adminToken))) return json({ error: "Unauthorized." }, 401);
+  const parts = url.pathname.split("/");
+  const name = normalizeShellNameName(parts[4] || "");
+  const action = parts[5] || "";
+  const now = deps.now?.() || new Date().toISOString();
+  const record = await deps.store.getShellName(name);
+  if (!record) return json({ error: "ShellName not found." }, 404);
+  if (action === "hide" || action === "unhide") {
+    await deps.store.setShellNameHidden(name, action === "hide", now);
+    return json({ name, hidden: action === "hide" });
+  }
+  return json({ error: "Not found." }, 404);
+}
+
 async function enforceRateLimit(store: RegistryStore, requesterHash: string, now: string): Promise<void> {
   const hour = now.slice(0, 13);
   const day = now.slice(0, 10);
@@ -237,6 +368,19 @@ async function enforceAnnounceRateLimit(store: RegistryStore, requesterHash: str
   const siteHourCount = await store.incrementRateLimit(`announce:${siteHash}:hour:${hour}`, `${hour}:00:00Z`, now);
   const siteDayCount = await store.incrementRateLimit(`announce:${siteHash}:day:${day}`, `${day}T00:00:00Z`, now);
   if (siteHourCount > 6 || siteDayCount > 24) throw new PublicError(429, "Announce rate limit reached.");
+}
+
+async function enforceShellNameRateLimit(store: RegistryStore, requesterHash: string, publicKey: string, now: string): Promise<void> {
+  const hour = now.slice(0, 13);
+  const day = now.slice(0, 10);
+  const ipHourCount = await store.incrementRateLimit(`shellname:${requesterHash}:hour:${hour}`, `${hour}:00:00Z`, now);
+  const ipDayCount = await store.incrementRateLimit(`shellname:${requesterHash}:day:${day}`, `${day}T00:00:00Z`, now);
+  const keyHash = sha3Hex(encodeText(publicKey));
+  const keyHourCount = await store.incrementRateLimit(`shellname-key:${keyHash}:hour:${hour}`, `${hour}:00:00Z`, now);
+  const keyDayCount = await store.incrementRateLimit(`shellname-key:${keyHash}:day:${day}`, `${day}T00:00:00Z`, now);
+  if (ipHourCount > 6 || ipDayCount > 24 || keyHourCount > 4 || keyDayCount > 12) {
+    throw new PublicError(429, "ShellName rate limit reached.");
+  }
 }
 
 function requesterHashFor(request: Request, secret: string): string {
@@ -333,6 +477,39 @@ function publicPost(post: RegistryPost) {
   };
 }
 
+function publicSearchItem(item: Awaited<ReturnType<RegistryStore["search"]>>["items"][number], now: string) {
+  if (item.type === "shellname") {
+    return {
+      type: "shellname",
+      shellName: publicShellName(item.shellName, now),
+    };
+  }
+  return {
+    type: item.type || "content",
+    site: publicSite(item.site),
+    post: item.post ? publicPost(item.post) : undefined,
+    shell: item.shell ? publicShell(item.shell) : undefined,
+  };
+}
+
+function publicShellName(record: ShellNameRecord, now: string) {
+  const status = record.hidden ? "hidden" : record.expiresAt <= now ? "expired" : record.status;
+  return {
+    name: record.name,
+    fullName: record.fullName,
+    forest: record.forest,
+    siteUrl: record.siteUrl,
+    publicKey: record.publicKey,
+    bundleFingerprint: record.bundleFingerprint,
+    record: record.record,
+    signature: record.signature,
+    status,
+    expiresAt: record.expiresAt,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}
+
 function normalizeScope(value: string | null): SearchParams["scope"] {
   if (value === "all" || value === "shell" || value === "content") return value;
   return "content";
@@ -342,6 +519,13 @@ function clampLimit(value: string | null): number {
   const number = Number(value || 20);
   if (!Number.isFinite(number)) return 20;
   return Math.min(Math.max(Math.floor(number), 1), 50);
+}
+
+function addYears(value: string, years: number): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return new Date(Date.now() + years * 365 * 24 * 60 * 60 * 1000).toISOString();
+  date.setUTCFullYear(date.getUTCFullYear() + years);
+  return date.toISOString();
 }
 
 function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {

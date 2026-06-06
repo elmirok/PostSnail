@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Workspace Migrations - Alpha 1</title>
-    <meta name="description" content="Versioned workspace migrations for encrypted PostSnail .postsnail files.">
-    <link rel="canonical" href="https://postsnail.org/docs/migrations/">
+    <title>ShellNames Protocol - PostSnail Alpha 1</title>
+    <meta name="description" content="Signed ShellName record format and Forest endpoint reference.">
+    <link rel="canonical" href="https://postsnail.org/docs/shellnames-protocol/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,16 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Workspace Migrations</h1>
-            <p class="lede">PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.</p>
+            <h1>ShellNames Protocol</h1>
+            <p class="lede">ShellNames use signed public records with protocol postsnail-shellname version 1.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Migration sections"><a href="#v1">Version 1</a><a href="#chain">Future Chains</a><a href="#future">Future Version Failure</a><a href="#legacy">Legacy JSON</a></nav>
+            <nav class="doc-nav" aria-label="ShellNames protocol sections"><a href="#record">Signed Record</a><a href="#endpoints">Forest Endpoints</a><a href="#names">Name Rules</a><a href="#compatibility">Compatibility</a></nav>
             <div class="doc-content">
-              <section id="v1"><h2>Version 1</h2><p>Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history.</p></section>
-              <section id="chain"><h2>Future Chains</h2><p>Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step.</p></section>
-              <section id="future"><h2>Future Version Failure</h2><p>If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version.</p></section>
-              <section id="legacy"><h2>Legacy JSON</h2><p>Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema.</p></section>
+              <section id="record"><h2>Signed Record</h2><p>The canonical record declares protocol, version, name, forest, fullName, siteUrl, publicKey, optional bundleFingerprint, timestamps, feature declarations, extensions, and an ML-DSA-65 signature.</p></section>
+              <section id="endpoints"><h2>Forest Endpoints</h2><p>Forest supports register, update, renew, JSON resolve, profile resolve, search, recent, and export endpoints under /shellnames and /@ paths.</p></section>
+              <section id="names"><h2>Name Rules</h2><p>Names normalize to lowercase and use 3-32 characters from a-z, 0-9, underscore, and hyphen. Reserved system names are rejected.</p></section>
+              <section id="compatibility"><h2>Compatibility</h2><p>ShellNames are optional extension metadata in public proofs. Unknown optional fields are ignored safely. Unknown required features fail clearly.</p></section>
             </div>
           </article>
     </main>

@@ -65,6 +65,23 @@ export interface RegistryPost {
   updatedAt: string;
 }
 
+export interface ShellNameRecord {
+  name: string;
+  fullName: string;
+  forest: string;
+  siteUrl: string;
+  publicKey: string;
+  bundleFingerprint: string;
+  record: Record<string, unknown>;
+  signature: string;
+  status: "active" | "expired" | "hidden";
+  hidden: number;
+  expiresAt: string;
+  searchText: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SearchParams {
   q: string;
   tag: string;
@@ -75,7 +92,8 @@ export interface SearchParams {
 
 export type SearchResultItem =
   | { type: "content"; site: RegistrySite; post: RegistryPost; shell?: undefined; sortAt?: string }
-  | { type: "shell"; site: RegistrySite; shell: RegistrySite; post?: undefined; sortAt?: string };
+  | { type: "shell"; site: RegistrySite; shell: RegistrySite; post?: undefined; sortAt?: string }
+  | { type: "shellname"; shellName: ShellNameRecord; site?: undefined; shell?: undefined; post?: undefined; sortAt?: string };
 
 export interface SearchResult {
   items: SearchResultItem[];
@@ -100,6 +118,13 @@ export interface RegistryStore {
   recordRefreshCheck(siteId: string, outcome: { changed: boolean; failed: boolean; fingerprint?: string }, now: string, nextCheckAt: string, intervalMinutes: number): Promise<void>;
   setSiteHidden(id: string, hidden: boolean, now?: string): Promise<void>;
   search(params: SearchParams): Promise<SearchResult>;
+  getShellName(name: string): Promise<ShellNameRecord | null>;
+  getShellNameByPublicKey(publicKey: string): Promise<ShellNameRecord | null>;
+  upsertShellName(record: ShellNameRecord): Promise<void>;
+  setShellNameHidden(name: string, hidden: boolean, now?: string): Promise<void>;
+  searchShellNames(q: string, limit: number, now?: string): Promise<ShellNameRecord[]>;
+  recentShellNames(limit: number, now?: string): Promise<ShellNameRecord[]>;
+  exportShellNames(now?: string): Promise<ShellNameRecord[]>;
 }
 
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

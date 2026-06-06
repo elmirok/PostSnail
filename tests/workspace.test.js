@@ -68,6 +68,20 @@ function sampleState() {
       blockedPublicKeys: ["base64:blocked"],
     },
     trackerUrls: ["https://tracker.example/announce"],
+    shellNames: [
+      {
+        forest: "forest.postsnail.org",
+        name: "vault",
+        fullName: "@vault@forest.postsnail.org",
+        record: {
+          protocol: "postsnail-shellname",
+          version: 1,
+          name: "vault",
+          publicKey: "base64:cHVibGlj",
+          extensions: { unknown: "preserved" },
+        },
+      },
+    ],
     exportHistory: [{ filename: "postsnail-vault-test.zip", exportedAt: now }],
   };
 }
@@ -89,6 +103,7 @@ test("encrypted .postsnail workspace round trips editable state without plaintex
   assert.deepEqual(imported.state.plugins, sampleState().plugins);
   assert.deepEqual(imported.state.commitHistory, sampleState().commitHistory);
   assert.deepEqual(imported.state.moderation, sampleState().moderation);
+  assert.deepEqual(imported.state.shellNames, sampleState().shellNames);
 });
 
 test("workspace import fails safely for wrong passphrase and tampered ciphertext", async () => {
@@ -157,6 +172,7 @@ test("workspace migration v1 defaults missing containers and rejects future vers
   assert.deepEqual(migrated.plugins, { installed: [], lock: {}, state: {} });
   assert.deepEqual(migrated.moderation, { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] });
   assert.deepEqual(migrated.trackerUrls, []);
+  assert.deepEqual(migrated.shellNames, []);
   assert.deepEqual(migrated.exportHistory, []);
 
   assert.throws(

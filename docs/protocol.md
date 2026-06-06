@@ -65,6 +65,12 @@ The workspace schema has its own version and migration path. A public ZIP must n
 
 `postsnail-announce` payloads are public signed refresh signals. They help Forest notice that a live site changed. They are not accounts, ownership claims, or private-key transport.
 
+## ShellNames
+
+`postsnail-shellname` records are optional signed public aliases such as `@creator@forest.postsnail.org`. They point to a public PostSnail signing key and microblog URL. They are not accounts, DNS, legal identity, or ownership claims.
+
+ShellName metadata may appear in `postsnail.manifest.json` and `.well-known/postsnail.json` under the optional `shellnames` feature. Older tools ignore it safely.
+
 ## Recovery Boundary
 
 Importing `.postsnail` restores the real project. Importing a public ZIP or site can only recover public content and public proof files.

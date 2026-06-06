@@ -59,6 +59,10 @@ npx wrangler deploy
 - `GET /api/search?q=&tag=&limit=&cursor=` returns visible signed summary results.
 - `GET /api/sites/:siteId` returns site proof metadata and visible posts.
 - `POST /api/admin/sites/:siteId/hide`, `/unhide`, and `/recrawl` require `Authorization: Bearer <ADMIN_TOKEN>`.
+- `POST /shellnames/register`, `/update`, and `/renew` accept signed public ShellName records.
+- `GET /shellnames/:name.json`, `/@/:name.json`, and `/@:name` resolve readable aliases like `@creator@forest.postsnail.org`.
+- `GET /shellnames/search?q=`, `/recent.json`, and `/export.json` expose public ShellName discovery data.
+- `POST /api/admin/shellnames/:name/hide` and `/unhide` require `Authorization: Bearer <ADMIN_TOKEN>`.
 
 ## Refresh Model
 
@@ -71,6 +75,8 @@ Cron triggers run every 15 minutes as a backup, but each run processes only a ca
 ## Trust Model
 
 Forest stores site metadata and post titles, tags, excerpts, published dates, digests, URLs, public keys, and bundle fingerprints. It does not store full post bodies and does not prove legal identity or factual accuracy.
+
+ShellNames are readable aliases for public signing keys. They do not prove DNS ownership, legal identity, account ownership, truth, or endorsement.
 
 ## Cost And Abuse Surface
 

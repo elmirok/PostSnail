@@ -18,6 +18,7 @@ import {
 import { verifyPostSnailZip } from "./src/verifier.js";
 import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell.js";
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
+import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import {
   announceForestAfterLiveVerification,
   buildCloudflarePagesCommand,
@@ -56,6 +57,8 @@ const defaultSettings = {
   snailLiftGithubBranch: "gh-pages",
   snailLiftGithubTargetDir: ".",
   snailLiftGithubSiteUrl: "",
+  shellNameForestUrl: "https://forest.postsnail.org",
+  shellNameDesiredName: "",
 };
 
 const state = {
@@ -80,6 +83,7 @@ const state = {
   plugins: { installed: [], lock: {}, state: {} },
   moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
   trackerUrls: [],
+  shellNames: [],
   exportHistory: [],
   form: emptyPostForm(),
   secretKey: null,
@@ -248,6 +252,23 @@ async function handleAction(button) {
   if (action === "copy-public-key") {
     await navigator.clipboard.writeText(state.identity?.publicKey || "");
     setStatus("Public key copied.");
+    return;
+  }
+  if (action === "register-shellname") {
+    await submitShellName("register");
+    return;
+  }
+  if (action === "update-shellname") {
+    await submitShellName("update");
+    return;
+  }
+  if (action === "renew-shellname") {
+    await submitShellName("renew");
+    return;
+  }
+  if (action === "copy-shellname") {
+    await copyText(state.shellNames[0]?.fullName || "");
+    setStatus("ShellName copied.");
     return;
   }
   if (action === "generate-site") {
@@ -526,6 +547,69 @@ async function unlockKey() {
   }
 }
 
+async function submitShellName(action) {
+  if (!state.identity?.publicKey || !state.secretKey) {
+    setStatus("Unlock the publisher key before claiming or updating a ShellName.");
+    return;
+  }
+  const forestUrl = normalizeForestUrl(state.settings.shellNameForestUrl || "https://forest.postsnail.org");
+  const desiredName = String(state.settings.shellNameDesiredName || state.profile.handle || "").trim().toLowerCase();
+  if (!forestUrl || !desiredName) {
+    setStatus("Enter a Forest URL and ShellName first.");
+    return;
+  }
+  let record;
+  try {
+    const payload = buildShellNamePayload({
+      name: desiredName,
+      forest: forestUrl,
+      siteUrl: state.profile.siteUrl,
+      publicKey: state.identity.publicKey,
+      bundleFingerprint: state.lastManifest?.bundleFingerprint || "",
+      [action === "update" ? "updatedAt" : "createdAt"]: new Date().toISOString(),
+    });
+    record = signShellNameRecord(payload, state.secretKey);
+  } catch (error) {
+    setStatus(error.message || "ShellName record could not be created.");
+    return;
+  }
+  setStatus(`${action === "register" ? "Registering" : action === "renew" ? "Renewing" : "Updating"} ShellName...`);
+  await nextFrame();
+  try {
+    const endpoint = new URL(`/shellnames/${action === "register" ? "register" : action === "renew" ? "renew" : "update"}`, forestUrl);
+    const response = await fetch(endpoint.toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: desiredName, record }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setStatus(result.error || "Forest could not save this ShellName.");
+      render();
+      return;
+    }
+    const shellName = {
+      forest: result.forest || new URL(forestUrl).hostname,
+      name: result.name || desiredName,
+      fullName: result.fullName || `@${desiredName}@${new URL(forestUrl).hostname}`,
+      record: result.record || record,
+      siteUrl: result.siteUrl || record.siteUrl,
+      publicKey: result.publicKey || state.identity.publicKey,
+      bundleFingerprint: result.bundleFingerprint || record.bundleFingerprint || "",
+      status: result.status || "active",
+      expiresAt: result.expiresAt || "",
+      updatedAt: result.updatedAt || new Date().toISOString(),
+    };
+    state.shellNames = [shellName, ...state.shellNames.filter((item) => item.name !== shellName.name || item.forest !== shellName.forest)];
+    await persistLocalShellNow();
+    setStatus(`${shellName.fullName} is saved in this Shell. It is an alias, not an account.`);
+    render();
+  } catch {
+    setStatus("Forest could not be reached for ShellNames.");
+    render();
+  }
+}
+
 async function generateSiteZip() {
   if (!state.identity?.publicKey || !state.secretKey) {
     setStatus("Unlock the publisher key before generating a signed site.");
@@ -546,6 +630,7 @@ async function generateSiteZip() {
     assets: state.assets,
     settings: state.settings,
     commitHistory: state.commitHistory,
+    shellNames: state.shellNames,
     publicKey: textToBytes(state.identity.publicKey),
     secretKey: state.secretKey,
   });
@@ -1133,8 +1218,9 @@ function renderLibrary() {
 function renderIdentity() {
   const hasIdentity = Boolean(state.identity?.publicKey);
   const unlocked = Boolean(state.secretKey);
+  const shellName = state.shellNames[0] || null;
   return `
-    <div class="grid-2">
+    <div class="grid-2 identity-grid">
       <section class="panel-box">
         <form id="identity-form" class="fields" autocomplete="off">
           <h2 class="panel-title">Publisher identity</h2>
@@ -1166,6 +1252,35 @@ function renderIdentity() {
         ` : `<div class="empty-state"><span>No public key</span><p>Create a signature key to sign posts and manifests.</p></div>`}
       </section>
     </div>
+    <section class="panel-box shellname-panel">
+      <div>
+        <h2 class="panel-title">ShellNames</h2>
+        <p class="help">Claim a readable Forest alias like <code>@name@forest.postsnail.org</code>. It points to this public signing key and microblog URL; it is not an account, DNS, or legal identity.</p>
+      </div>
+      <div class="grid-2">
+        <label class="field">
+          <span>Forest URL</span>
+          <input data-settings-field="shellNameForestUrl" value="${escapeAttr(state.settings.shellNameForestUrl || "https://forest.postsnail.org")}" placeholder="https://forest.postsnail.org">
+        </label>
+        <label class="field">
+          <span>ShellName</span>
+          <input data-settings-field="shellNameDesiredName" value="${escapeAttr(state.settings.shellNameDesiredName || state.profile.handle || "")}" placeholder="creator">
+        </label>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="button" data-action="register-shellname" ${unlocked && hasIdentity ? "" : "disabled"}>Claim ShellName</button>
+        <button class="btn" type="button" data-action="update-shellname" ${unlocked && hasIdentity && shellName ? "" : "disabled"}>Update ShellName</button>
+        <button class="btn" type="button" data-action="renew-shellname" ${unlocked && hasIdentity && shellName ? "" : "disabled"}>Renew ShellName</button>
+        <button class="btn" type="button" data-action="copy-shellname" ${shellName ? "" : "disabled"}>Copy ShellName</button>
+      </div>
+      ${shellName ? `
+        <div class="shellname-record">
+          <strong>${escapeHtml(shellName.fullName)}</strong>
+          <span>${escapeHtml(shellName.status || "active")} · expires ${escapeHtml(shellName.expiresAt || "unknown")}</span>
+          <code>${escapeHtml(shellName.siteUrl || "")}</code>
+        </div>
+      ` : `<div class="empty-state"><span>No ShellName saved</span><p>Unlock the publisher key to sign a ShellName claim locally and send only the public signed record to Forest.</p></div>`}
+    </section>
   `;
 }
 
@@ -1599,6 +1714,7 @@ function applyLoadedState(loaded) {
   state.plugins = loaded.plugins || { installed: [], lock: {}, state: {} };
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = loaded.trackerUrls || [];
+  state.shellNames = loaded.shellNames || [];
   state.exportHistory = loaded.exportHistory || [];
   state.posts = loaded.posts || [];
   state.assets = loaded.assets || [];
@@ -1613,6 +1729,7 @@ function resetEditableState() {
   state.plugins = { installed: [], lock: {}, state: {} };
   state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = [];
+  state.shellNames = [];
   state.exportHistory = [];
   state.posts = [];
   state.assets = [];
@@ -1644,6 +1761,7 @@ function hasLegacyLocalData(loaded) {
       (loaded?.moderation?.rejectedComments || []).length ||
       (loaded?.moderation?.blockedPublicKeys || []).length ||
       (loaded?.trackerUrls || []).length ||
+      (loaded?.shellNames || []).length ||
       (loaded?.exportHistory || []).length,
   );
 }
@@ -1685,6 +1803,21 @@ function snailLiftLiveSiteUrl() {
   );
 }
 
+function normalizeForestUrl(value) {
+  const source = String(value || "").trim();
+  if (!source) return "";
+  try {
+    const url = source.includes("://") ? new URL(source) : new URL(`https://${source}`);
+    if (url.protocol !== "https:") return "";
+    url.hash = "";
+    url.search = "";
+    url.pathname = "/";
+    return url.toString().replace(/\/$/u, "");
+  } catch {
+    return "";
+  }
+}
+
 async function rememberSnailLiftLog(log) {
   if (!log) return;
   const key = `${log.provider}|${log.bundleFingerprint}|${log.status}|${log.message}`;
@@ -1706,6 +1839,7 @@ function snapshotState() {
     plugins: state.plugins,
     moderation: state.moderation,
     trackerUrls: state.trackerUrls,
+    shellNames: state.shellNames,
     exportHistory: state.exportHistory,
   };
 }

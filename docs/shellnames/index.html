@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Workspace Migrations - Alpha 1</title>
-    <meta name="description" content="Versioned workspace migrations for encrypted PostSnail .postsnail files.">
-    <link rel="canonical" href="https://postsnail.org/docs/migrations/">
+    <title>ShellNames - PostSnail Alpha 1</title>
+    <meta name="description" content="ShellNames are Forest-scoped readable aliases for signed PostSnail Shell identities.">
+    <link rel="canonical" href="https://postsnail.org/docs/shellnames/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,16 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Workspace Migrations</h1>
-            <p class="lede">PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.</p>
+            <h1>ShellNames</h1>
+            <p class="lede">Readable Forest aliases for signed Shell identities. They are not accounts, DNS, legal identity, or ownership claims.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Migration sections"><a href="#v1">Version 1</a><a href="#chain">Future Chains</a><a href="#future">Future Version Failure</a><a href="#legacy">Legacy JSON</a></nav>
+            <nav class="doc-nav" aria-label="ShellNames sections"><a href="#meaning">What A ShellName Means</a><a href="#claim">Claim In Identity</a><a href="#renew">Update And Renew</a><a href="#export">Public Proof Metadata</a></nav>
             <div class="doc-content">
-              <section id="v1"><h2>Version 1</h2><p>Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history.</p></section>
-              <section id="chain"><h2>Future Chains</h2><p>Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step.</p></section>
-              <section id="future"><h2>Future Version Failure</h2><p>If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version.</p></section>
-              <section id="legacy"><h2>Legacy JSON</h2><p>Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema.</p></section>
+              <section id="meaning"><h2>What A ShellName Means</h2><p>A ShellName like @creator@forest.postsnail.org points to a public PostSnail signing key and public microblog URL. The public key remains the real identity; the alias is only a readable discovery name.</p></section>
+              <section id="claim"><h2>Claim In Identity</h2><p>Unlock the publisher key, enter a Forest URL and desired lowercase name, then claim the ShellName. PostSnail signs the public record locally and sends only that public record to Forest.</p></section>
+              <section id="renew"><h2>Update And Renew</h2><p>The same signing key can update or renew the ShellName. Alpha 1 uses one active ShellName per public key and one-year expiry.</p></section>
+              <section id="export"><h2>Public Proof Metadata</h2><p>Accepted ShellName records are stored in the encrypted Shell and may appear as optional public metadata in the manifest and well-known identity document.</p></section>
             </div>
           </article>
     </main>

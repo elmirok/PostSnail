@@ -361,6 +361,7 @@ export function renderSearchPage(): string {
       }
     }
     function renderResult(item) {
+      if (item.type === 'shellname') return renderShellNameResult(item);
       return item.type === 'shell' ? renderShellResult(item) : renderContentResult(item);
     }
     function renderContentResult(item) {
@@ -410,6 +411,25 @@ export function renderSearchPage(): string {
         logoUrl: site.logoUrl
       }));
       return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2><p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
+    }
+    function renderShellNameResult(item) {
+      const shellName = item.shellName || {};
+      const title = shellName.fullName || ('@' + (shellName.name || 'name'));
+      const media = renderMedia('', title);
+      const details = renderDetails('ShellName details', mergeDetails(shellName.record, {
+        resultType: 'shellname',
+        name: shellName.name,
+        fullName: shellName.fullName,
+        forest: shellName.forest,
+        siteUrl: shellName.siteUrl,
+        publicKey: shellName.publicKey,
+        bundleFingerprint: shellName.bundleFingerprint,
+        status: shellName.status,
+        expiresAt: shellName.expiresAt,
+        createdAt: shellName.createdAt,
+        updatedAt: shellName.updatedAt
+      }));
+      return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>ShellName</span><span>' + escapeHtml(shellName.status || 'active') + '</span><span>' + escapeHtml(shellName.updatedAt || '') + '</span></div><h2><a href="/@' + escapeAttr(shellName.name || '') + '">' + escapeHtml(title) + '</a></h2><p>A Forest-scoped readable alias for a signed PostSnail Shell. It is not an account, DNS, or legal identity.</p><div class="actions"><a class="btn" href="' + escapeAttr(shellName.siteUrl || '#') + '" target="_blank" rel="noopener noreferrer">Visit microblog</a><a class="btn" href="/shellnames/' + escapeAttr(shellName.name || '') + '.json">JSON</a></div>' + details + '</div></article>';
     }
     function renderMedia(src, label) {
       if (src) return '<div class="result-media"><img src="' + escapeAttr(src) + '" alt="' + escapeAttr(label || 'PostSnail result') + '" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>';
@@ -466,4 +486,66 @@ export function renderSearchPage(): string {
   </script>
 </body>
 </html>`;
+}
+
+export function renderShellNameProfile(shellName: any): string {
+  const title = shellName?.fullName || "ShellName not found";
+  const status = shellName?.status || "missing";
+  const siteUrl = shellName?.siteUrl || "";
+  const publicKey = shellName?.publicKey || "";
+  const fingerprint = shellName?.bundleFingerprint || "";
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeDocument(title)} - PostSnail Forest</title>
+  <meta name="description" content="PostSnail Forest ShellName profile.">
+  <style>
+    :root { --ink:#080a2f; --muted:#4d4b63; --line:#16163c; --accent:#2f7a55; --paper:#fffdf7; --green-soft:#e4f4e9; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:var(--paper); }
+    main { width:min(840px, calc(100vw - 28px)); margin:0 auto; padding:28px 0 44px; display:grid; gap:18px; }
+    a { color:inherit; }
+    .card { border:2px solid var(--line); box-shadow:6px 6px 0 rgba(47,122,85,.18); padding:18px; display:grid; gap:12px; background:white; }
+    .kicker { color:var(--accent); font-weight:900; text-transform:uppercase; margin:0; }
+    h1 { margin:0; font-size:clamp(2rem, 8vw, 4rem); line-height:1; overflow-wrap:anywhere; }
+    p { margin:0; color:var(--muted); line-height:1.5; }
+    dl { display:grid; grid-template-columns:150px minmax(0, 1fr); gap:8px 12px; }
+    dt { font-weight:900; }
+    dd { margin:0; overflow-wrap:anywhere; }
+    .btn { border:2px solid var(--line); min-height:40px; padding:0 14px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-weight:900; background:var(--green-soft); }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    footer { border-top:2px solid var(--line); padding-top:14px; color:var(--muted); }
+    @media (max-width: 640px) { dl { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <a href="/">PostSnail Forest</a>
+    <section class="card">
+      <p class="kicker">ShellName / Forest alias</p>
+      <h1>${escapeDocument(title)}</h1>
+      <p>${shellName ? "A readable Forest-scoped alias for a signed PostSnail Shell. It is not an account, DNS, or legal identity." : "No ShellName record was found for this name."}</p>
+      ${shellName ? `<div class="actions"><a class="btn" href="${escapeDocument(siteUrl)}" target="_blank" rel="noopener noreferrer">Visit microblog</a><a class="btn" href="/shellnames/${escapeDocument(shellName.name)}.json">View JSON</a></div>` : ""}
+    </section>
+    <section class="card">
+      <h2>Public details</h2>
+      <dl>
+        <dt>Status</dt><dd>${escapeDocument(status)}</dd>
+        <dt>Site URL</dt><dd>${escapeDocument(siteUrl)}</dd>
+        <dt>Public key</dt><dd>${escapeDocument(publicKey)}</dd>
+        <dt>Fingerprint</dt><dd>${escapeDocument(fingerprint)}</dd>
+        <dt>Expires</dt><dd>${escapeDocument(shellName?.expiresAt || "")}</dd>
+        <dt>Updated</dt><dd>${escapeDocument(shellName?.updatedAt || "")}</dd>
+      </dl>
+    </section>
+    <footer>© 2026 Boaz Alhadeff. PostSnail is Apache-2.0 licensed; redistributed copies must preserve NOTICE attribution.</footer>
+  </main>
+</body>
+</html>`;
+}
+
+function escapeDocument(value: unknown): string {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char] || char));
 }

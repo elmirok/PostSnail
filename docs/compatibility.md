@@ -35,6 +35,7 @@ Examples include:
 - `workspace-vault`
 - `tracker-announce`
 - `forest-tracker`
+- `shellnames`
 - `comments`
 - `deployment-assistant`
 - `plugins`

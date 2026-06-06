@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Workspace Migrations - Alpha 1</title>
-    <meta name="description" content="Versioned workspace migrations for encrypted PostSnail .postsnail files.">
-    <link rel="canonical" href="https://postsnail.org/docs/migrations/">
+    <title>ShellNames Security - PostSnail Alpha 1</title>
+    <meta name="description" content="Security boundaries and abuse controls for ShellNames.">
+    <link rel="canonical" href="https://postsnail.org/docs/shellnames-security/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -29,16 +29,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Workspace Migrations</h1>
-            <p class="lede">PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.</p>
+            <h1>ShellNames Security</h1>
+            <p class="lede">ShellNames improve readability, not authority.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Migration sections"><a href="#v1">Version 1</a><a href="#chain">Future Chains</a><a href="#future">Future Version Failure</a><a href="#legacy">Legacy JSON</a></nav>
+            <nav class="doc-nav" aria-label="ShellNames security sections"><a href="#prove">What They Prove</a><a href="#not-prove">What They Do Not Prove</a><a href="#private-key">Private Key Safety</a><a href="#abuse">Abuse Controls</a></nav>
             <div class="doc-content">
-              <section id="v1"><h2>Version 1</h2><p>Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history.</p></section>
-              <section id="chain"><h2>Future Chains</h2><p>Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step.</p></section>
-              <section id="future"><h2>Future Version Failure</h2><p>If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version.</p></section>
-              <section id="legacy"><h2>Legacy JSON</h2><p>Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema.</p></section>
+              <section id="prove"><h2>What They Prove</h2><p>A valid ShellName proves the named public key signed the alias record. Forest checks name availability, reserved names, status, expiry, and moderation state before search display.</p></section>
+              <section id="not-prove"><h2>What They Do Not Prove</h2><p>ShellNames do not prove legal identity, DNS ownership, factual truth, platform endorsement, account ownership, or control of external services.</p></section>
+              <section id="private-key"><h2>Private Key Safety</h2><p>The admin signs locally and sends only public metadata plus a signature. It never sends raw private keys, encrypted Shell vaults, drafts, private plugin state, rejected comments, or passphrases.</p></section>
+              <section id="abuse"><h2>Abuse Controls</h2><p>Alpha 1 uses reserved names, duplicate checks, one active name per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation.</p></section>
             </div>
           </article>
     </main>

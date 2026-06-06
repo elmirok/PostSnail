@@ -19,6 +19,7 @@ export const KNOWN_OPTIONAL_FEATURES = [
   "workspace-vault",
   "tracker-announce",
   "forest-tracker",
+  "shellnames",
   "comments",
   "deployment-assistant",
   "plugins",

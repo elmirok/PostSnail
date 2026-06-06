@@ -21,6 +21,7 @@ export function createWorkspaceData(source = {}, options = {}) {
     plugins: normalizePlugins(source.plugins),
     moderation: normalizeModeration(source.moderation),
     trackerUrls: normalizeTrackerUrls(source.trackerUrls, settings),
+    shellNames: cleanArray(source.shellNames),
     exportHistory: normalizeExportHistory(source.exportHistory),
     extensions: cleanObject(source.extensions),
   };

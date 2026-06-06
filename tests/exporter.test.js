@@ -179,6 +179,52 @@ test("buildStaticExport renders tracker credit page and honors attribution opt-o
   assert.equal(Boolean(trackerOffFiles["trackers/index.html"]), false);
 });
 
+test("buildStaticExport includes configured ShellName metadata as an optional public extension", async () => {
+  const keys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Named Shell",
+    body: "A public post for a named shell.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+
+  const shellNames = [
+    {
+      forest: "forest.postsnail.org",
+      name: "named",
+      fullName: "@named@forest.postsnail.org",
+      record: {
+        protocol: "postsnail-shellname",
+        version: 1,
+        name: "named",
+        fullName: "@named@forest.postsnail.org",
+        siteUrl: "https://named.example/",
+        publicKey: "base64:placeholder",
+        signature: "base64:signature",
+        extensions: { unknownOptional: true },
+      },
+    },
+  ];
+
+  const result = await buildStaticExport({
+    profile: { siteTitle: "Named Site", handle: "named", siteUrl: "https://named.example" },
+    posts: [post],
+    shellNames,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const files = unzipSync(result.zipBytes);
+  const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
+  const wellKnown = JSON.parse(decodeText(files[".well-known/postsnail.json"]));
+
+  assert.deepEqual(manifest.shellNames, shellNames);
+  assert.deepEqual(wellKnown.shellNames, shellNames);
+  assert.ok(manifest.optionalFeatures.includes("shellnames"));
+  assert.ok(wellKnown.optionalFeatures.includes("shellnames"));
+});
+
 test("buildStaticExport keeps workspace-only data out of the public ZIP", async () => {
   const keys = generateSigningKeyPair();
   const published = normalizePost({

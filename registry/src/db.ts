@@ -1,4 +1,4 @@
-import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SearchResultItem, SubmissionRecord } from "./types";
+import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SearchResultItem, ShellNameRecord, SubmissionRecord } from "./types";
 import { tagsText } from "./ids";
 
 interface Row {
@@ -268,9 +268,11 @@ export class D1RegistryStore implements RegistryStore {
   async search(params: SearchParams): Promise<SearchResult> {
     const limit = Math.min(Math.max(params.limit || 20, 1), 50);
     const scope = params.scope || "content";
+    const now = new Date().toISOString();
     const rows = [
       ...(scope === "shell" ? [] : await this.searchContentRows(params, limit + 1)),
       ...(scope === "content" ? [] : await this.searchShellRows(params, limit + 1)),
+      ...(scope === "content" ? [] : await this.searchShellNameRows(params, limit + 1, now)),
     ].sort(compareSearchRows);
     const pageRows = rows.slice(0, limit);
     const items = pageRows.map(searchRowToItem);
@@ -347,6 +349,128 @@ export class D1RegistryStore implements RegistryStore {
        LIMIT ?`,
     ).bind(...values).all<Row>();
     return result.results || [];
+  }
+
+  private async searchShellNameRows(params: SearchParams, limit: number, now: string): Promise<Row[]> {
+    if (params.tag) return [];
+    const conditions = ["sn.hidden = 0", "sn.status = 'active'", "sn.expires_at > ?"];
+    const values: unknown[] = [now];
+    if (params.q) {
+      conditions.push("sn.search_text LIKE ? ESCAPE '\\'");
+      values.push(`%${escapeLike(params.q)}%`);
+    }
+    const cursor = parseCursor(params.cursor);
+    if (cursor) {
+      conditions.push("(sn.updated_at < ? OR (sn.updated_at = ? AND sn.name < ?))");
+      values.push(cursor.sortAt, cursor.sortAt, cursor.id);
+    }
+    values.push(limit);
+    const result = await this.db.prepare(
+      `SELECT
+        'shellname' AS result_type, sn.updated_at AS sort_at,
+        sn.name, sn.full_name, sn.forest, sn.site_url, sn.public_key, sn.bundle_fingerprint,
+        sn.record_json, sn.signature, sn.status, sn.hidden, sn.expires_at, sn.search_text,
+        sn.created_at, sn.updated_at
+       FROM shell_names sn
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY sn.updated_at DESC, sn.name DESC
+       LIMIT ?`,
+    ).bind(...values).all<Row>();
+    return result.results || [];
+  }
+
+  async getShellName(name: string): Promise<ShellNameRecord | null> {
+    const row = await this.db.prepare("SELECT * FROM shell_names WHERE name = ?").bind(name).first<Row>();
+    return row ? rowToShellName(row) : null;
+  }
+
+  async getShellNameByPublicKey(publicKey: string): Promise<ShellNameRecord | null> {
+    const row = await this.db.prepare(
+      `SELECT * FROM shell_names
+       WHERE public_key = ? AND status = 'active' AND hidden = 0
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+    ).bind(publicKey).first<Row>();
+    return row ? rowToShellName(row) : null;
+  }
+
+  async upsertShellName(record: ShellNameRecord): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO shell_names (
+        name, full_name, forest, site_url, public_key, bundle_fingerprint, record_json, signature,
+        status, hidden, expires_at, search_text, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET
+        full_name = excluded.full_name,
+        forest = excluded.forest,
+        site_url = excluded.site_url,
+        public_key = excluded.public_key,
+        bundle_fingerprint = excluded.bundle_fingerprint,
+        record_json = excluded.record_json,
+        signature = excluded.signature,
+        status = excluded.status,
+        hidden = excluded.hidden,
+        expires_at = excluded.expires_at,
+        search_text = excluded.search_text,
+        updated_at = excluded.updated_at`,
+    ).bind(
+      record.name,
+      record.fullName,
+      record.forest,
+      record.siteUrl,
+      record.publicKey,
+      record.bundleFingerprint,
+      JSON.stringify(record.record || {}),
+      record.signature,
+      record.status,
+      record.hidden,
+      record.expiresAt,
+      record.searchText,
+      record.createdAt,
+      record.updatedAt,
+    ).run();
+  }
+
+  async setShellNameHidden(name: string, hidden: boolean, now = new Date().toISOString()): Promise<void> {
+    await this.db.prepare(
+      "UPDATE shell_names SET hidden = ?, status = ?, updated_at = ? WHERE name = ?",
+    ).bind(hidden ? 1 : 0, hidden ? "hidden" : "active", now, name).run();
+  }
+
+  async searchShellNames(q: string, limit: number, now = new Date().toISOString()): Promise<ShellNameRecord[]> {
+    const conditions = ["hidden = 0", "status = 'active'", "expires_at > ?"];
+    const values: unknown[] = [now];
+    if (q) {
+      conditions.push("search_text LIKE ? ESCAPE '\\'");
+      values.push(`%${escapeLike(q)}%`);
+    }
+    values.push(Math.min(Math.max(limit, 1), 100));
+    const result = await this.db.prepare(
+      `SELECT * FROM shell_names
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY updated_at DESC, name DESC
+       LIMIT ?`,
+    ).bind(...values).all<Row>();
+    return (result.results || []).map(rowToShellName);
+  }
+
+  async recentShellNames(limit: number, now = new Date().toISOString()): Promise<ShellNameRecord[]> {
+    const result = await this.db.prepare(
+      `SELECT * FROM shell_names
+       WHERE hidden = 0 AND status = 'active' AND expires_at > ?
+       ORDER BY updated_at DESC, name DESC
+       LIMIT ?`,
+    ).bind(now, Math.min(Math.max(limit, 1), 100)).all<Row>();
+    return (result.results || []).map(rowToShellName);
+  }
+
+  async exportShellNames(now = new Date().toISOString()): Promise<ShellNameRecord[]> {
+    const result = await this.db.prepare(
+      `SELECT * FROM shell_names
+       WHERE hidden = 0 AND status = 'active' AND expires_at > ?
+       ORDER BY name ASC`,
+    ).bind(now).all<Row>();
+    return (result.results || []).map(rowToShellName);
   }
 }
 
@@ -437,11 +561,35 @@ function rowToPost(row: Row): RegistryPost {
 }
 
 function searchRowToItem(row: Row): SearchResultItem {
+  if (row.result_type === "shellname") {
+    return { type: "shellname", shellName: rowToShellName(row), sortAt: String(row.sort_at || row.updated_at || "") };
+  }
   const site = rowToSite(row);
   if (row.result_type === "shell") {
     return { type: "shell", site, shell: site, sortAt: String(row.sort_at || site.lastVerifiedAt || site.generatedAt || "") };
   }
   return { type: "content", site, post: rowToPost(row), sortAt: String(row.sort_at || row.published_at || "") };
+}
+
+function rowToShellName(row: Row): ShellNameRecord {
+  const record = parseDetails(row.record_json);
+  const status = Number(row.hidden || 0) ? "hidden" : String(row.status || "active");
+  return {
+    name: String(row.name || ""),
+    fullName: String(row.full_name || ""),
+    forest: String(row.forest || ""),
+    siteUrl: String(row.site_url || ""),
+    publicKey: String(row.public_key || ""),
+    bundleFingerprint: String(row.bundle_fingerprint || ""),
+    record,
+    signature: String(row.signature || record.signature || ""),
+    status: status === "hidden" || status === "expired" ? status : "active",
+    hidden: Number(row.hidden || 0),
+    expiresAt: String(row.expires_at || ""),
+    searchText: String(row.search_text || ""),
+    createdAt: String(row.created_at || ""),
+    updatedAt: String(row.updated_at || ""),
+  };
 }
 
 function parseTags(value: unknown): string[] {
@@ -468,8 +616,8 @@ function escapeLike(value: string): string {
 
 function makeCursorForItem(item?: SearchResultItem): string | null {
   if (!item) return null;
-  const id = item.type === "shell" ? item.shell.id : item.post.id;
-  const sortAt = item.sortAt || (item.type === "shell" ? item.shell.lastVerifiedAt || item.shell.generatedAt : item.post.publishedAt);
+  const id = item.type === "shellname" ? item.shellName.name : item.type === "shell" ? item.shell.id : item.post.id;
+  const sortAt = item.sortAt || (item.type === "shellname" ? item.shellName.updatedAt : item.type === "shell" ? item.shell.lastVerifiedAt || item.shell.generatedAt : item.post.publishedAt);
   return btoa(JSON.stringify({ sortAt, id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
 }
 
@@ -490,7 +638,7 @@ function compareSearchRows(left: Row, right: Row): number {
   const leftSort = String(left.sort_at || left.published_at || left.last_verified_at || "");
   const rightSort = String(right.sort_at || right.published_at || right.last_verified_at || "");
   if (leftSort !== rightSort) return rightSort.localeCompare(leftSort);
-  return String(right.post_id || right.site_id || "").localeCompare(String(left.post_id || left.site_id || ""));
+  return String(right.post_id || right.site_id || right.name || "").localeCompare(String(left.post_id || left.site_id || left.name || ""));
 }
 
 function addMinutes(value: string, minutes: number): string {

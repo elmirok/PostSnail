@@ -21,6 +21,9 @@ const projectHtmlPages = [
   "docs/snaillift-cloudflare/index.html",
   "docs/snaillift-github/index.html",
   "docs/snaillift-security/index.html",
+  "docs/shellnames/index.html",
+  "docs/shellnames-protocol/index.html",
+  "docs/shellnames-security/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
   "docs/core-foundation/index.html",
@@ -108,6 +111,15 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /postsnail-icon\.png/);
   assert.match(appJs, /src="\.\.\/btc-wallet-qr\.svg"/);
   assert.match(appJs, /Export Shell/);
+  assert.match(appJs, /ShellNames/);
+  assert.match(appJs, /@name@forest\.postsnail\.org/);
+  assert.match(appJs, /data-settings-field="shellNameForestUrl"/);
+  assert.match(appJs, /data-settings-field="shellNameDesiredName"/);
+  assert.match(appJs, /data-action="register-shellname"/);
+  assert.match(appJs, /data-action="update-shellname"/);
+  assert.match(appJs, /data-action="renew-shellname"/);
+  assert.match(appJs, /data-action="copy-shellname"/);
+  assert.match(appJs, /not an account, DNS, or legal identity/);
   assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Import Legacy Backup JSON/);
   assert.match(appJs, /Export Website ZIP/);
@@ -164,6 +176,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.deploy-command/);
   assert.match(css, /\.deploy-commands/);
   assert.match(css, /\.deploy-log/);
+  assert.match(css, /\.shellname-panel/);
+  assert.match(css, /\.shellname-record/);
   assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
 
@@ -196,6 +210,9 @@ test("alpha public pages and documentation are present", () => {
     ["docs/snaillift-cloudflare/index.html", /Cloudflare Pages/],
     ["docs/snaillift-github/index.html", /GitHub Pages/],
     ["docs/snaillift-security/index.html", /Tokens are not stored by default/],
+    ["docs/shellnames/index.html", /ShellNames/],
+    ["docs/shellnames-protocol/index.html", /postsnail-shellname/],
+    ["docs/shellnames-security/index.html", /not authority/],
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
     ["docs/core-foundation/index.html", /Core Foundation/],
@@ -218,6 +235,7 @@ test("alpha public pages and documentation are present", () => {
 
   assert.match(read("docs/index.html"), /Encrypted Workspace/);
   assert.match(read("docs/index.html"), /SnailLift/);
+  assert.match(read("docs/index.html"), /ShellNames/);
   assert.match(read("docs/publishing/index.html"), /Download ZIP remains the fallback/);
   assert.match(read("docs/snaillift/index.html"), /deployment assistant/);
   assert.match(read("docs/snaillift-cloudflare/index.html"), /limited Cloudflare Pages token/);

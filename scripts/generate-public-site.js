@@ -198,6 +198,9 @@ const pages = [
         <a href="/docs/snaillift-cloudflare/"><strong>SnailLift Cloudflare</strong><span>Use the Wrangler-assisted Cloudflare Pages path for Sprint 1A.</span></a>
         <a href="/docs/snaillift-github/"><strong>SnailLift GitHub</strong><span>Use the GitHub Pages command assistant without browser token storage.</span></a>
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
+        <a href="/docs/shellnames/"><strong>ShellNames</strong><span>Claim readable Forest aliases like <code>@creator@forest.postsnail.org</code> without creating an account.</span></a>
+        <a href="/docs/shellnames-protocol/"><strong>ShellNames Protocol</strong><span>Signed alias record shape, Forest endpoints, search behavior, and compatibility rules.</span></a>
+        <a href="/docs/shellnames-security/"><strong>ShellNames Security</strong><span>What aliases prove, what they do not prove, and how Forest limits abuse.</span></a>
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
@@ -315,6 +318,42 @@ const pages = [
     ]),
   },
   {
+    path: "docs/shellnames/index.html",
+    title: "ShellNames - PostSnail Alpha 1",
+    description: "ShellNames are Forest-scoped readable aliases for signed PostSnail Shell identities.",
+    canonical: "https://postsnail.org/docs/shellnames/",
+    body: docPage("ShellNames sections", "ShellNames", "Readable Forest aliases for signed Shell identities. They are not accounts, DNS, legal identity, or ownership claims.", [
+      ["meaning", "What A ShellName Means", "A ShellName like @creator@forest.postsnail.org points to a public PostSnail signing key and public microblog URL. The public key remains the real identity; the alias is only a readable discovery name."],
+      ["claim", "Claim In Identity", "Unlock the publisher key, enter a Forest URL and desired lowercase name, then claim the ShellName. PostSnail signs the public record locally and sends only that public record to Forest."],
+      ["renew", "Update And Renew", "The same signing key can update or renew the ShellName. Alpha 1 uses one active ShellName per public key and one-year expiry."],
+      ["export", "Public Proof Metadata", "Accepted ShellName records are stored in the encrypted Shell and may appear as optional public metadata in the manifest and well-known identity document."],
+    ]),
+  },
+  {
+    path: "docs/shellnames-protocol/index.html",
+    title: "ShellNames Protocol - PostSnail Alpha 1",
+    description: "Signed ShellName record format and Forest endpoint reference.",
+    canonical: "https://postsnail.org/docs/shellnames-protocol/",
+    body: docPage("ShellNames protocol sections", "ShellNames Protocol", "ShellNames use signed public records with protocol postsnail-shellname version 1.", [
+      ["record", "Signed Record", "The canonical record declares protocol, version, name, forest, fullName, siteUrl, publicKey, optional bundleFingerprint, timestamps, feature declarations, extensions, and an ML-DSA-65 signature."],
+      ["endpoints", "Forest Endpoints", "Forest supports register, update, renew, JSON resolve, profile resolve, search, recent, and export endpoints under /shellnames and /@ paths."],
+      ["names", "Name Rules", "Names normalize to lowercase and use 3-32 characters from a-z, 0-9, underscore, and hyphen. Reserved system names are rejected."],
+      ["compatibility", "Compatibility", "ShellNames are optional extension metadata in public proofs. Unknown optional fields are ignored safely. Unknown required features fail clearly."],
+    ]),
+  },
+  {
+    path: "docs/shellnames-security/index.html",
+    title: "ShellNames Security - PostSnail Alpha 1",
+    description: "Security boundaries and abuse controls for ShellNames.",
+    canonical: "https://postsnail.org/docs/shellnames-security/",
+    body: docPage("ShellNames security sections", "ShellNames Security", "ShellNames improve readability, not authority.", [
+      ["prove", "What They Prove", "A valid ShellName proves the named public key signed the alias record. Forest checks name availability, reserved names, status, expiry, and moderation state before search display."],
+      ["not-prove", "What They Do Not Prove", "ShellNames do not prove legal identity, DNS ownership, factual truth, platform endorsement, account ownership, or control of external services."],
+      ["private-key", "Private Key Safety", "The admin signs locally and sends only public metadata plus a signature. It never sends raw private keys, encrypted Shell vaults, drafts, private plugin state, rejected comments, or passphrases."],
+      ["abuse", "Abuse Controls", "Alpha 1 uses reserved names, duplicate checks, one active name per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation."],
+    ]),
+  },
+  {
     path: "docs/concept/index.html",
     title: "PostSnail Concept - Alpha 1",
     description: "The PostSnail concept: local admin, static microblog, signed proof files, and Forest discovery.",
@@ -335,7 +374,7 @@ const pages = [
     body: docPage("Compatibility sections", "Compatibility Contract", "PostSnail evolves with a stable core, optional extensions, explicit required features, and deterministic workspace migrations.", [
       ["exports", "Two Artifacts", ".postsnail is the private editable Shell. .zip is the public signed Website artifact. Importing the Shell restores the real project; public ZIP recovery can only recover public content."],
       ["stable-core", "Stable Core", "Protocol records use protocol postsnail and version 1. The required core features are signed-manifest and file-hashes."],
-      ["optional", "Optional Extensions", "Unknown optional features and extension data are ignored safely. Tools may preserve unknown extension data where practical, but must not interpret it unless they support the feature."],
+      ["optional", "Optional Extensions", "Unknown optional features and extension data are ignored safely. Current optional features include identity documents, commit history, sitemap, workspace vaults, tracker announce, Forest tracker, ShellNames, comments, deployment assistants, and plugins."],
       ["required", "Required Features", "Unknown required features fail clearly. A feature should become required only when ignoring it would make verification unsafe or misleading."],
       ["legacy", "Legacy Exports", "Old valid exports may miss feature declarations or optional files. PostSnail verifies them when signatures, hashes, and required proof data are valid, then shows legacy warnings."],
       ["migrations", "Workspace Migrations", "Old workspaces migrate step by step. Future unsupported versions fail with This workspace was created by a newer PostSnail version."],
@@ -354,6 +393,7 @@ const pages = [
       ["commits", "Commit Proofs", "latest-commit.json and commits.json are optional commit-history records. Missing commit history is a legacy warning, not a fatal error."],
       ["workspace", "Workspace Vault", ".postsnail is an encrypted JSON envelope with non-secret header metadata and versioned encrypted workspace payload."],
       ["announce", "Tracker Announce", "postsnail-announce is a signed public refresh signal. It never carries private keys and is not an account login."],
+      ["shellnames", "ShellNames", "postsnail-shellname records are optional signed aliases like @creator@forest.postsnail.org. They point to a public key and URL, not a legal identity or account."],
     ]),
   },
   {
@@ -447,7 +487,7 @@ const pages = [
     description: "Versioned workspace migrations for encrypted PostSnail .postsnail files.",
     canonical: "https://postsnail.org/docs/migrations/",
     body: docPage("Migration sections", "Workspace Migrations", "PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.", [
-      ["v1", "Version 1", "Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, and export history."],
+      ["v1", "Version 1", "Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history."],
       ["chain", "Future Chains", "Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step."],
       ["future", "Future Version Failure", "If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version."],
       ["legacy", "Legacy JSON", "Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema."],
