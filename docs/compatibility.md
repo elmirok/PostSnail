@@ -36,7 +36,7 @@ Examples include:
 - `tracker-announce`
 - `forest-tracker`
 - `comments`
-- `cloudflare-deploy`
+- `deployment-assistant`
 - `plugins`
 
 Unknown optional fields must not break import, verification, or indexing. Tools may preserve unknown extension data when practical, but they must not interpret it unless they know the feature.

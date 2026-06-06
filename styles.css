@@ -375,6 +375,57 @@ textarea:disabled {
   padding: 14px;
 }
 
+.snaillift-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff8f0;
+  box-shadow: var(--shadow);
+}
+
+.snaillift-panel h3,
+.snaillift-panel p {
+  margin: 0;
+}
+
+.snaillift-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.proof-summary {
+  display: grid;
+  gap: 6px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.proof-summary p {
+  margin: 0;
+}
+
+.deploy-command {
+  max-width: 100%;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--page);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .panel-title {
   margin: 0 0 12px;
   font-size: 1rem;

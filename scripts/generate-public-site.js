@@ -192,7 +192,11 @@ const pages = [
       <section class="docs-grid link-grid" aria-label="Documentation links">
         <a href="/docs/how-to-use/"><strong>How To Use PostSnail</strong><span>Create identity, write posts, attach images, export encrypted workspaces, and download a public Website ZIP.</span></a>
         <a href="/docs/workspace-vault/"><strong>Encrypted Workspace Vault</strong><span>Use private <code>.postsnail</code> files as the editable source for your microblog.</span></a>
+        <a href="/docs/publishing/"><strong>Publishing</strong><span>Choose Download ZIP or SnailLift while keeping the private Shell out of public hosting.</span></a>
         <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the public Website ZIP contents and verify public proof files.</span></a>
+        <a href="/docs/snaillift/"><strong>SnailLift</strong><span>Deploy public generated files, verify live proof files, and notify Forest after verification.</span></a>
+        <a href="/docs/snaillift-cloudflare/"><strong>SnailLift Cloudflare</strong><span>Use the Wrangler-assisted Cloudflare Pages path for Sprint 1A.</span></a>
+        <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
@@ -239,6 +243,17 @@ const pages = [
     ]),
   },
   {
+    path: "docs/publishing/index.html",
+    title: "Publishing PostSnail - Alpha 1",
+    description: "PostSnail publishing paths: Download ZIP and optional SnailLift deployment assistant.",
+    canonical: "https://postsnail.org/docs/publishing/",
+    body: docPage("Publishing sections", "Publishing PostSnail", "PostSnail can publish through a manual ZIP upload or through the optional SnailLift deployment assistant.", [
+      ["zip", "Download ZIP", "Download ZIP remains the fallback. It is the universal public static artifact and works on any static host. The ZIP is public and is not the full project source."],
+      ["snaillift", "SnailLift", "SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. It is a deployment assistant, not hosting."],
+      ["forest", "Forest", "Forest should be notified only after the new public ZIP contents are live and live verification passes. This keeps search updates tied to the actual deployed fingerprint."],
+    ]),
+  },
+  {
     path: "docs/publish-cloudflare/index.html",
     title: "Publish On Cloudflare Pages - PostSnail Alpha 1",
     description: "Publish a signed PostSnail static microblog on Cloudflare Pages.",
@@ -249,6 +264,42 @@ const pages = [
       ["upload", "2. Upload", "Create a Cloudflare Pages project and upload the unzipped bundle contents. The deployed root should contain index.html, postsnail.manifest.json, and .well-known/postsnail.json."],
       ["check", "3. Check Proof Files", "Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them."],
       ["register", "4. Register In Forest", `Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.`],
+    ]),
+  },
+  {
+    path: "docs/snaillift/index.html",
+    title: "SnailLift - PostSnail Alpha 1",
+    description: "SnailLift is the optional PostSnail deployment assistant.",
+    canonical: "https://postsnail.org/docs/snaillift/",
+    body: docPage("SnailLift sections", "SnailLift", "Your shell stays private. Your trail goes live.", [
+      ["role", "Deployment Assistant", "SnailLift helps deploy public generated files. It is not hosting and does not own your Shell, key, account, source, or domain."],
+      ["isolation", "Core Isolation", "SnailLift is built in for Alpha 1, but provider-specific deployment logic stays under src/snaillift. Core exporter, workspace, identity, manifest, protocol, and signing modules must stay provider-neutral so SnailLift can later move to plugins/postsnail-snaillift."],
+      ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, deploy public static files, verify the live PostSnail proof files, then notify Forest."],
+      ["boundaries", "Boundaries", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
+      ["fallback", "ZIP Fallback", "Download ZIP remains the universal fallback for every creator. SnailLift is optional."],
+    ]),
+  },
+  {
+    path: "docs/snaillift-cloudflare/index.html",
+    title: "SnailLift Cloudflare Pages - Alpha 1",
+    description: "Use SnailLift with the Wrangler-assisted Cloudflare Pages path.",
+    canonical: "https://postsnail.org/docs/snaillift-cloudflare/",
+    body: docPage("SnailLift Cloudflare sections", "SnailLift Cloudflare Pages", "SnailLift Sprint 1A supports a Cloudflare Pages Wrangler-assisted path.", [
+      ["steps", "Steps", "Export Website ZIP, extract it into postsnail-public, prepare Cloudflare settings in the admin, copy the generated Wrangler command, run it locally, return to PostSnail, verify live, then notify Forest."],
+      ["token", "Token Guidance", "Use a limited Cloudflare Pages token. Do not paste long-lived account-wide tokens unless you understand the risk."],
+      ["limits", "Sprint 1A Limit", "Sprint 1A does not store tokens by default and does not claim browser direct upload is universally available."],
+    ]),
+  },
+  {
+    path: "docs/snaillift-security/index.html",
+    title: "SnailLift Security - Alpha 1",
+    description: "SnailLift token, Shell privacy, safety scan, live verification, and Forest notify boundaries.",
+    canonical: "https://postsnail.org/docs/snaillift-security/",
+    body: docPage("SnailLift security sections", "SnailLift Security", "Tokens are not stored by default.", [
+      ["private", "Private Data", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
+      ["isolation", "Core Isolation", "SnailLift is an official built-in Alpha 1 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward."],
+      ["gate", "Verification Gate", "Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification."],
+      ["limits", "Limits", "SnailLift does not prove legal identity, truth, device integrity, provider account ownership, or long-term availability."],
     ]),
   },
   {

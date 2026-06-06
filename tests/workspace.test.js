@@ -164,3 +164,41 @@ test("workspace migration v1 defaults missing containers and rejects future vers
     /This workspace was created by a newer PostSnail version\./,
   );
 });
+
+test("workspace preserves SnailLift settings and deployment logs without secrets", () => {
+  const workspace = createWorkspaceData({
+    settings: {
+      snailLiftCloudflareAccountId: "abc123",
+      snailLiftCloudflareProjectName: "my-postsnail",
+      snailLiftCloudflareBranch: "main",
+      snailLiftSiteUrl: "https://creator.example/",
+      snailLiftApiToken: "must-not-survive",
+      snailLiftCloudflareApiToken: "must-not-survive",
+      snailLiftGithubToken: "must-not-survive",
+    },
+    exportHistory: [
+      {
+        provider: "cloudflare-pages",
+        siteUrl: "https://creator.example/",
+        bundleFingerprint: "psn1-sha3-512-test",
+        status: "success",
+        apiToken: "must-not-survive",
+        token: "must-not-survive",
+        githubToken: "must-not-survive",
+        cloudflareApiToken: "must-not-survive",
+        authorization: "Bearer must-not-survive",
+      },
+    ],
+  }, { now });
+
+  assert.equal(workspace.settings.snailLiftCloudflareAccountId, "abc123");
+  assert.equal(workspace.settings.snailLiftCloudflareProjectName, "my-postsnail");
+  assert.equal(workspace.settings.snailLiftApiToken, undefined);
+  assert.equal(workspace.settings.snailLiftCloudflareApiToken, undefined);
+  assert.equal(workspace.settings.snailLiftGithubToken, undefined);
+  assert.equal(workspace.exportHistory[0].apiToken, undefined);
+  assert.equal(workspace.exportHistory[0].token, undefined);
+  assert.equal(workspace.exportHistory[0].githubToken, undefined);
+  assert.equal(workspace.exportHistory[0].cloudflareApiToken, undefined);
+  assert.equal(workspace.exportHistory[0].authorization, undefined);
+});

@@ -56,7 +56,7 @@ Known optional features:
 - `tracker-announce`
 - `forest-tracker`
 - `comments`
-- `cloudflare-deploy`
+- `deployment-assistant`
 - `plugins`
 
 Unknown optional features and extensions are ignored safely and preserved when practical.

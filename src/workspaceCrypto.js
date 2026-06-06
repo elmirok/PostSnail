@@ -32,7 +32,7 @@ export async function encryptWorkspace(workspace, passphrase, options = {}) {
     createdAt,
     updatedAt,
     requiredFeatures: [...REQUIRED_CORE_FEATURES],
-    optionalFeatures: ["workspace-vault", "plugins", "comments", "forest-tracker", "cloudflare-deploy"],
+    optionalFeatures: ["workspace-vault", "plugins", "comments", "forest-tracker", "deployment-assistant"],
     extensions: {},
     kdf: WORKSPACE_KDF,
     cipher: WORKSPACE_CIPHER,

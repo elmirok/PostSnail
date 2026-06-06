@@ -51,6 +51,14 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 7. Register the public site on PostSnail Forest after it is live.
 8. After later publishes, click `Notify Forest` once the new ZIP is live so Forest can refresh quickly.
 
+## SnailLift
+
+SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, helps with Cloudflare Pages deployment, verifies the live proof files, and only then notifies Forest.
+
+SnailLift is built in for Alpha 1 but isolated from PostSnail Core. Provider-specific deployment code lives under `src/snaillift/`; exporter, workspace, identity, manifest, protocol, and signing modules stay provider-neutral so SnailLift can later move to `plugins/postsnail-snaillift`.
+
+SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [Cloudflare Pages](docs/snaillift-cloudflare.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
+
 ## What “Post-Quantum Signed Fingerprint” Means
 
 PostSnail signs canonical post records and the final manifest with ML-DSA-65, a post-quantum signature algorithm standardized by NIST FIPS 204. It hashes canonical records and generated files with SHA3-512. The bundle fingerprint is a `psn1-sha3-512-...` digest over the manifest’s file and post proof set.

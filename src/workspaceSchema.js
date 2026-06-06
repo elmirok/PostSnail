@@ -1,10 +1,11 @@
 export const WORKSPACE_SCHEMA = "postsnail-workspace-data";
 export const RAW_PRIVATE_KEY_ERROR = "Workspace data must not contain raw private signing keys.";
+const SECRET_LIKE_FIELD_PATTERN = /(api[-_]?key|apiKey|apiToken|token|secret|authorization|password)/iu;
 
 export function createWorkspaceData(source = {}, options = {}) {
   const now = options.now || new Date().toISOString();
   assertNoRawPrivateKeys(source);
-  const settings = cleanObject(source.settings);
+  const settings = stripSecretLikeFields(cleanObject(source.settings));
   return {
     schema: WORKSPACE_SCHEMA,
     version: Number.isInteger(source.version) ? source.version : 1,
@@ -20,7 +21,7 @@ export function createWorkspaceData(source = {}, options = {}) {
     plugins: normalizePlugins(source.plugins),
     moderation: normalizeModeration(source.moderation),
     trackerUrls: normalizeTrackerUrls(source.trackerUrls, settings),
-    exportHistory: cleanArray(source.exportHistory),
+    exportHistory: normalizeExportHistory(source.exportHistory),
     extensions: cleanObject(source.extensions),
   };
 }
@@ -79,6 +80,20 @@ function normalizeTrackerUrls(value, settings) {
     .split(/[\n,]/u)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeExportHistory(value) {
+  return cleanArray(value).map((entry) => stripSecretLikeFields(entry));
+}
+
+function stripSecretLikeFields(value) {
+  if (Array.isArray(value)) return value.map((entry) => stripSecretLikeFields(entry));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !SECRET_LIKE_FIELD_PATTERN.test(key))
+      .map(([key, nested]) => [key, stripSecretLikeFields(nested)]),
+  );
 }
 
 function cleanArray(value) {

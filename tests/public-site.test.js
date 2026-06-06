@@ -16,6 +16,10 @@ const projectHtmlPages = [
   "docs/index.html",
   "docs/how-to-use/index.html",
   "docs/publish-cloudflare/index.html",
+  "docs/publishing/index.html",
+  "docs/snaillift/index.html",
+  "docs/snaillift-cloudflare/index.html",
+  "docs/snaillift-security/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
   "docs/core-foundation/index.html",
@@ -109,6 +113,17 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Show Powered by PostSnail/);
   assert.match(appJs, /Show tracker credit/);
   assert.match(appJs, /Notify Forest/);
+  assert.match(appJs, /SnailLift/);
+  assert.match(appJs, /Your shell stays private\. Your trail goes live\./);
+  assert.match(appJs, /Cloudflare Pages/);
+  assert.match(appJs, /data-settings-field="snailLiftCloudflareAccountId"/);
+  assert.match(appJs, /data-settings-field="snailLiftCloudflareProjectName"/);
+  assert.match(appJs, /data-settings-field="snailLiftCloudflareBranch"/);
+  assert.match(appJs, /data-settings-field="snailLiftSiteUrl"/);
+  assert.match(appJs, /data-action="prepare-snaillift-cloudflare"/);
+  assert.match(appJs, /data-action="verify-snaillift-live"/);
+  assert.match(appJs, /data-action="announce-snaillift-forest"/);
+  assert.match(appJs, /Forest notify unlocks only after live verification passes/);
   assert.match(appJs, /Upload ZIP contents to your live host/);
   assert.match(appJs, /Forest is waiting for your live site to show the new fingerprint/);
   assert.match(appJs, /https:\/\/forest\.postsnail\.org\/api\/announce/);
@@ -134,6 +149,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.create-shell-card/);
   assert.match(css, /\.recovery-shell-card/);
   assert.match(css, /\.notify-forest-attention/);
+  assert.match(css, /\.snaillift-panel/);
+  assert.match(css, /\.deploy-command/);
   assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
 
@@ -161,6 +178,10 @@ test("alpha public pages and documentation are present", () => {
     ["docs/index.html", /PostSnail Documentation/],
     ["docs/how-to-use/index.html", /How To Use PostSnail/],
     ["docs/publish-cloudflare/index.html", /Publish On Cloudflare Pages/],
+    ["docs/publishing/index.html", /Publishing PostSnail/],
+    ["docs/snaillift/index.html", /SnailLift/],
+    ["docs/snaillift-cloudflare/index.html", /Cloudflare Pages/],
+    ["docs/snaillift-security/index.html", /Tokens are not stored by default/],
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
     ["docs/core-foundation/index.html", /Core Foundation/],
@@ -182,6 +203,11 @@ test("alpha public pages and documentation are present", () => {
   }
 
   assert.match(read("docs/index.html"), /Encrypted Workspace/);
+  assert.match(read("docs/index.html"), /SnailLift/);
+  assert.match(read("docs/publishing/index.html"), /Download ZIP remains the fallback/);
+  assert.match(read("docs/snaillift/index.html"), /deployment assistant/);
+  assert.match(read("docs/snaillift-cloudflare/index.html"), /limited Cloudflare Pages token/);
+  assert.match(read("docs/snaillift-security/index.html"), /Forest notify is gated/);
   assert.match(read("docs/workspace-vault/index.html"), /\.postsnail/);
   assert.match(read("docs/workspace-vault/index.html"), /public Website ZIP/);
   assert.match(read("docs/compatibility/index.html"), /Unknown required features fail/);
@@ -194,6 +220,10 @@ test("alpha public pages and documentation are present", () => {
   assert.match(read("docs/psep/index.html"), /PSEP-0001/);
   assert.ok(existsSync(join(root, "docs/compatibility.md")));
   assert.ok(existsSync(join(root, "docs/protocol.md")));
+  assert.ok(existsSync(join(root, "docs/publishing.md")));
+  assert.ok(existsSync(join(root, "docs/snaillift.md")));
+  assert.ok(existsSync(join(root, "docs/snaillift-cloudflare.md")));
+  assert.ok(existsSync(join(root, "docs/snaillift-security.md")));
   assert.ok(existsSync(join(root, "docs/core-foundation.md")));
   assert.ok(existsSync(join(root, "docs/plugin-system.md")));
   assert.ok(existsSync(join(root, "docs/theme-system.md")));
@@ -271,6 +301,10 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "manifesto/index.html")));
   assert.ok(existsSync(join(outDir, "media-kit/index.html")));
   assert.ok(existsSync(join(outDir, "docs/architecture/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/publishing/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift-cloudflare/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift-security/index.html")));
   assert.ok(existsSync(join(outDir, "docs/core-foundation/index.html")));
   assert.ok(existsSync(join(outDir, "docs/plugin-system/index.html")));
   assert.ok(existsSync(join(outDir, "docs/theme-system/index.html")));
@@ -285,6 +319,10 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "docs/security/index.html")));
   assert.ok(existsSync(join(outDir, "docs/compatibility.md")));
   assert.ok(existsSync(join(outDir, "docs/protocol.md")));
+  assert.ok(existsSync(join(outDir, "docs/publishing.md")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift.md")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift-cloudflare.md")));
+  assert.ok(existsSync(join(outDir, "docs/snaillift-security.md")));
   assert.ok(existsSync(join(outDir, "docs/core-foundation.md")));
   assert.ok(existsSync(join(outDir, "docs/plugin-system.md")));
   assert.ok(existsSync(join(outDir, "docs/theme-system.md")));

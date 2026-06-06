@@ -20,7 +20,7 @@ export const KNOWN_OPTIONAL_FEATURES = [
   "tracker-announce",
   "forest-tracker",
   "comments",
-  "cloudflare-deploy",
+  "deployment-assistant",
   "plugins",
 ];
 
