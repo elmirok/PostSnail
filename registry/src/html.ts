@@ -28,11 +28,11 @@ export function renderSearchPage(): string {
         <form id="search-form" class="search-form" role="search">
           <div class="search-box">
             <label class="sr-only" id="search-label" for="q">Search PostSnail Forest</label>
-            <input id="q" name="q" aria-label="Search PostSnail Forest" autocomplete="off" placeholder="Search PostSnail Forest">
+            <input id="q" name="q" aria-label="Search PostSnail Forest" aria-describedby="forest-search-guidance" autocomplete="off" placeholder="Search PostSnail Forest">
             <button class="primary" type="submit">Search</button>
           </div>
         </form>
-        <p>Verified public summaries only: site metadata, titles, tags, excerpts, dates, and digests.</p>
+        <p id="forest-search-guidance">Search by site, ShellName, tag, or digest. Forest shows public summaries only; proof files stay authoritative.</p>
         <div class="creator-action">
           <span>Have a published PostSnail site?</span>
           <button class="register-toggle" id="toggle-register" type="button" aria-expanded="false" aria-controls="register-panel">Register your microblog</button>
@@ -93,7 +93,7 @@ nav { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .btn.primary, button.primary { background:var(--accent); border-color:var(--accent); color:white; }
 button:disabled { cursor:not-allowed; opacity:.58; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
-.hero { padding: 48px 0 26px; display:grid; gap:12px; }
+.hero { padding: 34px 0 22px; display:grid; gap:12px; }
 .kicker { color:var(--coral); font-weight:900; text-transform:uppercase; font-size:.76rem; letter-spacing:0; margin:0; }
 h1 { margin:0; font-size: clamp(2rem, 6vw, 4.6rem); line-height:.98; letter-spacing:0; max-width: 900px; }
 h2 { margin:0; font-size:1.16rem; letter-spacing:0; }
@@ -101,7 +101,7 @@ h2 { margin:0; font-size:1.16rem; letter-spacing:0; }
 .panels { display:grid; grid-template-columns:minmax(0, 1fr); gap:14px; align-items:start; }
 .panel { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; gap:12px; min-width:0; box-shadow:6px 6px 0 rgba(8,10,47,.11); }
 .forest-search-panel { width:min(880px, 100%); justify-self:center; display:grid; padding:0; gap:12px; background:transparent; border:0; box-shadow:none; }
-.forest-search-panel p { text-align:center; max-width:720px; justify-self:center; }
+.forest-search-panel p { text-align:center; max-width:680px; justify-self:center; font-size:.92rem; line-height:1.4; }
 .creator-action { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; color:var(--muted); font-size:.92rem; }
 .register-toggle { background:var(--paper); color:var(--accent); border-color:var(--accent); }
 .register-toggle[aria-expanded="true"] { background:var(--green-soft); color:var(--ink); }
@@ -140,11 +140,11 @@ input { width:100%; min-height:42px; border:2px solid var(--line); border-radius
 .notice code { color:inherit; }
 .actions { display:flex; gap:8px; flex-wrap:wrap; }
 .results { display:grid; gap:10px; margin-top:14px; }
-.result { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; grid-template-columns:96px minmax(0, 1fr); gap:14px; align-items:start; }
-.result-media { width:96px; aspect-ratio:1; border:2px solid var(--line); background:var(--green-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; image-rendering:auto; }
+.result { background:var(--paper); border:2px solid var(--line); border-radius:0; padding:14px; display:grid; grid-template-columns:minmax(0, 1fr) 112px; grid-template-areas:"body media"; gap:14px; align-items:start; }
+.result-media { grid-area:media; width:112px; aspect-ratio:1; border:2px solid var(--line); background:var(--green-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; image-rendering:auto; }
 .result-media img { width:100%; height:100%; object-fit:cover; display:block; }
 .result-fallback { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--green-soft), #fff); color:var(--accent); font-weight:1000; font-size:2rem; }
-.result-body { min-width:0; display:grid; gap:8px; }
+.result-body { grid-area:body; min-width:0; display:grid; gap:8px; }
 .result h2 { margin:0; font-size:1.1rem; }
 .result p { margin:0; color:var(--muted); line-height:1.45; }
 .meta, .tags { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:.86rem; }
@@ -169,7 +169,7 @@ dl { display:grid; grid-template-columns:150px minmax(0, 1fr); gap:8px 12px; }
 dt { font-weight:900; }
 dd { margin:0; overflow-wrap:anywhere; }
 @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
-@media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } .hero { padding:34px 0 22px; } form, .search-form, .search-box, .tag-row, .sort-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel p { text-align:left; } .creator-action, .saved-submission-summary { justify-content:flex-start; } .results-filter-bar { align-items:stretch; flex-direction:column; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid, dl { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
+@media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } .hero { padding:30px 0 20px; } form, .search-form, .search-box, .tag-row, .sort-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel p { text-align:left; } .creator-action, .saved-submission-summary { justify-content:flex-start; } .results-filter-bar { align-items:stretch; flex-direction:column; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:1fr; grid-template-areas:"body" "media"; gap:10px; padding:12px; } .result-media { width:84px; justify-self:start; } .detail-grid, dl { grid-template-columns:1fr; } h1 { font-size:2.15rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
 `;
 }
 
@@ -190,6 +190,7 @@ const PUBLIC_DETAIL_KEYS = new Set([
   'handle',
   'imageFiles',
   'logoUrl',
+  'aliasJsonUrl',
   'manifestUrl',
   'name',
   'postUrl',
@@ -197,6 +198,7 @@ const PUBLIC_DETAIL_KEYS = new Set([
   'publishedAt',
   'resultType',
   'siteUrl',
+  'siteJsonUrl',
   'slug',
   'status',
   'tags',
@@ -204,6 +206,7 @@ const PUBLIC_DETAIL_KEYS = new Set([
   'title',
   'updatedAt',
   'url',
+  'wellKnownUrl',
   'verifiedAt'
 ]);
 const LAST_SUBMISSION_KEY = 'postsnail.registry.lastSubmission.v1';
@@ -461,7 +464,7 @@ async function search() {
     if (!response.ok) throw new Error(data && data.error ? data.error : 'Search failed.');
     const items = Array.isArray(data.items) ? data.items : [];
     statusEl.textContent = items.length ? items.length + ' result(s).' : 'No matching results.';
-    resultsEl.innerHTML = items.length ? items.map(renderResult).join('') : '<div class="empty">No signed summaries matched this search.</div>';
+    resultsEl.innerHTML = items.length ? items.map(renderResult).join('') : '<div class="empty">No signed summaries matched. Try a site name, ShellName, tag, or digest.</div>';
     if (items.length) window.requestAnimationFrame(scrollToFirstResult);
   } catch {
     statusEl.textContent = 'Search failed.';
@@ -522,10 +525,12 @@ function renderContentResult(item) {
   const tags = Array.isArray(post.tags) ? post.tags.map((tag) => '<span class="tag">#' + escapeHtml(tag) + '</span>').join('') : '';
   const title = post.title || site.title || 'Untitled post';
   const media = renderMedia(post.thumbnailUrl || site.logoUrl, title);
+  const wellKnownUrl = proofWellKnownUrl(site.url);
   const details = renderDetails('Post details', mergeDetails(post.details, {
     resultType: 'content',
     siteUrl: site.url,
     postUrl: post.url,
+    siteJsonUrl: site.id ? '/api/sites/' + site.id : '',
     handle: site.handle,
     title: post.title,
     excerpt: post.excerpt,
@@ -534,6 +539,7 @@ function renderContentResult(item) {
     publicKey: site.publicKey,
     bundleFingerprint: site.bundleFingerprint,
     manifestUrl: site.manifestUrl,
+    wellKnownUrl,
     publishedAt: post.publishedAt,
     generatedAt: site.generatedAt,
     verifiedAt: site.lastVerifiedAt,
@@ -541,7 +547,7 @@ function renderContentResult(item) {
     thumbnailUrl: post.thumbnailUrl,
     logoUrl: site.logoUrl
   }));
-  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Content</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(post.publishedAt || '') + '</span></div><h2><a href="' + escapeAttr(post.url || site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2><p>' + escapeHtml(post.excerpt || site.description || '') + '</p><div class="tags">' + tags + '</div><code>' + escapeHtml(post.digest || '') + '</code>' + details + '</div></article>';
+  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Content</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(post.publishedAt || '') + '</span></div><h2><a href="' + escapeAttr(post.url || site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2>' + renderProofLinks({ siteUrl: site.url, manifestUrl: site.manifestUrl, wellKnownUrl, siteJsonUrl: site.id ? '/api/sites/' + site.id : '' }) + '<p>' + escapeHtml(post.excerpt || site.description || '') + '</p><div class="tags">' + tags + '</div><code>' + escapeHtml(post.digest || '') + '</code>' + details + '</div></article>';
 }
 
 function renderShellResult(item) {
@@ -549,26 +555,30 @@ function renderShellResult(item) {
   const shellName = item.shellName || {};
   const title = site.title || site.handle || hostFromUrl(site.url) || 'PostSnail Shell';
   const media = renderMedia(site.logoUrl, title);
+  const wellKnownUrl = proofWellKnownUrl(site.url);
   const details = renderDetails('Shell details', mergeDetails(site.details, {
     resultType: 'shell',
     siteUrl: site.url,
+    siteJsonUrl: site.id ? '/api/sites/' + site.id : '',
     handle: site.handle,
     title: site.title,
     description: site.description,
     publicKey: site.publicKey,
     bundleFingerprint: site.bundleFingerprint,
     manifestUrl: site.manifestUrl,
+    wellKnownUrl,
     generatedAt: site.generatedAt,
     verifiedAt: site.lastVerifiedAt,
     crawlStatus: site.latestCrawlStatus,
     crawlMessage: site.latestCrawlMessage,
     logoUrl: site.logoUrl,
+    aliasJsonUrl: shellName.name ? '/shellnames/' + shellName.name + '.json' : '',
     name: shellName.name,
     fullName: shellName.fullName,
     forest: shellName.forest,
     expiresAt: shellName.expiresAt
   }));
-  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2>' + renderShellAlias(shellName) + '<p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
+  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2>' + renderShellAlias(shellName) + renderProofLinks({ siteUrl: site.url, manifestUrl: site.manifestUrl, wellKnownUrl, siteJsonUrl: site.id ? '/api/sites/' + site.id : '', aliasJsonUrl: shellName.name ? '/shellnames/' + shellName.name + '.json' : '' }) + '<p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
 }
 
 function renderShellAlias(shellName) {
@@ -581,6 +591,7 @@ function renderShellNameResult(item) {
   const shellName = item.shellName || {};
   const title = shellName.fullName || ('@' + (shellName.name || 'name'));
   const media = renderMedia('', title);
+  const wellKnownUrl = proofWellKnownUrl(shellName.siteUrl);
   const details = renderDetails('ShellName details', mergeDetails(shellName.record, {
     resultType: 'shellname',
     name: shellName.name,
@@ -589,12 +600,13 @@ function renderShellNameResult(item) {
     siteUrl: shellName.siteUrl,
     publicKey: shellName.publicKey,
     bundleFingerprint: shellName.bundleFingerprint,
+    wellKnownUrl,
     status: shellName.status,
     expiresAt: shellName.expiresAt,
     createdAt: shellName.createdAt,
     updatedAt: shellName.updatedAt
   }));
-  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>ShellName</span><span>' + escapeHtml(shellName.status || 'active') + '</span><span>' + escapeHtml(shellName.updatedAt || '') + '</span></div><h2><a href="/@' + escapeAttr(shellName.name || '') + '">' + escapeHtml(title) + '</a></h2><p>A Forest-scoped readable alias for a signed PostSnail Shell. It is not an account, DNS, or legal identity.</p><div class="actions"><a class="btn" href="' + escapeAttr(shellName.siteUrl || '#') + '" target="_blank" rel="noopener noreferrer">Visit microblog</a><a class="btn" href="/shellnames/' + escapeAttr(shellName.name || '') + '.json">JSON</a></div>' + details + '</div></article>';
+  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>ShellName</span><span>' + escapeHtml(shellName.status || 'active') + '</span><span>' + escapeHtml(shellName.updatedAt || '') + '</span></div><h2><a href="/@' + escapeAttr(shellName.name || '') + '">' + escapeHtml(title) + '</a></h2><p>A Forest-scoped readable alias for a signed PostSnail Shell. It is not an account, DNS, or legal identity.</p>' + renderProofLinks({ siteUrl: shellName.siteUrl, manifestUrl: proofManifestUrl(shellName.siteUrl), wellKnownUrl, aliasJsonUrl: shellName.name ? '/shellnames/' + shellName.name + '.json' : '' }) + details + '</div></article>';
 }
 
 function renderMedia(src, label) {
@@ -659,6 +671,42 @@ function escapeHtml(value) {
 }
 
 function escapeAttr(value) { return escapeHtml(value); }
+
+function renderProofLinks(options) {
+  const links = [];
+  const siteUrl = String(options?.siteUrl || '');
+  const manifestUrl = String(options?.manifestUrl || '');
+  const wellKnownUrl = String(options?.wellKnownUrl || proofWellKnownUrl(siteUrl));
+  const siteJsonUrl = String(options?.siteJsonUrl || '');
+  const aliasJsonUrl = String(options?.aliasJsonUrl || '');
+  if (siteUrl) links.push(proofLink(siteUrl, 'Visit site', true));
+  if (manifestUrl) links.push(proofLink(manifestUrl, 'Manifest', true));
+  if (wellKnownUrl) links.push(proofLink(wellKnownUrl, 'Well-known', true));
+  if (siteJsonUrl) links.push(proofLink(siteJsonUrl, 'Site JSON', false));
+  if (aliasJsonUrl) links.push(proofLink(aliasJsonUrl, 'Alias JSON', false));
+  return links.length ? '<div class="actions proof-links">' + links.join('') + '</div>' : '';
+}
+
+function proofLink(href, label, external) {
+  const attrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return '<a class="btn" href="' + escapeAttr(href) + '"' + attrs + '>' + escapeHtml(label) + '</a>';
+}
+
+function proofWellKnownUrl(siteUrl) {
+  try {
+    return siteUrl ? new URL(".well-known/postsnail.json", siteUrl).toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function proofManifestUrl(siteUrl) {
+  try {
+    return siteUrl ? new URL("postsnail.manifest.json", siteUrl).toString() : "";
+  } catch {
+    return "";
+  }
+}
 `;
 }
 
@@ -666,6 +714,8 @@ export function renderShellNameProfile(shellName: any): string {
   const title = shellName?.fullName || "ShellName not found";
   const status = shellName?.status || "missing";
   const siteUrl = shellName?.siteUrl || "";
+  const manifestUrl = proofManifestUrl(siteUrl);
+  const wellKnownUrl = proofWellKnownUrl(siteUrl);
   const publicKey = shellName?.publicKey || "";
   const fingerprint = shellName?.bundleFingerprint || "";
   return `<!doctype html>
@@ -687,24 +737,50 @@ export function renderShellNameProfile(shellName: any): string {
     <section class="card">
       <p class="kicker">ShellName / Forest alias</p>
       <h1>${escapeDocument(title)}</h1>
-      <p>${shellName ? "A readable Forest-scoped alias for a signed PostSnail Shell. It is not an account, DNS, or legal identity." : "No ShellName record was found for this name."}</p>
-      ${shellName ? `<div class="actions"><a class="btn" href="${escapeDocument(siteUrl)}" target="_blank" rel="noopener noreferrer">Visit microblog</a><a class="btn" href="/shellnames/${escapeDocument(shellName.name)}.json">View JSON</a></div>` : ""}
+      <p>${shellName ? "A readable Forest-scoped alias for a signed PostSnail Shell. Forest indexes public summaries only; it does not claim ownership or legal identity." : "No ShellName record was found for this name."}</p>
+      ${shellName ? `<div class="actions"><a class="btn" href="${escapeDocument(siteUrl)}" target="_blank" rel="noopener noreferrer">Visit microblog</a><a class="btn" href="${escapeDocument(manifestUrl)}" target="_blank" rel="noopener noreferrer">Manifest</a><a class="btn" href="${escapeDocument(wellKnownUrl)}" target="_blank" rel="noopener noreferrer">Well-known</a><a class="btn" href="/shellnames/${escapeDocument(shellName.name)}.json">Alias JSON</a></div>` : ""}
     </section>
     <section class="card">
-      <h2>Public details</h2>
+      <h2>Public identity</h2>
       <dl>
         <dt>Status</dt><dd>${escapeDocument(status)}</dd>
         <dt>Site URL</dt><dd>${escapeDocument(siteUrl)}</dd>
         <dt>Public key</dt><dd>${escapeDocument(publicKey)}</dd>
-        <dt>Fingerprint</dt><dd>${escapeDocument(fingerprint)}</dd>
+        <dt>Bundle fingerprint</dt><dd>${escapeDocument(fingerprint)}</dd>
+        <dt>Verified at</dt><dd>${escapeDocument(shellName?.updatedAt || "")}</dd>
         <dt>Expires</dt><dd>${escapeDocument(shellName?.expiresAt || "")}</dd>
-        <dt>Updated</dt><dd>${escapeDocument(shellName?.updatedAt || "")}</dd>
+        <dt>Updated at</dt><dd>${escapeDocument(shellName?.updatedAt || "")}</dd>
+      </dl>
+    </section>
+    <section class="card">
+      <h2>Proof and verification</h2>
+      <p>Forest reads summaries from the live site, but the creator's public proof files remain authoritative.</p>
+      <dl>
+        <dt>Manifest</dt><dd>${escapeDocument(manifestUrl)}</dd>
+        <dt>Well-known</dt><dd>${escapeDocument(wellKnownUrl)}</dd>
+        <dt>Alias JSON</dt><dd>/shellnames/${escapeDocument(shellName?.name || "")}.json</dd>
       </dl>
     </section>
     <footer>© 2026 Boaz Alhadeff. PostSnail is Apache-2.0 licensed; redistributed copies must preserve NOTICE attribution.</footer>
   </main>
 </body>
 </html>`;
+}
+
+function proofWellKnownUrl(siteUrl: string): string {
+  try {
+    return siteUrl ? new URL(".well-known/postsnail.json", siteUrl).toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function proofManifestUrl(siteUrl: string): string {
+  try {
+    return siteUrl ? new URL("postsnail.manifest.json", siteUrl).toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function escapeDocument(value: unknown): string {

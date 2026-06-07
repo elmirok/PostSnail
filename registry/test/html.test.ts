@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { renderForestCss, renderForestScript, renderSearchPage } from "../src/html";
+import { renderForestCss, renderForestScript, renderSearchPage, renderShellNameProfile } from "../src/html";
 
 describe("registry homepage", () => {
   test("renders minimal search first with collapsed registration and deferred filters", () => {
@@ -9,6 +9,9 @@ describe("registry homepage", () => {
     expect(html).toContain('src="/assets/brand/postsnail-icon.png"');
     expect(html).toContain('class="sr-only"');
     expect(html).toContain("Search PostSnail Forest");
+    expect(html).toContain('id="forest-search-guidance"');
+    expect(html).toContain("Search by site, ShellName, tag, or digest.");
+    expect(html).toContain("Forest shows public summaries only; proof files stay authoritative.");
     expect(html).not.toContain("Find and register creator-owned microblogs.");
     expect(html).toContain("Register your microblog");
     expect(html).toContain('id="register-form"');
@@ -43,6 +46,7 @@ describe("registry homepage", () => {
     expect(renderForestScript()).toContain("Hide registration form");
     expect(renderForestScript()).toContain("renderSavedSubmissionSummary");
     expect(html).not.toContain("const shouldOpen");
+    expect(renderForestCss()).toContain('grid-template-areas:"body media"');
   });
 
   test("renders rich result media and details behavior", () => {
@@ -50,6 +54,8 @@ describe("registry homepage", () => {
     const script = renderForestScript();
 
     expect(css).toContain("result-media");
+    expect(css).toContain('grid-template-areas:"body media"');
+    expect(css).toContain('grid-template-areas:"body" "media"');
     expect(script).toContain("renderMedia");
     expect(script).toContain("renderDetails");
     expect(script).toContain("PUBLIC_DETAIL_KEYS");
@@ -60,7 +66,35 @@ describe("registry homepage", () => {
     expect(script).toContain("Post details");
     expect(script).toContain("alias-badge");
     expect(script).toContain("renderShellAlias");
+    expect(script).toContain("wellKnownUrl");
+    expect(script).toContain("siteJsonUrl");
     expect(script).not.toContain("private|secret|passphrase");
+    expect(() => new Function(script)).not.toThrow();
+  });
+
+  test("renders shellname profile with explicit proof links and public identity", () => {
+    const html = renderShellNameProfile({
+      name: "elmirok",
+      fullName: "@elmirok@forest.postsnail.org",
+      forest: "forest.postsnail.org",
+      siteUrl: "https://creator.example/",
+      publicKey: "pk-test",
+      bundleFingerprint: "psn1-sha3-512-test",
+      status: "active",
+      expiresAt: "2027-06-05T00:00:00.000Z",
+      updatedAt: "2026-06-05T00:00:00.000Z",
+    });
+
+    expect(html).toContain("@elmirok@forest.postsnail.org");
+    expect(html).toContain("Forest-scoped alias");
+    expect(html).toContain("Forest indexes public summaries only");
+    expect(html).toContain("Site URL");
+    expect(html).toContain("Public key");
+    expect(html).toContain("Bundle fingerprint");
+    expect(html).toContain("Verified at");
+    expect(html).toContain("Manifest");
+    expect(html).toContain(".well-known/postsnail.json");
+    expect(html).toContain("Alias JSON");
   });
 
   test("renders compact PostSnail legal footer links", () => {
@@ -118,5 +152,6 @@ describe("registry homepage", () => {
     expect(script).toContain("resultsEl.querySelector('.result')");
     expect(script).toContain("prefers-reduced-motion: reduce");
     expect(script).toContain("items.length ? items.map(renderResult).join('')");
+    expect(script).toContain("No signed summaries matched. Try a site name, ShellName, tag, or digest.");
   });
 });
