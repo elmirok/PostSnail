@@ -21,12 +21,21 @@ import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import {
+  commentSummary,
+  createApprovedCommentRecord,
+  createRejectedCommentRecord,
+  normalizeCommentsPluginState,
+  normalizeTrackerUrls,
+  verifyCommentPacket,
+} from "./src/comments/plugin.js";
+import {
   disablePlugin,
   enablePlugin,
   getOfficialPluginCatalog,
   getOfficialPluginManifest,
   installPlugin,
   isPluginEnabled,
+  POSTSNAIL_COMMENTS_PLUGIN_ID,
   POSTSNAIL_PAGES_PLUGIN_ID,
   POSTSNAIL_SNAILLIFT_PLUGIN_ID,
 } from "./src/core/index.js";
@@ -299,6 +308,38 @@ async function handleAction(button) {
     };
     setStatus(`PostSnail Pages ${state.pagesSection} section ready.`);
     render();
+    return;
+  }
+  if (action === "save-comments-settings") {
+    await saveCommentsSettings();
+    return;
+  }
+  if (action === "verify-comment-packet") {
+    verifyCommentPacketFromAdmin();
+    return;
+  }
+  if (action === "approve-comment-packet") {
+    await approveCommentPacketFromAdmin();
+    return;
+  }
+  if (action === "reject-comment-packet") {
+    await rejectCommentPacketFromAdmin();
+    return;
+  }
+  if (action === "remove-approved-comment") {
+    await removeModerationEntry("approvedComments", button.dataset.id || "");
+    return;
+  }
+  if (action === "remove-rejected-comment") {
+    await removeModerationEntry("rejectedComments", button.dataset.id || "");
+    return;
+  }
+  if (action === "add-blocked-key") {
+    await addBlockedCommentKey();
+    return;
+  }
+  if (action === "remove-blocked-key") {
+    await removeBlockedCommentKey(button.dataset.key || "");
     return;
   }
   if (action === "new-pages-item") {
@@ -749,6 +790,7 @@ async function generateSiteZip() {
     settings: state.settings,
     commitHistory: state.commitHistory,
     plugins: state.plugins,
+    moderation: state.moderation,
     appearance: state.appearance,
     shellNames: state.shellNames,
     publicKey: textToBytes(state.identity.publicKey),
@@ -1101,6 +1143,7 @@ function render() {
       ${renderPanel("identity", renderIdentity())}
       ${renderPanel("extensions", renderExtensions())}
       ${pagesEnabled() ? renderPanel("pages", renderPagesAdmin()) : ""}
+      ${commentsEnabled() ? renderPanel("comments", renderCommentsAdmin()) : ""}
       ${renderPanel("generate", renderGenerate())}
       ${renderPanel("verify", renderVerify())}
       ${renderPanel("info", renderInfo())}
@@ -1148,6 +1191,7 @@ function renderTabs() {
         ["identity", "Identity"],
         ["extensions", "Extensions"],
         ...(pagesEnabled() ? [["pages", "Pages"]] : []),
+        ...(commentsEnabled() ? [["comments", "Comments"]] : []),
         ["generate", "Generate"],
         ["verify", "Verify"],
         ["info", "Info"],
@@ -1480,6 +1524,7 @@ function renderOfficialPluginCard(manifest) {
         <button class="btn small primary" type="button" data-action="enable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "disabled" : ""}>Enable</button>
         <button class="btn small" type="button" data-action="disable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "" : "disabled"}>Disable</button>
       </div>
+      ${manifest.id === "postsnail-comments" ? `<p class="help">PostSnail Comments adds a Comments tab for signed packet review, approved static replies, private rejections, and tracker metadata.</p>` : ""}
       ${manifest.id === "postsnail-snaillift" ? `<p class="help">SnailLift appears in Generate only when enabled. Download ZIP stays available either way.</p>` : ""}
       ${manifest.id === "postsnail-pages" ? `<p class="help">PostSnail Pages adds the Pages tab for static pages, docs, navigation, and homepage override. Draft CMS content stays private in the Shell.</p>` : ""}
     </article>
@@ -1661,6 +1706,123 @@ function renderPagesSettings(pages) {
         <button class="btn primary" type="button" data-action="save-pages-settings">Save settings</button>
       </div>
     </section>
+  `;
+}
+
+function renderCommentsAdmin() {
+  const comments = commentsPluginState();
+  const approved = commentEntries("approvedComments");
+  const rejected = commentEntries("rejectedComments");
+  const blocked = blockedCommentKeys();
+  return `
+    <div class="comments-admin">
+      <section class="panel-box">
+        <div>
+          <p class="kicker">Official bundled plugin</p>
+          <h2 class="panel-title">PostSnail Comments</h2>
+          <p class="help">Approved comments become public in the Website ZIP. Rejected comments, blocked keys, and review history stay private in your Shell.</p>
+        </div>
+        <div class="grid-3">
+          <div class="metric"><span>Approved</span><b>${approved.length}</b></div>
+          <div class="metric"><span>Rejected</span><b>${rejected.length}</b></div>
+          <div class="metric"><span>Blocked keys</span><b>${blocked.length}</b></div>
+        </div>
+      </section>
+      <div class="grid-2 comments-workbench">
+        <section class="panel-box fields comments-settings">
+          <div>
+            <p class="kicker">Tracker discovery</p>
+            <h3>Comment trackers</h3>
+            <p class="help">Tracker URLs are stored in the encrypted Shell and exposed as public metadata on post pages when comments are enabled.</p>
+          </div>
+          <label class="field">
+            <span>Tracker URLs</span>
+            <textarea id="comments-tracker-urls" class="compact" placeholder="https://comments.example">${escapeHtml((comments.trackerUrls || []).join("\n"))}</textarea>
+          </label>
+          <label class="field checkbox-field">
+            <input id="comments-allow-live" type="checkbox" ${comments.allowLiveReplies ? "checked" : ""}>
+            <span>Show live signed replies section on public post pages</span>
+          </label>
+          <div class="actions">
+            <button class="btn primary" type="button" data-action="save-comments-settings">Save comments settings</button>
+          </div>
+        </section>
+        <section class="panel-box fields comments-review">
+          <div>
+            <p class="kicker">Manual review</p>
+            <h3>Signed comment packet</h3>
+            <p class="help">Paste a signed <code>postsnail-comment-v1</code> packet. PostSnail verifies it locally before approval or rejection.</p>
+          </div>
+          <label class="field">
+            <span>Comment packet JSON</span>
+            <textarea id="comments-packet-input" placeholder='{"protocol":"postsnail-comment-v1", ...}'></textarea>
+          </label>
+          <div class="actions">
+            <button class="btn small" type="button" data-action="verify-comment-packet">Verify packet</button>
+            <button class="btn small primary" type="button" data-action="approve-comment-packet">Approve</button>
+            <button class="btn small" type="button" data-action="reject-comment-packet">Reject</button>
+          </div>
+        </section>
+      </div>
+      <div class="grid-2 comments-moderation-grid">
+        <section class="panel-box">
+          <div class="actions">
+            <div>
+              <p class="kicker">Public export</p>
+              <h3>Approved comments</h3>
+            </div>
+          </div>
+          ${approved.length ? approved.map((entry) => renderCommentModerationRow("approved", entry)).join("") : `<div class="empty-state"><span>No approved comments yet</span><p>Approved replies are exported into the public Website ZIP.</p></div>`}
+        </section>
+        <section class="panel-box">
+          <div class="actions">
+            <div>
+              <p class="kicker">Private review</p>
+              <h3>Rejected comments</h3>
+            </div>
+          </div>
+          ${rejected.length ? rejected.map((entry) => renderCommentModerationRow("rejected", entry)).join("") : `<div class="empty-state"><span>No rejected comments yet</span><p>Rejected replies stay private in the Shell.</p></div>`}
+        </section>
+      </div>
+      <section class="panel-box fields comments-blocklist">
+        <div>
+          <p class="kicker">Blocklist</p>
+          <h3>Blocked author public keys</h3>
+          <p class="help">Blocked keys remain private in your Shell and help you keep repeat abuse out of approved exports.</p>
+        </div>
+        <div class="grid-2">
+          <label class="field">
+            <span>Author public key</span>
+            <input id="comments-blocked-key-input" placeholder="base64:...">
+          </label>
+          <div class="actions align-end">
+            <button class="btn small" type="button" data-action="add-blocked-key">Add blocked key</button>
+          </div>
+        </div>
+        ${blocked.length ? `<div class="blocked-key-list">${blocked.map((key) => `<div class="hash-row"><code class="hash-cell">${escapeHtml(key)}</code><button class="btn small danger" type="button" data-action="remove-blocked-key" data-key="${escapeAttr(key)}">Remove</button></div>`).join("")}</div>` : `<div class="empty-state"><span>No blocked keys</span><p>Only approved comments become public. The blocklist stays private.</p></div>`}
+      </section>
+    </div>
+  `;
+}
+
+function renderCommentModerationRow(kind, entry) {
+  const summary = commentSummary(entry.comment);
+  const isApproved = kind === "approved";
+  const label = isApproved ? "approved" : "rejected";
+  const when = isApproved ? entry.approvedAt : entry.rejectedAt;
+  return `
+    <article class="post-row comment-row">
+      <div>
+        <small>${escapeHtml(summary.postSlug)} · ${escapeHtml(formatDateTime(when || summary.createdAt))}</small>
+        <h3>${escapeHtml(summary.authorName)}</h3>
+        <p>${escapeHtml(summary.excerpt)}</p>
+        <code class="hash-cell">${escapeHtml(summary.authorKey)}</code>
+      </div>
+      <div class="actions">
+        <span class="status-badge ${isApproved ? "good" : "warning"}">${label}</span>
+        <button class="btn small danger" type="button" data-action="${isApproved ? "remove-approved-comment" : "remove-rejected-comment"}" data-id="${escapeAttr(summary.commentId)}">Remove</button>
+      </div>
+    </article>
   `;
 }
 
@@ -2188,6 +2350,10 @@ function snailLiftEnabled() {
   return isPluginEnabled(state.plugins, POSTSNAIL_SNAILLIFT_PLUGIN_ID);
 }
 
+function commentsEnabled() {
+  return isPluginEnabled(state.plugins, POSTSNAIL_COMMENTS_PLUGIN_ID);
+}
+
 function pagesEnabled() {
   return isPluginEnabled(state.plugins, POSTSNAIL_PAGES_PLUGIN_ID);
 }
@@ -2197,6 +2363,15 @@ function pluginInstalled(id) {
 }
 
 function ensureOfficialPluginState(id, plugins) {
+  if (id === POSTSNAIL_COMMENTS_PLUGIN_ID) {
+    return {
+      ...plugins,
+      state: {
+        ...plugins.state,
+        [POSTSNAIL_COMMENTS_PLUGIN_ID]: normalizeCommentsPluginState(plugins.state?.[POSTSNAIL_COMMENTS_PLUGIN_ID] || {}),
+      },
+    };
+  }
   if (id !== POSTSNAIL_PAGES_PLUGIN_ID) return plugins;
   return {
     ...plugins,
@@ -2225,6 +2400,7 @@ async function enableOfficialPlugin(id) {
     const next = pluginInstalled(id) ? state.plugins : installPlugin(state.plugins, manifest);
     state.plugins = ensureOfficialPluginState(id, enablePlugin(next, id));
     if (id === POSTSNAIL_PAGES_PLUGIN_ID) state.activeTab = "pages";
+    if (id === POSTSNAIL_COMMENTS_PLUGIN_ID) state.activeTab = "comments";
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} enabled.`);
     render();
@@ -2238,6 +2414,7 @@ async function disableOfficialPlugin(id) {
   try {
     state.plugins = disablePlugin(state.plugins, id);
     if (id === POSTSNAIL_PAGES_PLUGIN_ID && state.activeTab === "pages") state.activeTab = "extensions";
+    if (id === POSTSNAIL_COMMENTS_PLUGIN_ID && state.activeTab === "comments") state.activeTab = "extensions";
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} disabled. Its settings remain in this Shell.`);
     render();
@@ -2264,6 +2441,177 @@ function missingPluginWarnings() {
 
 function pagesPluginState() {
   return normalizePagesState(state.plugins.state?.[POSTSNAIL_PAGES_PLUGIN_ID] || {});
+}
+
+function commentsPluginState() {
+  return normalizeCommentsPluginState(state.plugins.state?.[POSTSNAIL_COMMENTS_PLUGIN_ID] || {});
+}
+
+function commentEntries(bucket) {
+  return Array.isArray(state.moderation?.[bucket]) ? state.moderation[bucket] : [];
+}
+
+function blockedCommentKeys() {
+  return Array.isArray(state.moderation?.blockedPublicKeys) ? state.moderation.blockedPublicKeys : [];
+}
+
+async function saveCommentsPluginState(nextCommentsState) {
+  state.plugins = ensureOfficialPluginState(POSTSNAIL_COMMENTS_PLUGIN_ID, state.plugins);
+  state.plugins = {
+    ...state.plugins,
+    state: {
+      ...state.plugins.state,
+      [POSTSNAIL_COMMENTS_PLUGIN_ID]: normalizeCommentsPluginState(nextCommentsState),
+    },
+  };
+  await persistLocalShellNow();
+}
+
+async function saveCommentsSettings() {
+  const comments = commentsPluginState();
+  await saveCommentsPluginState({
+    ...comments,
+    trackerUrls: normalizeTrackerUrls(document.getElementById("comments-tracker-urls")?.value || ""),
+    allowLiveReplies: Boolean(document.getElementById("comments-allow-live")?.checked),
+  });
+  setStatus("Comments settings saved in the Shell.");
+  render();
+}
+
+function commentsPacketInput() {
+  return String(document.getElementById("comments-packet-input")?.value || "").trim();
+}
+
+function parseAdminCommentPacket() {
+  const text = commentsPacketInput();
+  if (!text) {
+    throw new Error("Paste a signed comment packet first.");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("Comment packet must be valid JSON.");
+  }
+}
+
+function verifyCommentPacketFromAdmin() {
+  try {
+    const packet = parseAdminCommentPacket();
+    const targetSlug = String(packet?.target?.postSlug || "").trim();
+    const post = state.posts.find((item) => item.slug === targetSlug);
+    if (!post) {
+      throw new Error("Comment target post slug is not present in this Shell.");
+    }
+    const verification = verifyCommentPacket(packet, {
+      sitePublicKey: state.identity?.publicKey || "",
+      postSlug: targetSlug,
+    });
+    if (!verification.ok) {
+      throw new Error(verification.errors[0] || "Comment packet could not be verified.");
+    }
+    setStatus(`Comment packet verified for ${targetSlug}.`);
+  } catch (error) {
+    setStatus(error.message || "Comment packet could not be verified.");
+  }
+  render();
+}
+
+async function approveCommentPacketFromAdmin() {
+  try {
+    const packet = parseAdminCommentPacket();
+    const targetSlug = String(packet?.target?.postSlug || "").trim();
+    if (!state.posts.some((item) => item.slug === targetSlug)) {
+      throw new Error("Comment target post slug is not present in this Shell.");
+    }
+    const authorKey = String(packet?.author?.publicKey || "").trim();
+    if (blockedCommentKeys().includes(authorKey)) {
+      throw new Error("This author public key is blocked in this Shell.");
+    }
+    const entry = createApprovedCommentRecord(packet, {
+      sitePublicKey: state.identity?.publicKey || "",
+      source: "manual-review",
+    });
+    state.moderation = {
+      ...state.moderation,
+      approvedComments: [
+        entry,
+        ...commentEntries("approvedComments").filter((item) => item?.comment?.commentId !== entry.comment.commentId),
+      ],
+      rejectedComments: commentEntries("rejectedComments").filter((item) => item?.comment?.commentId !== entry.comment.commentId),
+    };
+    await persistLocalShellNow();
+    setStatus(`Approved comment for ${targetSlug}.`);
+    render();
+  } catch (error) {
+    setStatus(error.message || "Comment could not be approved.");
+    render();
+  }
+}
+
+async function rejectCommentPacketFromAdmin() {
+  try {
+    const packet = parseAdminCommentPacket();
+    const targetSlug = String(packet?.target?.postSlug || "").trim();
+    if (!state.posts.some((item) => item.slug === targetSlug)) {
+      throw new Error("Comment target post slug is not present in this Shell.");
+    }
+    const entry = createRejectedCommentRecord(packet, {
+      sitePublicKey: state.identity?.publicKey || "",
+      source: "manual-review",
+    });
+    state.moderation = {
+      ...state.moderation,
+      rejectedComments: [
+        entry,
+        ...commentEntries("rejectedComments").filter((item) => item?.comment?.commentId !== entry.comment.commentId),
+      ],
+      approvedComments: commentEntries("approvedComments").filter((item) => item?.comment?.commentId !== entry.comment.commentId),
+    };
+    await persistLocalShellNow();
+    setStatus(`Rejected comment for ${targetSlug}.`);
+    render();
+  } catch (error) {
+    setStatus(error.message || "Comment could not be rejected.");
+    render();
+  }
+}
+
+async function removeModerationEntry(bucket, commentId) {
+  if (!commentId) return;
+  state.moderation = {
+    ...state.moderation,
+    [bucket]: commentEntries(bucket).filter((entry) => entry?.comment?.commentId !== commentId),
+  };
+  await persistLocalShellNow();
+  setStatus("Comment moderation entry removed.");
+  render();
+}
+
+async function addBlockedCommentKey() {
+  const value = String(document.getElementById("comments-blocked-key-input")?.value || "").trim();
+  if (!value.startsWith("base64:")) {
+    setStatus("Blocked author public key must start with base64:.");
+    render();
+    return;
+  }
+  state.moderation = {
+    ...state.moderation,
+    blockedPublicKeys: Array.from(new Set([...blockedCommentKeys(), value])),
+  };
+  await persistLocalShellNow();
+  setStatus("Blocked author key saved in the Shell.");
+  render();
+}
+
+async function removeBlockedCommentKey(key) {
+  if (!key) return;
+  state.moderation = {
+    ...state.moderation,
+    blockedPublicKeys: blockedCommentKeys().filter((entry) => entry !== key),
+  };
+  await persistLocalShellNow();
+  setStatus("Blocked author key removed.");
+  render();
 }
 
 async function savePagesPluginState(nextPagesState) {

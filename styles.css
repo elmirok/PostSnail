@@ -865,7 +865,8 @@ code {
   min-width: 0;
 }
 
-.pages-admin {
+.pages-admin,
+.comments-admin {
   display: grid;
   gap: 14px;
 }
@@ -893,6 +894,44 @@ code {
 
 .pages-editor textarea.compact {
   min-height: 180px;
+}
+
+.comments-workbench,
+.comments-moderation-grid,
+.comments-settings,
+.comments-review,
+.comments-blocklist {
+  min-width: 0;
+}
+
+.comments-settings textarea.compact {
+  min-height: 140px;
+}
+
+.comments-review textarea {
+  min-height: 260px;
+}
+
+.comment-row,
+.hash-row,
+.blocked-key-list {
+  min-width: 0;
+}
+
+.blocked-key-list {
+  display: grid;
+  gap: 10px;
+}
+
+.hash-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.align-end {
+  align-self: end;
 }
 
 .info-layout {

@@ -40,6 +40,12 @@ import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
 import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
 import { resolveRouteAssets } from "./core/assets/routeAssets.js";
+import {
+  buildCommentsPublicData,
+  commentsRuntimeCss,
+  commentsRuntimeScript,
+  POSTSNAIL_COMMENTS_PLUGIN_ID,
+} from "./comments/plugin.js";
 import { buildPagesPublicData, POSTSNAIL_PAGES_PLUGIN_ID, routeToFilePath } from "./pages/plugin.js";
 
 export const GENERATOR_VERSION = "0.1.0";
@@ -57,6 +63,7 @@ export async function buildStaticExport({
   settings = {},
   commitHistory = [],
   plugins = { installed: [], lock: {}, state: {} },
+  moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
   appearance = {},
   shellNames = [],
   publicKey,
@@ -86,6 +93,15 @@ export async function buildStaticExport({
       record,
     };
   });
+  const commentsOutput = buildEnabledCommentsOutput(
+    extensionContext.enabledPlugins,
+    plugins,
+    moderation,
+    publicKeyText,
+    secretKey,
+    postProofs,
+    generatedAt,
+  );
 
   const files = {};
   if (pagesOutput?.usesHomepageOverride) {
@@ -107,7 +123,9 @@ export async function buildStaticExport({
     files["trackers/index.html"] = htmlBytes(renderTrackers(cleanProfile, attribution, siteNavigation));
   }
   for (const post of publishedPosts) {
-    files[`posts/${post.slug}/index.html`] = htmlBytes(renderPost(cleanProfile, post, postProofs, assetMap, attribution, siteNavigation));
+    files[`posts/${post.slug}/index.html`] = htmlBytes(
+      renderPost(cleanProfile, post, postProofs, assetMap, attribution, siteNavigation, commentsOutput),
+    );
   }
   for (const tag of tagsForPosts(publishedPosts)) {
     files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts, attribution, siteNavigation));
@@ -124,6 +142,12 @@ export async function buildStaticExport({
     files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.logo}`] = await loadBrandAsset(BRAND_ASSET_FILES.logo);
     files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.icon}`] = await loadBrandAsset(BRAND_ASSET_FILES.icon);
   }
+  if (commentsOutput) {
+    files["plugins/postsnail-comments/runtime/comments.js"] = htmlBytes(commentsRuntimeScript());
+    files["plugins/postsnail-comments/runtime/comments.css"] = htmlBytes(commentsRuntimeCss());
+    files["plugins/postsnail-comments/approved-comments.json"] = htmlBytes(JSON.stringify(commentsOutput.approvedExport, null, 2));
+    files["plugins/postsnail-comments/plugin-manifest.json"] = htmlBytes(JSON.stringify(commentsOutput.pluginManifest, null, 2));
+  }
 
   const fileDigests = digestFiles(files);
   const bundleFingerprint = fingerprintForBytes(encodeText(canonicalJson({ files: fileDigests, posts: postProofs })));
@@ -136,8 +160,20 @@ export async function buildStaticExport({
       theme: extensionContext.theme,
       enabledPlugins: extensionContext.enabledPlugins,
       pagesOutput,
+      commentsOutput,
     }),
-    pluginMetadata: pagesOutput ? { [POSTSNAIL_PAGES_PLUGIN_ID]: pagesOutput.metadata } : {},
+    pluginMetadata: {
+      ...(pagesOutput ? { [POSTSNAIL_PAGES_PLUGIN_ID]: pagesOutput.metadata } : {}),
+      ...(commentsOutput
+        ? {
+            [POSTSNAIL_COMMENTS_PLUGIN_ID]: {
+              approvedCommentCount: commentsOutput.approvedEntries.length,
+              trackerUrls: commentsOutput.state.trackerUrls,
+              publicFiles: commentsOutput.publicFiles,
+            },
+          }
+        : {}),
+    },
   });
   const manifestPayload = {
     protocol: POSTSNAIL_PROTOCOL,
@@ -152,6 +188,7 @@ export async function buildStaticExport({
       "forest-tracker",
       "themes",
       "route-assets",
+      ...(commentsOutput ? ["comments"] : []),
       ...(extensionContext.enabledPlugins.length ? ["plugins"] : []),
       ...(publicShellNames.length ? ["shellnames"] : []),
     ],
@@ -237,7 +274,19 @@ function buildEnabledPagesOutput(enabledPlugins, plugins) {
   return buildPagesPublicData(plugins?.state?.[POSTSNAIL_PAGES_PLUGIN_ID] || {});
 }
 
-function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins, pagesOutput = null }) {
+function buildEnabledCommentsOutput(enabledPlugins, plugins, moderation, publicKeyText, secretKey, postProofs, generatedAt) {
+  if (!enabledPlugins.some((plugin) => plugin.id === POSTSNAIL_COMMENTS_PLUGIN_ID)) return null;
+  return buildCommentsPublicData({
+    pluginState: plugins?.state?.[POSTSNAIL_COMMENTS_PLUGIN_ID] || {},
+    moderation,
+    sitePublicKey: publicKeyText,
+    secretKey,
+    postProofs,
+    generatedAt,
+  });
+}
+
+function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins, pagesOutput = null, commentsOutput = null }) {
   const routes = [
     { route: pagesOutput?.usesHomepageOverride ? pagesOutput.blogIndexPath : "/", type: "home", template: "home", features: [] },
     { route: "/archive/", type: "archive", template: "archive", features: [] },
@@ -253,7 +302,10 @@ function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabl
       route: `/posts/${post.slug}/`,
       type: "post",
       template: "post",
-      features: post.features || [],
+      features: [
+        ...(Array.isArray(post.features) ? post.features : []),
+        ...(commentsOutput ? ["comments-enabled"] : []),
+      ],
     })),
     ...tagsForPosts(publishedPosts).map((tag) => ({
       route: `/tags/${tag}/`,
@@ -273,14 +325,15 @@ function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabl
 function buildManifestExtensions({ theme, enabledPlugins, routeAssets, pluginMetadata = {} }) {
   const plugins = Object.fromEntries(
     enabledPlugins.map((plugin) => {
-      const publicFiles = Object.values(routeAssets)
+      const routePublicFiles = Object.values(routeAssets)
         .flatMap((route) => route.assets || [])
         .filter((assetPath) => assetPath.startsWith(`/plugins/${plugin.id}/`));
+      const extraPublicFiles = Array.isArray(pluginMetadata[plugin.id]?.publicFiles) ? pluginMetadata[plugin.id].publicFiles : [];
       return [
         plugin.id,
         {
           version: plugin.version || plugin.manifest?.version || "",
-          publicFiles: [...new Set(publicFiles)].sort(),
+          publicFiles: [...new Set([...routePublicFiles, ...extraPublicFiles])].sort(),
           ...(pluginMetadata[plugin.id] || {}),
         },
       ];
@@ -441,18 +494,35 @@ function renderAbout(profile, attribution, navigation = null) {
   });
 }
 
-function renderPost(profile, post, proofs, assetMap, attribution, navigation = null) {
+function renderPost(profile, post, proofs, assetMap, attribution, navigation = null, commentsOutput = null) {
   const proof = proofs.find((item) => item.slug === post.slug);
   const images = post.imageIds
     .map((id) => assetMap.get(id))
     .filter(Boolean)
     .map((asset) => `<img src="../../assets/${asset.fileName}" alt="${escapeHtml(asset.alt || asset.name || "")}" loading="lazy">`)
     .join("");
+  const commentsHead = commentsOutput && proof
+    ? `
+  <meta name="postsnail:comments-enabled" content="true">
+  <meta name="postsnail:site-public-key" content="${escapeAttr(commentsOutput.approvedExport.sitePublicKey)}">
+  <meta name="postsnail:post-slug" content="${escapeAttr(post.slug)}">
+  <meta name="postsnail:post-digest" content="${escapeAttr(proof.digest)}">
+  <meta name="postsnail:comment-trackers" content="${escapeAttr(commentsOutput.state.trackerUrls.join(","))}">
+  <link rel="stylesheet" href="../../plugins/postsnail-comments/runtime/comments.css">
+`
+    : "";
+  const commentsSection = commentsOutput && proof
+    ? `
+      <section id="postsnail-comments" aria-label="PostSnail comments"></section>
+      <script type="module" src="../../plugins/postsnail-comments/runtime/comments.js"></script>
+`
+    : "";
   return renderPage(profile, {
     title: `${post.title || post.slug} - ${profile.siteTitle}`,
     path: `posts/${post.slug}/`,
     type: "article",
     post,
+    head: commentsHead,
     body: `
       <article class="post-full">
         <p class="kicker">${formatDate(post.publishedAt)}</p>
@@ -462,6 +532,7 @@ function renderPost(profile, post, proofs, assetMap, attribution, navigation = n
         <div class="markdown">${renderMarkdown(post.body)}</div>
         <p class="proof">Post digest <code>${escapeHtml(proof?.digest || "")}</code></p>
       </article>
+      ${commentsSection}
     `,
     rootPrefix: "../../",
     attribution,
@@ -633,7 +704,7 @@ ${urls
 </urlset>`;
 }
 
-function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null, attribution = normalizeAttributionSettings(), description = profile.description, noindex = false, navigation = null }) {
+function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "website", post = null, attribution = normalizeAttributionSettings(), description = profile.description, noindex = false, navigation = null, head = "" }) {
   const canonicalUrl = siteUrlForPath(profile.siteUrl, path);
   const jsonLd = post ? articleJsonLd(profile, post, canonicalUrl) : siteJsonLd(profile, canonicalUrl);
   const footer = renderPublicFooter(rootPrefix, attribution);
@@ -662,6 +733,7 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
   ${post ? `<meta property="article:published_time" content="${escapeAttr(post.publishedAt || post.createdAt || "")}">
   <meta property="article:modified_time" content="${escapeAttr(post.updatedAt || post.publishedAt || post.createdAt || "")}">
   ${post.tags.map((tag) => `<meta property="article:tag" content="${escapeAttr(tag)}">`).join("\n  ")}` : ""}
+  ${head}
   <script type="application/ld+json">${jsonScript(jsonLd)}</script>
   <style>${publicCss()}</style>
 </head>

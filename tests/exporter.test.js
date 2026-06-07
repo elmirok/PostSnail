@@ -4,10 +4,12 @@ import { unzipSync } from "../vendor/fflate/browser.js";
 
 import { decodeText } from "../src/bytes.js";
 import { buildStaticExport } from "../src/exporter.js";
-import { generateSigningKeyPair } from "../src/crypto.js";
+import { generateSigningKeyPair, publicKeyToText } from "../src/crypto.js";
 import { normalizePost } from "../src/content.js";
 import { enablePlugin, installPlugin } from "../src/core/plugins/pluginRegistry.js";
+import { signCommentPacket } from "../src/comments/plugin.js";
 import {
+  POSTSNAIL_COMMENTS_PLUGIN_ID,
   getOfficialPluginManifest,
   POSTSNAIL_PAGES_PLUGIN_ID,
   POSTSNAIL_SNAILLIFT_PLUGIN_ID,
@@ -441,4 +443,132 @@ test("buildStaticExport publishes Pages routes and moves blog index when homepag
   assert.doesNotMatch(combined, /Draft page body/);
   assert.doesNotMatch(combined, /Archived doc body/);
   assert.doesNotMatch(combined, /private-pages-state/);
+});
+
+test("buildStaticExport publishes approved comments runtime without rejected moderation state", async () => {
+  const keys = generateSigningKeyPair();
+  const commenterKeys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Commented Post",
+    body: "A public post with approved replies.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+  const plugins = enablePlugin(
+    installPlugin(
+      {
+        installed: [],
+        lock: {},
+        state: {
+          [POSTSNAIL_COMMENTS_PLUGIN_ID]: {
+            schemaVersion: 1,
+            trackerUrls: ["https://comments.example"],
+          },
+        },
+      },
+      getOfficialPluginManifest(POSTSNAIL_COMMENTS_PLUGIN_ID),
+    ),
+    POSTSNAIL_COMMENTS_PLUGIN_ID,
+  );
+
+  const proofSeed = await buildStaticExport({
+    profile: { siteTitle: "Comments Site", handle: "comments", siteUrl: "https://comments.example" },
+    posts: [post],
+    plugins,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T04:00:00.000Z",
+  });
+  const postDigest = proofSeed.manifest.posts[0].digest;
+  const sitePublicKey = publicKeyToText(keys.publicKey);
+
+  const approvedComment = signCommentPacket({
+    protocol: "postsnail-comment-v1",
+    version: 1,
+    type: "postsnail_comment",
+    target: {
+      sitePublicKey,
+      postSlug: "commented-post",
+      postDigest,
+      bundleFingerprint: "psn1-sha3-512-old",
+    },
+    author: {
+      displayName: "Reader One",
+      handle: "reader-one",
+      siteUrl: "https://reader.example/",
+      shellName: "@reader@forest.postsnail.org",
+      publicKey: publicKeyToText(commenterKeys.publicKey),
+    },
+    content: {
+      format: "markdown",
+      body: "Approved static reply.",
+    },
+    createdAt: "2026-06-05T01:00:00.000Z",
+    parentCommentId: "",
+    requiredFeatures: ["signed-comment"],
+    optionalFeatures: [],
+    extensions: {},
+    signatureSuite: "ML-DSA-65",
+    digestSuite: "SHA3-512",
+  }, commenterKeys.secretKey);
+
+  const result = await buildStaticExport({
+    profile: { siteTitle: "Comments Site", handle: "comments", siteUrl: "https://comments.example" },
+    posts: [post],
+    plugins,
+    moderation: {
+      approvedComments: [
+        {
+          comment: approvedComment,
+          approvedAt: "2026-06-05T02:00:00.000Z",
+          source: "manual-review",
+        },
+      ],
+      rejectedComments: [
+        {
+          comment: {
+            ...approvedComment,
+            content: { format: "markdown", body: "Rejected private moderation note." },
+          },
+          rejectedAt: "2026-06-05T03:00:00.000Z",
+          moderationNote: "private moderation note",
+        },
+      ],
+      blockedPublicKeys: ["base64:blocked-reader"],
+    },
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T04:00:00.000Z",
+  });
+
+  const files = unzipSync(result.zipBytes);
+  const postHtml = decodeText(files["posts/commented-post/index.html"]);
+  const approvedJson = JSON.parse(decodeText(files["plugins/postsnail-comments/approved-comments.json"]));
+  const pluginManifest = JSON.parse(decodeText(files["plugins/postsnail-comments/plugin-manifest.json"]));
+  const combined = Object.entries(files)
+    .map(([name, bytes]) => `${name}\n${decodeText(bytes)}`)
+    .join("\n");
+  const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
+
+  assert.ok(files["plugins/postsnail-comments/runtime/comments.js"]);
+  assert.ok(files["plugins/postsnail-comments/runtime/comments.css"]);
+  assert.ok(files["plugins/postsnail-comments/approved-comments.json"]);
+  assert.ok(files["plugins/postsnail-comments/plugin-manifest.json"]);
+  assert.match(postHtml, /id="postsnail-comments"/);
+  assert.match(postHtml, /postsnail:comments-enabled/);
+  assert.match(postHtml, /postsnail:post-slug/);
+  assert.match(postHtml, /postsnail:site-public-key/);
+  assert.match(postHtml, /plugins\/postsnail-comments\/runtime\/comments\.js/);
+  assert.match(postHtml, /plugins\/postsnail-comments\/runtime\/comments\.css/);
+  assert.equal(approvedJson.protocol, "postsnail-comments-static-v1");
+  assert.equal(approvedJson.comments.length, 1);
+  assert.equal(approvedJson.comments[0].comment.content.body, "Approved static reply.");
+  assert.equal(pluginManifest.id, "postsnail-comments");
+  assert.equal(manifest.extensions.plugins[POSTSNAIL_COMMENTS_PLUGIN_ID].version, "0.1.0");
+  assert.ok(manifest.optionalFeatures.includes("comments"));
+  assert.deepEqual(manifest.extensions.routeAssets["/posts/commented-post/"].plugins, ["postsnail-comments"]);
+  assert.doesNotMatch(combined, /Rejected private moderation note/);
+  assert.doesNotMatch(combined, /private moderation note/);
+  assert.doesNotMatch(combined, /base64:blocked-reader/);
 });

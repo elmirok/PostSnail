@@ -191,6 +191,8 @@ const pages = [
       </section>
       <section class="docs-grid link-grid" aria-label="Documentation links">
         <a href="/docs/how-to-use/"><strong>How To Use PostSnail</strong><span>Create identity, write posts, attach images, export encrypted workspaces, and download a public Website ZIP.</span></a>
+        <a href="/docs/cli/"><strong>PostSnail CLI</strong><span>Open encrypted Shells, import Markdown drafts, build public files, verify output, and create ZIPs from a terminal.</span></a>
+        <a href="/docs/headless-publishing/"><strong>Headless Publishing</strong><span>Use trusted local automation without turning the browser admin into a backend dependency.</span></a>
         <a href="/docs/workspace-vault/"><strong>Encrypted Workspace Vault</strong><span>Use private <code>.postsnail</code> files as the editable source for your microblog.</span></a>
         <a href="/docs/publishing/"><strong>Publishing</strong><span>Choose Download ZIP or SnailLift while keeping the private Shell out of public hosting.</span></a>
         <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the public Website ZIP contents and verify public proof files.</span></a>
@@ -199,6 +201,7 @@ const pages = [
         <a href="/docs/snaillift-github/"><strong>SnailLift GitHub</strong><span>Use the GitHub Pages command assistant without browser token storage.</span></a>
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
         <a href="/docs/postsnail-pages/"><strong>PostSnail Pages</strong><span>Enable the official CMS plugin for static pages, docs, navigation, and homepage override.</span></a>
+        <a href="/docs/comments/"><strong>PostSnail Comments</strong><span>Enable the official comments plugin for approved static replies and private moderation in the Shell.</span></a>
         <a href="/docs/shellnames/"><strong>ShellNames</strong><span>Claim readable Forest aliases like <code>@creator@forest.postsnail.org</code> without creating an account.</span></a>
         <a href="/docs/shellnames-protocol/"><strong>ShellNames Protocol</strong><span>Signed alias record shape, Forest endpoints, search behavior, and compatibility rules.</span></a>
         <a href="/docs/shellnames-security/"><strong>ShellNames Security</strong><span>What aliases prove, what they do not prove, and how Forest limits abuse.</span></a>
@@ -233,6 +236,34 @@ const pages = [
       ["generate", "4. Export Website ZIP", "Unlock your key, open Generate, and export the public Website ZIP. Keep the fingerprint and manifest proof summary with your release notes."],
       ["verify", "5. Verify Before Sharing", "Use the Verify tab to drop the ZIP back into PostSnail. Share the bundle fingerprint when you publish so readers and trackers can compare the public proof files."],
       ["legacy", "6. Migrate Legacy Backups", "Use Import Legacy Backup JSON only for old PostSnail backups. The admin restores the data and downloads a new encrypted .postsnail Shell using your Shell passphrase."],
+    ]),
+  },
+  {
+    path: "docs/cli/index.html",
+    title: "PostSnail CLI - Alpha 1",
+    description: "Use the PostSnail CLI to open Shells, import drafts, build public files, verify output, and create Website ZIPs.",
+    canonical: "https://postsnail.org/docs/cli/",
+    body: docPage("CLI sections", "PostSnail CLI", "A trusted local automation interface for Shell-aware publishing workflows.", [
+      ["role", "What The CLI Is", "PostSnail CLI is the automation interface for local trusted workflows. The browser admin remains the main human interface; the CLI reuses the same workspace, exporter, verifier, and signing boundaries."],
+      ["open", "Open A Shell", "Use workspace info or workspace migrate with a .postsnail Shell and the Shell passphrase. The Shell passphrase unlocks the encrypted workspace; it does not automatically unlock the signing key."],
+      ["import", "Import Drafts", "Use post import with Markdown frontmatter to create or update posts by slug. status: ready becomes published content; any other status remains draft."],
+      ["build", "Build And ZIP", "Use build to write a public directory and zip to write a publishable Website ZIP. Both commands require the Shell passphrase and the identity passphrase so PostSnail can unlock the encrypted signing key and sign proof files."],
+      ["verify", "Verify Output", "Use verify on a public directory or ZIP. Verification recomputes hashes, checks signatures, and confirms the bundle fingerprint before publish or deploy steps."],
+      ["boundaries", "Boundaries", "CLI 1A does not add backend accounts, browser token entry, automatic Forest submission, or provider deployment logic. Those stay optional and separate."],
+    ]),
+  },
+  {
+    path: "docs/headless-publishing/index.html",
+    title: "Headless Publishing - PostSnail Alpha 1",
+    description: "Use trusted local automation to publish PostSnail sites without changing the Shell, proof, or ZIP trust model.",
+    canonical: "https://postsnail.org/docs/headless-publishing/",
+    body: docPage("Headless publishing sections", "Headless Publishing", "Local automation should use the same Shell, signing, export, and verification rules as the browser admin.", [
+      ["two-secrets", "Two Secrets", "Headless publishing still uses two passphrases: the Shell passphrase opens the encrypted .postsnail file, and the identity passphrase unlocks the encrypted signing key used for build and zip."],
+      ["source", "Editable Source", "The .postsnail Shell remains the private editable source. Scripts and agents should treat it like source code plus secrets, not like a public deploy artifact."],
+      ["public-output", "Public Output", "The public Website ZIP or extracted public directory is the hosting artifact. It can be uploaded, verified, mirrored, or deployed, but it is not the full private project."],
+      ["trusted-local", "Trusted Local Automation", "Use the CLI only in environments you trust locally. It should help humans or agents automate repetitive publish work without moving private key material into a backend or CI by default."],
+      ["verify-first", "Verify First", "Build, then verify the public directory or ZIP before any deploy step. If verification fails, fix the Shell or content source before publishing."],
+      ["future", "What Comes Later", "Deploy providers, Forest announce flows, and one-shot publish shortcuts belong to later CLI slices once the local foundation is stable and proven."],
     ]),
   },
   {
@@ -333,6 +364,19 @@ const pages = [
       ["export", "Public Export", "Only published pages and docs enter the Website ZIP. A published page at / can replace the homepage and move the microblog feed to /blog/."],
       ["limits", "Alpha 1A Limits", "This sprint includes Pages, Docs, Navigation, Settings, and basic SEO. Tutorials, FAQ, roadmap, changelog, redirects, Markdown import, and visual building are later Pages sprints."],
       ["core", "Core Boundary", "PostSnail Core keeps owning workspace, proof, signing, export safety, plugin manifests, and route assets. CMS behavior stays in the Pages plugin."],
+    ]),
+  },
+  {
+    path: "docs/comments/index.html",
+    title: "PostSnail Comments - Alpha 1",
+    description: "PostSnail Comments is the official bundled plugin for approved static replies and private Shell moderation.",
+    canonical: "https://postsnail.org/docs/comments/",
+    body: docPage("PostSnail Comments sections", "PostSnail Comments", "Comments keep the site static while creators review signed replies inside the encrypted Shell.", [
+      ["role", "Official Bundled Plugin", "PostSnail Comments uses the official plugin lifecycle. Enable postsnail-comments in Extensions to reveal the Comments tab."],
+      ["source", "Shell-Private Moderation", "Approved comments, rejected comments, blocked author keys, and tracker URLs live in the encrypted Shell. Rejected moderation data never belongs in the public Website ZIP."],
+      ["export", "Public Export", "When enabled, published post pages get a comments runtime plus approved-comments.json. Approved replies become part of the public static site."],
+      ["hybrid", "Hybrid Model", "Approved static comments are the official record. Future live tracker replies can remain separate without changing the creator-owned source of truth."],
+      ["proof", "Signature Checks", "Signed comment packets are meant to be verified locally before approval. PostSnail never sends the private signing key or Shell passphrase to a backend."],
     ]),
   },
   {
@@ -448,7 +492,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/plugin-system/",
     body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.", [
       ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
-      ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift exposes deployment assistants, and postsnail-pages exposes the Pages CMS tab."],
+      ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift exposes deployment assistants, postsnail-pages exposes the Pages CMS tab, and postsnail-comments exposes signed comment moderation."],
       ["registry", "Plugin Registry", "createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code."],
       ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript."],
       ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],

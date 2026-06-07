@@ -44,3 +44,5 @@ Write plainly and with ownership language: creator-owned, local-first, static, s
 ## Accessibility
 
 Keep text contrast high, focus rings visible, controls at least 38px tall, long hashes/URLs wrapping, and mobile layouts free of horizontal overflow.
+
+For fix workflow and implementation-safe editing guidance, use [postsnail-spark](/Users/boazalhadeff/Documents/PostSnail/skills/postsnail-spark/SKILL.md).

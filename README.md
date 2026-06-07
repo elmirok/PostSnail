@@ -51,6 +51,26 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 7. Register the public site on PostSnail Forest after it is live.
 8. After later publishes, click `Notify Forest` once the new ZIP is live so Forest can refresh quickly.
 
+## PostSnail CLI
+
+PostSnail CLI is the trusted local automation interface for PostSnail. It reuses the same workspace, proof, export, and verification logic as the browser admin instead of inventing a second publishing model.
+
+CLI 1A supports:
+
+- `postsnail workspace info`
+- `postsnail workspace migrate`
+- `postsnail post import`
+- `postsnail build`
+- `postsnail verify`
+- `postsnail zip`
+
+Important boundary: the CLI uses two different passphrases when a signing identity exists.
+
+- The Shell passphrase opens the encrypted `.postsnail` file.
+- The identity passphrase unlocks the encrypted signing key for `build` and `zip`.
+
+CLI 1A is local/headless only. It does not yet add deploy providers, automatic Forest announce, or one-shot publish. See [CLI](docs/cli.md) and [Headless Publishing](docs/headless-publishing.md).
+
 ## SnailLift
 
 SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, helps with Cloudflare Pages and GitHub Pages command-assisted deployment, verifies the live proof files, and only then notifies Forest.
@@ -100,9 +120,9 @@ The Core Foundation APIs live under `src/core/` and cover plugin manifest valida
 
 Alpha 1 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
 
-The admin Extensions tab currently supports official bundled plugins only. `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback. `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
+The admin Extensions tab currently supports official bundled plugins only. `postsnail-comments` adds signed comment moderation and approved static replies, `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback, and `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
 
-See [PostSnail Pages](docs/postsnail-pages.md) for the Alpha 1A CMS plugin boundary.
+See [PostSnail Comments](docs/comments.md) and [PostSnail Pages](docs/postsnail-pages.md) for the current official plugin boundaries.
 
 ## Privacy and Recovery
 

@@ -58,6 +58,8 @@ Plugin manifests use:
 
 The admin Extensions tab can install, enable, and disable official plugin manifests that ship with PostSnail. This is not a marketplace and does not upload plugin ZIP files.
 
+`postsnail-comments` exposes the Comments tab for signed packet review, approved static replies, tracker metadata, and private moderation state inside the encrypted Shell.
+
 `postsnail-snaillift` exposes the existing SnailLift deployment assistant when enabled, but its provider logic still lives under `src/snaillift/` and stays out of PostSnail Core.
 
 `postsnail-pages` is the official bundled CMS plugin for Alpha 1A. It adds a Pages tab for pages, docs, navigation, and homepage override. Its editable state stays in encrypted plugin state and only published routes enter the Website ZIP.

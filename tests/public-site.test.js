@@ -15,12 +15,15 @@ const projectHtmlPages = [
   "media-kit/index.html",
   "docs/index.html",
   "docs/how-to-use/index.html",
+  "docs/cli/index.html",
+  "docs/headless-publishing/index.html",
   "docs/publish-cloudflare/index.html",
   "docs/publishing/index.html",
   "docs/snaillift/index.html",
   "docs/snaillift-cloudflare/index.html",
   "docs/snaillift-github/index.html",
   "docs/snaillift-security/index.html",
+  "docs/comments/index.html",
   "docs/shellnames/index.html",
   "docs/shellnames-protocol/index.html",
   "docs/shellnames-security/index.html",
@@ -131,6 +134,16 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-pages-seo-field="description"/);
   assert.match(appJs, /data-action="delete-unused-images"/);
   assert.match(appJs, /Delete unused/);
+  assert.match(appJs, /renderCommentsAdmin/);
+  assert.match(appJs, /PostSnail Comments/);
+  assert.match(appJs, /postsnail-comments/);
+  assert.match(appJs, /data-action="save-comments-settings"/);
+  assert.match(appJs, /data-action="verify-comment-packet"/);
+  assert.match(appJs, /data-action="approve-comment-packet"/);
+  assert.match(appJs, /data-action="reject-comment-packet"/);
+  assert.match(appJs, /Approved comments/);
+  assert.match(appJs, /Rejected comments/);
+  assert.match(appJs, /Blocked author public keys/);
   assert.match(appJs, /renderExtensions/);
   assert.match(appJs, /Official bundled plugins/);
   assert.match(appJs, /postsnail-snaillift/);
@@ -209,6 +222,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.pages-admin/);
   assert.match(css, /\.pages-list/);
   assert.match(css, /\.pages-editor/);
+  assert.match(css, /\.comments-admin/);
+  assert.match(css, /\.comments-workbench/);
+  assert.match(css, /\.comment-row/);
   assert.match(css, /\.notify-forest-attention/);
   assert.match(css, /\.snaillift-panel/);
   assert.match(css, /\.deploy-command/);
@@ -242,12 +258,15 @@ test("alpha public pages and documentation are present", () => {
     ["media-kit/index.html", /PostSnail Media Kit/],
     ["docs/index.html", /PostSnail Documentation/],
     ["docs/how-to-use/index.html", /How To Use PostSnail/],
+    ["docs/cli/index.html", /PostSnail CLI/],
+    ["docs/headless-publishing/index.html", /Headless Publishing/],
     ["docs/publish-cloudflare/index.html", /Publish On Cloudflare Pages/],
     ["docs/publishing/index.html", /Publishing PostSnail/],
     ["docs/snaillift/index.html", /SnailLift/],
     ["docs/snaillift-cloudflare/index.html", /Cloudflare Pages/],
     ["docs/snaillift-github/index.html", /GitHub Pages/],
     ["docs/snaillift-security/index.html", /Tokens are not stored by default/],
+    ["docs/comments/index.html", /PostSnail Comments/],
     ["docs/shellnames/index.html", /ShellNames/],
     ["docs/shellnames-protocol/index.html", /postsnail-shellname/],
     ["docs/shellnames-security/index.html", /not authority/],
@@ -275,6 +294,8 @@ test("alpha public pages and documentation are present", () => {
   }
 
   assert.match(read("docs/index.html"), /Encrypted Workspace/);
+  assert.match(read("docs/index.html"), /PostSnail CLI/);
+  assert.match(read("docs/index.html"), /Headless Publishing/);
   assert.match(read("docs/index.html"), /SnailLift/);
   assert.match(read("docs/index.html"), /ShellNames/);
   assert.match(read("docs/publishing/index.html"), /Download ZIP remains the fallback/);
@@ -318,6 +339,8 @@ test("alpha public pages and documentation are present", () => {
   assert.ok(existsSync(join(root, "docs/workspace-vault.md")));
   assert.ok(existsSync(join(root, "docs/migrations.md")));
   assert.ok(existsSync(join(root, "docs/security.md")));
+  assert.ok(existsSync(join(root, "docs/cli.md")));
+  assert.ok(existsSync(join(root, "docs/headless-publishing.md")));
 });
 
 test("brand assets and reusable branding skills are committed", () => {
@@ -382,6 +405,8 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "manifesto/index.html")));
   assert.ok(existsSync(join(outDir, "media-kit/index.html")));
   assert.ok(existsSync(join(outDir, "docs/architecture/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/cli/index.html")));
+  assert.ok(existsSync(join(outDir, "docs/headless-publishing/index.html")));
   assert.ok(existsSync(join(outDir, "docs/publishing/index.html")));
   assert.ok(existsSync(join(outDir, "docs/snaillift/index.html")));
   assert.ok(existsSync(join(outDir, "docs/snaillift-cloudflare/index.html")));

@@ -2,6 +2,7 @@ import { createPluginRegistry } from "./pluginRegistry.js";
 
 export const POSTSNAIL_SNAILLIFT_PLUGIN_ID = "postsnail-snaillift";
 export const POSTSNAIL_PAGES_PLUGIN_ID = "postsnail-pages";
+export const POSTSNAIL_COMMENTS_PLUGIN_ID = "postsnail-comments";
 
 export const POSTSNAIL_SNAILLIFT_MANIFEST = {
   protocol: "postsnail-plugin-v1",
@@ -69,8 +70,46 @@ export const POSTSNAIL_PAGES_MANIFEST = {
   },
 };
 
+export const POSTSNAIL_COMMENTS_MANIFEST = {
+  protocol: "postsnail-plugin-v1",
+  id: POSTSNAIL_COMMENTS_PLUGIN_ID,
+  name: "PostSnail Comments",
+  version: "0.1.0",
+  description: "Official signed comments plugin for approved static replies and future live tracker discovery.",
+  author: "PostSnail",
+  type: "official",
+  requiredFeatures: [],
+  optionalFeatures: ["comments", "route-assets"],
+  extensions: {
+    official: true,
+    builtIn: true,
+    moderation: true,
+  },
+  capabilities: ["adminPanel", "runtimeAssets", "storePluginState"],
+  permissions: ["read:posts", "read:pluginState", "write:pluginState", "export:assets", "export:manifestExtensions"],
+  admin: {
+    entry: "admin/comments.js",
+    loadWhen: ["admin:comments"],
+  },
+  export: {
+    hooks: ["export:assets", "export:manifestExtensions"],
+  },
+  runtime: {
+    entry: "runtime/comments.js",
+    css: ["runtime/comments.css"],
+    loadWhen: ["routeType:post", "feature:comments-enabled"],
+  },
+  state: {
+    schemaVersion: 1,
+  },
+  budgets: {
+    runtimeJsMaxKb: 40,
+    runtimeCssMaxKb: 20,
+  },
+};
+
 export function getOfficialPluginCatalog() {
-  return [POSTSNAIL_SNAILLIFT_MANIFEST, POSTSNAIL_PAGES_MANIFEST]
+  return [POSTSNAIL_COMMENTS_MANIFEST, POSTSNAIL_SNAILLIFT_MANIFEST, POSTSNAIL_PAGES_MANIFEST]
     .map(cloneJson)
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
 }

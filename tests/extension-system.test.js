@@ -23,6 +23,7 @@ import { TEMPLATE_SLOTS } from "../src/core/themes/templateSlots.js";
 import { resolveRouteAssets } from "../src/core/assets/routeAssets.js";
 import {
   getOfficialPluginCatalog,
+  POSTSNAIL_COMMENTS_PLUGIN_ID,
   getOfficialPluginManifest,
   isPluginEnabled,
   POSTSNAIL_PAGES_PLUGIN_ID,
@@ -212,6 +213,7 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   const manifest = getOfficialPluginManifest(POSTSNAIL_SNAILLIFT_PLUGIN_ID);
 
   assert.deepEqual(catalog.map((plugin) => plugin.id).sort(), [
+    "postsnail-comments",
     "postsnail-pages",
     "postsnail-snaillift",
   ]);
@@ -252,4 +254,29 @@ test("official plugin catalog exposes PostSnail Pages as a bundled CMS extension
   ]);
   assert.deepEqual(manifest.runtime, {});
   assert.equal(isPluginEnabled({ installed: [] }, "postsnail-pages"), false);
+});
+
+test("official plugin catalog exposes PostSnail Comments as a bundled moderation extension", () => {
+  const manifest = getOfficialPluginManifest(POSTSNAIL_COMMENTS_PLUGIN_ID);
+
+  assert.equal(manifest.id, "postsnail-comments");
+  assert.equal(manifest.name, "PostSnail Comments");
+  assert.deepEqual(manifest.capabilities, [
+    "adminPanel",
+    "runtimeAssets",
+    "storePluginState",
+  ]);
+  assert.deepEqual(manifest.permissions, [
+    "read:posts",
+    "read:pluginState",
+    "write:pluginState",
+    "export:assets",
+    "export:manifestExtensions",
+  ]);
+  assert.deepEqual(manifest.runtime, {
+    entry: "runtime/comments.js",
+    css: ["runtime/comments.css"],
+    loadWhen: ["routeType:post", "feature:comments-enabled"],
+  });
+  assert.equal(isPluginEnabled({ installed: [] }, "postsnail-comments"), false);
 });
