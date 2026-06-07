@@ -1149,7 +1149,7 @@ function renderShellGate() {
         <p class="kicker">Private vault / Local-first / No login</p>
         <h1>Open your PostSnail Shell</h1>
         <p>A Shell is your private PostSnail workspace. It contains your editable blog, drafts, settings, assets, and encrypted signing identity.</p>
-        <div class="shell-trust-strip" aria-label="Shell trust model">
+        <div class="shell-trust-ribbon" aria-label="Shell trust model">
           <div class="shell-trust-item good">
             <strong>Not an account</strong>
             <p>Your identity is a signature key, not a profile login. No account. No email. No backend login.</p>

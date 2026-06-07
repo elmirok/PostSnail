@@ -1,6 +1,7 @@
 import { sha3_512 } from "../vendor/@noble/hashes/sha3.js";
 import { ml_dsa65 } from "../vendor/@noble/post-quantum/ml-dsa.js";
 import { bytesToHex, decodeBase64, encodeBase64, encodeText } from "./bytes.js";
+import { assertStrongPassphrase } from "./passphrase.js";
 
 const KEY_ITERATIONS = 250000;
 
@@ -33,9 +34,7 @@ export function verifyBytes(bytes, signature, publicKey) {
 }
 
 export async function encryptSecretKey(secretKey, passphrase) {
-  if (!String(passphrase ?? "").trim()) {
-    throw new Error("Passphrase is required.");
-  }
+  assertStrongPassphrase(passphrase);
   const salt = randomBytes(16);
   const iv = randomBytes(12);
   const key = await deriveAesKey(passphrase, salt);
@@ -116,4 +115,3 @@ function cryptoObject() {
   }
   return globalThis.crypto;
 }
-

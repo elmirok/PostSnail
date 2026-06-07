@@ -108,6 +108,18 @@ test("plugin manifests validate ids, capabilities, permissions, feature gates, a
   assert.equal(globalRuntime.ok, false);
   assert.match(globalRuntime.errors.join("\n"), /runtime assets must declare loadWhen/i);
 
+  const unsafePaths = validatePluginManifest({
+    ...manifest,
+    admin: { entry: "admin\\comments.js", loadWhen: ["admin:comments"] },
+    runtime: {
+      entry: "runtime/%2e%2e/evil.js",
+      css: ["runtime/comments.css?cache=1"],
+      loadWhen: ["routeType:post"],
+    },
+  });
+  assert.equal(unsafePaths.ok, false);
+  assert.match(unsafePaths.errors.join("\n"), /safe relative path/);
+
   const badPermission = validatePluginPermissions(["read:posts", "deploy:nuclear"]);
   assert.equal(badPermission.ok, false);
   assert.match(badPermission.errors.join("\n"), /Unknown plugin permission: deploy:nuclear/);
@@ -161,6 +173,14 @@ test("theme manifests validate frontend and admin themes with required feature c
   assert.match(badAdmin.errors.join("\n"), /Admin theme tokens must use --ps-/);
   assert.match(badAdmin.errors.join("\n"), /Admin themes must not declare JavaScript runtime assets/);
 
+  const unsafeFrontend = validateThemeManifest({
+    ...frontend.normalized,
+    templates: { ...frontend.normalized.templates, post: "templates\\post.html" },
+    assets: { css: ["assets/theme.css#frag"], js: ["assets/%2e%2e/evil.js"] },
+  });
+  assert.equal(unsafeFrontend.ok, false);
+  assert.match(unsafeFrontend.errors.join("\n"), /safe relative path/);
+
   const unknownRequired = validateThemeManifest({
     ...frontend.normalized,
     requiredFeatures: ["immersive-3d-theme"],
@@ -192,6 +212,20 @@ test("route asset maps include only assets declared for matching routes", () => 
   assert.deepEqual(map["/"].plugins, ["postsnail-search"]);
   assert.deepEqual(map["/posts/hello/"].plugins, ["postsnail-comments"]);
   assert.equal(map["/"].assets.includes("/plugins/comments.js"), false);
+
+  const unsafeMap = createRouteAssetMap([
+    {
+      route: "/unsafe",
+      type: "post",
+      assets: [
+        "/assets/theme.css",
+        "/assets/%2e%2e/secret.css",
+        "/assets/theme.css?cache=1",
+        "/assets\\theme.css",
+      ],
+    },
+  ]);
+  assert.deepEqual(unsafeMap["/unsafe/"].assets, ["/assets/theme.css"]);
 });
 
 test("public export safety blocks private markers and unsafe paths", () => {

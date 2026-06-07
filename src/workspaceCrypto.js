@@ -6,6 +6,7 @@ import {
   REQUIRED_CORE_FEATURES,
 } from "./protocol.js";
 import { checkRequiredFeatures, protocolMatches } from "./compatibility.js";
+import { assertStrongPassphrase } from "./passphrase.js";
 
 export const WORKSPACE_FORMAT = "postsnail-workspace";
 export const WORKSPACE_VAULT_VERSION = 1;
@@ -17,7 +18,7 @@ export const WORKSPACE_DECRYPT_ERROR = "Unable to decrypt workspace. Check the p
 export const WORKSPACE_FINGERPRINT_ERROR = "Workspace fingerprint mismatch.";
 
 export async function encryptWorkspace(workspace, passphrase, options = {}) {
-  assertPassphrase(passphrase);
+  assertStrongPassphrase(passphrase);
   const salt = options.salt || randomBytes(16);
   const iv = options.iv || randomBytes(12);
   const createdAt = String(workspace.createdAt || options.now || new Date().toISOString());
@@ -55,7 +56,7 @@ export async function encryptWorkspace(workspace, passphrase, options = {}) {
 }
 
 export async function decryptWorkspace(envelopeOrText, passphrase) {
-  assertPassphrase(passphrase);
+  assertPresentPassphrase(passphrase);
   const envelope = parseWorkspaceEnvelope(envelopeOrText);
   validateEnvelope(envelope);
   try {
@@ -157,7 +158,7 @@ function parseBase64(value) {
   return decodeBase64(source.slice(7));
 }
 
-function assertPassphrase(passphrase) {
+function assertPresentPassphrase(passphrase) {
   if (!String(passphrase || "").trim()) {
     throw new Error("Workspace passphrase is required.");
   }

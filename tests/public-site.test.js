@@ -94,7 +94,7 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderShellGate/);
   assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Create Shell/);
-  assert.match(appJs, /shell-trust-strip/);
+  assert.match(appJs, /shell-trust-ribbon/);
   assert.match(appJs, /shell-trust-item/);
   assert.match(appJs, /open-shell-card/);
   assert.match(appJs, /create-shell-card/);
@@ -138,6 +138,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Review permissions/);
   assert.match(appJs, /deploy:provider/);
   assert.match(appJs, /Enable SnailLift in Extensions/);
+  assert.match(css, /\.shell-trust-ribbon/);
+  assert.match(css, /font-size:\s*clamp\(1\.55rem,\s*4vw,\s*2\.45rem\)/);
   assert.match(appJs, /@name@forest\.postsnail\.org/);
   assert.match(appJs, /data-settings-field="shellNameForestUrl"/);
   assert.match(appJs, /data-settings-field="shellNameDesiredName"/);
@@ -195,10 +197,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\[hidden\]\s*\{[\s\S]*display:\s*none\s*!important/);
   assert.match(css, /\.app-footer/);
   assert.match(css, /image-rendering:\s*pixelated/);
-  assert.match(css, /\.shell-trust-strip/);
+  assert.match(css, /\.shell-trust-ribbon/);
   assert.match(css, /\.shell-trust-item/);
   assert.match(css, /\.shell-gate\s*\{[\s\S]*gap:\s*10px/);
-  assert.match(css, /\.shell-intro h1\s*\{[\s\S]*clamp\(1\.9rem,\s*5vw,\s*3\.4rem\)/);
+  assert.match(css, /\.shell-intro h1\s*\{[\s\S]*clamp\(1\.55rem,\s*4vw,\s*2\.45rem\)/);
   assert.match(css, /\.shell-card-grid/);
   assert.match(css, /\.create-shell-card/);
   assert.match(css, /\.recovery-shell-card/);

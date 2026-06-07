@@ -269,10 +269,16 @@ export class D1RegistryStore implements RegistryStore {
     const limit = Math.min(Math.max(params.limit || 20, 1), 50);
     const scope = params.scope || "content";
     const now = new Date().toISOString();
+    const sources = [
+      scope !== "shell" ? "content" : "",
+      scope !== "content" ? "shell" : "",
+      scope !== "content" ? "shellname" : "",
+    ].filter(Boolean);
+    const sourceLimit = scope === "all" ? Math.min(Math.ceil(limit / Math.max(sources.length, 1)) + 5, limit + 1) : limit + 1;
     const rows = [
-      ...(scope === "shell" ? [] : await this.searchContentRows(params, limit + 1)),
-      ...(scope === "content" ? [] : await this.searchShellRows(params, limit + 1)),
-      ...(scope === "content" ? [] : await this.searchShellNameRows(params, limit + 1, now)),
+      ...(scope === "shell" ? [] : await this.searchContentRows(params, sourceLimit)),
+      ...(scope === "content" ? [] : await this.searchShellRows(params, sourceLimit)),
+      ...(scope === "content" ? [] : await this.searchShellNameRows(params, sourceLimit, now)),
     ].sort(compareSearchRows);
     const pageRows = rows.slice(0, limit);
     const items = pageRows.map(searchRowToItem);

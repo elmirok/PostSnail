@@ -1,5 +1,6 @@
 import { checkRequiredFeatures } from "../../compatibility.js";
 import { normalizeStringList } from "../plugins/pluginPermissions.js";
+import { isSafeRelativePath } from "../pathSafety.js";
 
 export const KNOWN_THEME_FEATURES = [
   "frontend-theme",
@@ -102,11 +103,6 @@ function validateAdminTheme(source, errors) {
 
 function isValidId(value) {
   return /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/u.test(String(value || ""));
-}
-
-function isSafeRelativePath(value) {
-  const text = String(value || "").trim();
-  return Boolean(text) && !text.startsWith("/") && !text.includes("..") && !/^[a-z]+:/iu.test(text);
 }
 
 function objectRecord(value) {

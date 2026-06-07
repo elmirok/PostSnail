@@ -314,12 +314,25 @@ describe("registry API and crawl flow", () => {
     const get = await handleRequest(new Request("https://registry.example/"), deps);
     expect(get.status).toBe(200);
     expect(get.headers.get("content-type")).toContain("text/html");
+    expect(get.headers.get("content-security-policy")).toContain("script-src 'self'");
+    expect(get.headers.get("content-security-policy")).toContain("style-src 'self'");
+    expect(get.headers.get("content-security-policy")).not.toContain("unsafe-inline");
     expect(await get.text()).toContain("PostSnail Forest");
 
     const head = await handleRequest(new Request("https://registry.example/", { method: "HEAD" }), deps);
     expect(head.status).toBe(200);
     expect(head.headers.get("content-type")).toContain("text/html");
     expect(await head.text()).toBe("");
+
+    const css = await handleRequest(new Request("https://registry.example/forest.css"), deps);
+    expect(css.status).toBe(200);
+    expect(css.headers.get("content-type")).toContain("text/css");
+    expect(await css.text()).toContain(".forest-brand-icon");
+
+    const js = await handleRequest(new Request("https://registry.example/forest.js"), deps);
+    expect(js.status).toBe(200);
+    expect(js.headers.get("content-type")).toContain("text/javascript");
+    expect(await js.text()).toContain("PUBLIC_DETAIL_KEYS");
   });
 
   test("queues submissions and rejects duplicate active submissions", async () => {
@@ -362,6 +375,17 @@ describe("registry API and crawl flow", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: expect.stringMatching(/public https/i) });
+  });
+
+  test("rejects overlong search inputs before hitting storage", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+
+    const overlong = await handleRequest(new Request(`https://registry.example/api/search?q=${"a".repeat(161)}`), deps);
+
+    expect(overlong.status).toBe(400);
+    expect(await overlong.json()).toMatchObject({ error: expect.stringMatching(/Search query is too long/i) });
   });
 
   test("rate-limits repeated submissions by requester hash", async () => {
@@ -431,6 +455,49 @@ describe("registry API and crawl flow", () => {
 
     const site = await handleRequest(new Request(`https://registry.example/api/sites/${results.items[0].site.id}`), deps);
     expect(site.headers.get("cache-control")).toBe("public, max-age=60, stale-while-revalidate=300");
+  });
+
+  test("public site JSON allowlists details fields", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const now = "2026-06-05T00:00:00.000Z";
+    store.sites.set("site_1", {
+      id: "site_1",
+      canonicalUrl: "https://creator.example/",
+      manifestUrl: "https://creator.example/postsnail.manifest.json",
+      siteTitle: "Creator",
+      handle: "creator",
+      description: "Public description",
+      siteUrl: "https://creator.example/",
+      publicKey: "base64:public",
+      bundleFingerprint: "psn1-sha3-512-test",
+      logoUrl: "",
+      details: {
+        manifestUrl: "https://creator.example/postsnail.manifest.json",
+        generatedAt: now,
+        body: "should not leave D1",
+        privatePluginState: "should not leave D1",
+        arbitraryFutureField: "should not leave D1",
+      },
+      generatedAt: now,
+      lastVerifiedAt: now,
+      hidden: 0,
+      latestCrawlStatus: "indexed",
+    });
+
+    const response = await handleRequest(new Request("https://registry.example/api/sites/site_1"), {
+      store,
+      queue,
+      now: () => now,
+      rateLimitSecret: "test-secret",
+    });
+    const json = await response.json() as any;
+
+    expect(response.status).toBe(200);
+    expect(json.site.details).toEqual({
+      manifestUrl: "https://creator.example/postsnail.manifest.json",
+      generatedAt: now,
+    });
   });
 
   test("search scopes return content and public Shell results with summary-only rich details", async () => {

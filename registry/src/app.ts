@@ -4,7 +4,7 @@ import { sha3Hex } from "../../src/crypto.js";
 import { verifyAnnouncePayload } from "../../src/proof-documents.js";
 import { normalizeShellNameName, verifyShellNameRecord } from "../../src/shellnames.js";
 import { D1RegistryStore } from "./db";
-import { renderSearchPage, renderShellNameProfile } from "./html";
+import { renderForestCss, renderForestScript, renderSearchPage, renderShellNameProfile } from "./html";
 import { normalizedSearchText, randomId } from "./ids";
 import { fetchJson } from "./remote";
 import { addMinutes, createRefreshSubmission } from "./scheduler";
@@ -24,6 +24,40 @@ import type {
 const MAX_SUBMIT_BYTES = 8192;
 const MAX_ANNOUNCE_BYTES = 24 * 1024;
 const MAX_SHELLNAME_BYTES = 24 * 1024;
+const MAX_SEARCH_QUERY_CHARS = 160;
+const MAX_SEARCH_TAG_CHARS = 48;
+const MAX_SEARCH_CURSOR_CHARS = 512;
+const PUBLIC_DETAIL_KEYS = new Set([
+  "bundleFingerprint",
+  "createdAt",
+  "crawlMessage",
+  "crawlStatus",
+  "description",
+  "digest",
+  "expiresAt",
+  "excerpt",
+  "forest",
+  "fullName",
+  "generatedAt",
+  "handle",
+  "imageFiles",
+  "logoUrl",
+  "manifestUrl",
+  "name",
+  "postUrl",
+  "publicKey",
+  "publishedAt",
+  "resultType",
+  "siteUrl",
+  "slug",
+  "status",
+  "tags",
+  "thumbnailUrl",
+  "title",
+  "updatedAt",
+  "url",
+  "verifiedAt",
+]);
 
 export interface AppDeps {
   store: RegistryStore;
@@ -53,6 +87,15 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
   if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/") {
     return new Response(request.method === "HEAD" ? null : renderSearchPage(), { headers: htmlHeaders() });
+  }
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/forest.css") {
+    return new Response(request.method === "HEAD" ? null : renderForestCss(), { headers: staticAssetHeaders("text/css; charset=utf-8") });
+  }
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/forest.js") {
+    return new Response(request.method === "HEAD" ? null : renderForestScript(), { headers: staticAssetHeaders("text/javascript; charset=utf-8") });
+  }
+  if ((request.method === "GET" || request.method === "HEAD") && url.pathname === "/assets/brand/postsnail-icon.png") {
+    return Response.redirect("https://postsnail.org/assets/brand/postsnail-icon.png", 302);
   }
   try {
     if (request.method === "POST" && url.pathname === "/api/submit") return await handleSubmit(request, deps);
@@ -170,6 +213,7 @@ async function handleSubmission(url: URL, deps: AppDeps): Promise<Response> {
 }
 
 async function handleSearch(url: URL, deps: AppDeps): Promise<Response> {
+  validateSearchInputs(url);
   const tag = normalizeTags([url.searchParams.get("tag") || ""])[0] || "";
   const params: SearchParams = {
     q: normalizedSearchText(url.searchParams.get("q") || ""),
@@ -392,11 +436,31 @@ function htmlHeaders(): HeadersInit {
   return {
     "content-type": "text/html; charset=utf-8",
     "content-security-policy":
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
   };
+}
+
+function staticAssetHeaders(contentType: string): HeadersInit {
+  return {
+    "content-type": contentType,
+    "cache-control": "public, max-age=300, stale-while-revalidate=3600",
+    "x-content-type-options": "nosniff",
+  };
+}
+
+function validateSearchInputs(url: URL): void {
+  if ((url.searchParams.get("q") || "").length > MAX_SEARCH_QUERY_CHARS) {
+    throw new PublicError(400, "Search query is too long.");
+  }
+  if ((url.searchParams.get("tag") || "").length > MAX_SEARCH_TAG_CHARS) {
+    throw new PublicError(400, "Search tag is too long.");
+  }
+  if ((url.searchParams.get("cursor") || "").length > MAX_SEARCH_CURSOR_CHARS) {
+    throw new PublicError(400, "Search cursor is too long.");
+  }
 }
 
 async function readJsonRequest(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
@@ -451,7 +515,7 @@ function publicSite(site: RegistrySite) {
     publicKey: site.publicKey,
     bundleFingerprint: site.bundleFingerprint,
     logoUrl: site.logoUrl,
-    details: site.details || {},
+    details: sanitizePublicDetails(site.details),
     generatedAt: site.generatedAt,
     lastVerifiedAt: site.lastVerifiedAt,
     latestCrawlStatus: site.latestCrawlStatus,
@@ -472,7 +536,7 @@ function publicPost(post: RegistryPost) {
     tags: post.tags,
     digest: post.digest,
     thumbnailUrl: post.thumbnailUrl,
-    details: post.details || {},
+    details: sanitizePublicDetails(post.details),
     publishedAt: post.publishedAt,
   };
 }
@@ -508,6 +572,24 @@ function publicShellName(record: ShellNameRecord, now: string) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+function sanitizePublicDetails(value: unknown): Record<string, unknown> {
+  const source = objectRecord(value);
+  const clean: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(source)) {
+    if (!PUBLIC_DETAIL_KEYS.has(key) || nested === undefined || nested === null || nested === "") continue;
+    if (Array.isArray(nested)) {
+      if (nested.length) clean[key] = nested;
+      continue;
+    }
+    if (typeof nested === "object") {
+      if (Object.keys(objectRecord(nested)).length) clean[key] = objectRecord(nested);
+      continue;
+    }
+    clean[key] = nested;
+  }
+  return clean;
 }
 
 function normalizeScope(value: string | null): SearchParams["scope"] {

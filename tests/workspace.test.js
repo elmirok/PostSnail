@@ -131,6 +131,11 @@ test("workspace import fails safely for wrong passphrase and tampered ciphertext
   const exported = await exportWorkspaceVault(sampleState(), passphrase, { now });
 
   await assert.rejects(
+    () => exportWorkspaceVault(sampleState(), "short", { now }),
+    /Passphrase must be at least 10 characters\./,
+  );
+
+  await assert.rejects(
     () => importWorkspaceVault(exported.text, "wrong passphrase"),
     /Unable to decrypt workspace\. Check the passphrase or file integrity\./,
   );

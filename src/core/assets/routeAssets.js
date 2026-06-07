@@ -1,3 +1,5 @@
+import { isSafeAbsolutePath } from "../pathSafety.js";
+
 export function createRouteAssetMap(routes = []) {
   const map = {};
   for (const route of Array.isArray(routes) ? routes : []) {
@@ -59,8 +61,7 @@ export function normalizeRoutePath(value) {
 }
 
 export function isSafePublicAssetPath(value) {
-  const path = String(value || "").trim();
-  return Boolean(path) && path.startsWith("/") && !path.includes("..") && !/^[a-z]+:/iu.test(path);
+  return isSafeAbsolutePath(value);
 }
 
 function uniqueStrings(value = []) {

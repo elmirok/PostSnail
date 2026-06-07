@@ -73,6 +73,10 @@ test("private key encryption round trips and rejects wrong passphrases", async (
     () => decryptSecretKey(encrypted, "wrong passphrase"),
     /Unable to decrypt signing key/,
   );
+  await assert.rejects(
+    () => encryptSecretKey(keys.secretKey, "short"),
+    /Passphrase must be at least 10 characters\./,
+  );
 });
 
 test("base64 helpers preserve binary bytes", () => {
