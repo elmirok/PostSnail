@@ -56,6 +56,7 @@ test("public landing page is separate from the browser admin", () => {
   assert.match(html, /PostSnail Alpha 1/);
   assert.match(html, /id="landing-search"/);
   assert.match(html, /data-forest-url="https:\/\/forest\.postsnail\.org\/"/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-XVB04MP13V/);
   assert.doesNotMatch(html, /id="app" class="app-shell"/);
   assert.doesNotMatch(html, /src="\.\/app\.js"/);
 });
@@ -67,6 +68,7 @@ test("admin shell is reachable from /admin/", () => {
   assert.match(html, /<main id="app" class="app-shell"/);
   assert.match(html, /href="\.\.\/styles\.css"/);
   assert.match(html, /src="\.\.\/app\.js"/);
+  assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-XVB04MP13V/);
   assert.match(html, legalFooterPattern);
 });
 
@@ -80,6 +82,7 @@ test("public pages are generated from the shared PostSnail layout", () => {
   for (const path of projectHtmlPages) {
     const html = read(path);
     assert.match(html, generatedMarker, path);
+    assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-XVB04MP13V/, path);
     assert.match(html, /class="site-footer"/, path);
     assert.match(html, legalFooterPattern, path);
     assert.match(html, /href="\/docs\/legal\/"/, path);
@@ -236,6 +239,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
 
   assert.match(headers, /connect-src 'self' https:\/\/forest\.postsnail\.org/);
+  assert.match(headers, /www\.googletagmanager\.com/);
+  assert.match(headers, /www\.google-analytics\.com/);
+  assert.match(headers, /sha256-sIRPHA7SVkYAlsAr9nOEpJyk\+8KD8g8igOpfemf0u0o=/);
+  assert.match(headers, /\/verify-remote\.html[\s\S]*www\.googletagmanager\.com/);
 });
 
 test("remote verifier generated page has matching public CSS support", () => {

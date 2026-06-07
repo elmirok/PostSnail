@@ -19,7 +19,7 @@ The exported site includes:
 - `.well-known/postsnail.json` as a signed identity/discovery document bound to the creator domain when a site URL is set.
 - `.well-known/postsnail/latest-commit.json` and `.well-known/postsnail/commits.json` with signed export history.
 
-PostSnail does not require a backend, submit automatically to a registry, upload files, create accounts, or track usage.
+PostSnail does not require a backend, submit automatically to a registry, upload files, or create accounts.
 
 ## Run Locally
 

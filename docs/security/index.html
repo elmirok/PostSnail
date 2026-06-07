@@ -11,6 +11,15 @@
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
     <link rel="stylesheet" href="/site.css">
+    
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-XVB04MP13V"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+    
+          gtag('config', 'G-XVB04MP13V');
+        </script>
   </head>
   <body>
     <header class="site-header">
@@ -39,7 +48,7 @@
               <section id="proof"><h2>Public Proof</h2><p>The public Website ZIP uses SHA3-512 digests and ML-DSA-65 signatures so verifiers can check published content against the creator public key. Proof does not prove legal identity or factual truth.</p></section>
               <section id="limits"><h2>Limits</h2><p>PostSnail cannot recover lost passphrases, cannot protect a compromised browser/device, and does not make the JavaScript runtime FIPS-validated.</p></section>
               <section id="metadata"><h2>Image Metadata</h2><p>Images are copied as selected. Strip EXIF/GPS metadata before importing images if that matters for your threat model.</p></section>
-              <section id="backend"><h2>No Required Backend</h2><p>The admin does not need accounts, analytics, upload services, or registry calls. Forest registration is a separate public-site action after publishing.</p></section>
+              <section id="backend"><h2>No Required Backend</h2><p>The admin does not need accounts, upload services, or registry calls. The public PostSnail site may include lightweight analytics, but Forest registration is still a separate public-site action after publishing.</p></section>
             </div>
           </article>
     </main>

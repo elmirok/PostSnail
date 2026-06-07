@@ -37,7 +37,7 @@ Write plainly and with ownership language: creator-owned, local-first, static, s
 ## Surfaces
 
 - Public website: expressive, logo-forward, explanatory, search/creation CTAs visible in the first viewport.
-- Admin: compact, task-first, browser-only, no login, no analytics, no required backend.
+- Admin: compact, task-first, browser-only, no login, no required backend.
 - Forest: discovery/search/registration, green accents, clear trust boundary that indexed results are summaries and proof files remain authoritative.
 - Media kit: mirror these rules and link downloadable logo/icon assets.
 

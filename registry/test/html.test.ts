@@ -42,6 +42,7 @@ describe("registry homepage", () => {
     expect(html).toContain("Best match");
     expect(html).toContain("Newest");
     expect(html).toContain("A-Z");
+    expect(html).not.toContain("googletagmanager.com/gtag/js");
     expect(renderForestScript()).toContain("setRegistrationOpen");
     expect(renderForestScript()).toContain("Hide registration form");
     expect(renderForestScript()).toContain("renderSavedSubmissionSummary");
