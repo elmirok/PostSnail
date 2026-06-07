@@ -55,6 +55,7 @@ export function renderSearchPage(): string {
     </section>
     <section class="results-filter-bar" id="result-filters" aria-label="Result filters" hidden>
       <label class="tag-row" for="tag"><span>Filter by tag</span><input id="tag" name="tag" form="search-form" autocomplete="off" placeholder="optional tag"></label>
+      <label class="sort-row" for="sort"><span>Sort by</span><select id="sort" name="sort" form="search-form"><option value="best">Best match</option><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="az">A-Z</option><option value="za">Z-A</option><option value="verified">Recently verified</option></select></label>
       <fieldset class="scope-control" aria-label="Search scope">
         <legend>Search scope</legend>
         <label><input type="radio" name="scope" value="all" form="search-form" checked><span>All</span></label>
@@ -116,8 +117,10 @@ form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; }
 .search-box button { min-height:64px; border-width:0 0 0 3px; padding:0 22px; font-size:1.02rem; }
 .tag-row { display:grid; grid-template-columns:auto minmax(160px, 260px); align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:.9rem; }
 .tag-row input { min-height:40px; background:var(--paper); }
+.sort-row { display:grid; grid-template-columns:auto minmax(150px, 210px); align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:.9rem; }
+.sort-row select { width:100%; min-height:40px; border:2px solid var(--line); border-radius:0; background:var(--paper); color:var(--ink); padding:0 10px; font:inherit; font-weight:800; }
 .results-filter-bar { margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border:2px solid var(--line); background:var(--paper); box-shadow:6px 6px 0 rgba(47,122,85,.12); padding:10px 12px; }
-.results-filter-bar .tag-row { justify-content:start; }
+.results-filter-bar .tag-row, .results-filter-bar .sort-row { justify-content:start; }
 .scope-control { border:0; padding:0; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
 .scope-control legend { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .scope-control label { display:inline-flex; align-items:center; gap:0; color:var(--ink); font-size:.92rem; }
@@ -146,6 +149,8 @@ input { width:100%; min-height:42px; border:2px solid var(--line); border-radius
 .result p { margin:0; color:var(--muted); line-height:1.45; }
 .meta, .tags { display:flex; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:.86rem; }
 .tag { color:var(--accent); }
+.alias-badge { display:inline-flex; align-items:center; width:max-content; max-width:100%; min-height:32px; border:2px solid var(--accent); background:var(--green-soft); color:var(--ink); padding:0 9px; font-size:.9rem; font-weight:900; text-decoration:none; overflow-wrap:anywhere; }
+.alias-badge::before { content:'@'; color:var(--accent); margin-right:4px; }
 details { border-top:1px solid rgba(8,10,47,.18); padding-top:8px; color:var(--muted); }
 summary { cursor:pointer; color:var(--ink); font-weight:900; }
 .detail-grid { display:grid; grid-template-columns:minmax(96px, 160px) minmax(0, 1fr); gap:6px 10px; margin-top:8px; font-size:.86rem; }
@@ -164,7 +169,7 @@ dl { display:grid; grid-template-columns:150px minmax(0, 1fr); gap:8px 12px; }
 dt { font-weight:900; }
 dd { margin:0; overflow-wrap:anywhere; }
 @media (max-width: 820px) { .panels { grid-template-columns:1fr; } }
-@media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } .hero { padding:34px 0 22px; } form, .search-form, .search-box, .tag-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel p { text-align:left; } .creator-action, .saved-submission-summary { justify-content:flex-start; } .results-filter-bar { align-items:stretch; flex-direction:column; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid, dl { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
+@media (max-width: 680px) { header { align-items:flex-start; flex-direction:column; } nav { justify-content:flex-start; } .hero { padding:34px 0 22px; } form, .search-form, .search-box, .tag-row, .sort-row { grid-template-columns:1fr; } .search-box button { border-width:3px 0 0; } .forest-search-panel p { text-align:left; } .creator-action, .saved-submission-summary { justify-content:flex-start; } .results-filter-bar { align-items:stretch; flex-direction:column; } .scope-control { justify-content:flex-start; } .scope-control label { flex:1 1 88px; } .scope-control span { width:100%; } .result { grid-template-columns:72px minmax(0, 1fr); gap:10px; padding:12px; } .result-media { width:72px; } .detail-grid, dl { grid-template-columns:1fr; } h1 { font-size:2.25rem; } .shell { width:min(100vw - 24px, 1040px); padding-top:12px; } }
 `;
 }
 
@@ -213,6 +218,7 @@ const savedSubmissionSummaryEl = document.getElementById('saved-submission-summa
 const form = document.getElementById('search-form');
 const qInput = document.getElementById('q');
 const tagInput = document.getElementById('tag');
+const sortInput = document.getElementById('sort');
 const scopeInputs = Array.from(document.querySelectorAll('input[name="scope"]'));
 const statusEl = document.getElementById('status');
 const resultsEl = document.getElementById('results');
@@ -231,6 +237,7 @@ form.addEventListener('submit', (event) => {
   search();
 });
 tagInput.addEventListener('change', () => search());
+sortInput.addEventListener('change', () => search());
 scopeInputs.forEach((input) => {
   input.addEventListener('change', () => search());
 });
@@ -238,8 +245,10 @@ const params = new URLSearchParams(window.location.search);
 const initialQ = params.get('q') || '';
 const initialTag = params.get('tag') || '';
 const initialScope = ['all', 'content', 'shell'].includes(params.get('scope')) ? params.get('scope') : 'all';
+const initialSort = ['best', 'newest', 'oldest', 'az', 'za', 'verified'].includes(params.get('sort')) ? params.get('sort') : 'best';
 if (initialQ) qInput.value = initialQ;
 if (initialTag) tagInput.value = initialTag;
+sortInput.value = initialSort;
 scopeInputs.forEach((input) => {
   input.checked = input.value === initialScope;
 });
@@ -465,6 +474,7 @@ function searchParams() {
   params.set('q', qInput.value.trim());
   params.set('tag', tagInput.value.trim());
   params.set('scope', currentScope());
+  params.set('sort', sortInput.value || 'best');
   return params;
 }
 
@@ -481,9 +491,11 @@ function syncUrlParams(params) {
   const q = params.get('q') || '';
   const tag = params.get('tag') || '';
   const scope = params.get('scope') || 'all';
+  const sort = params.get('sort') || 'best';
   if (q) next.set('q', q);
   if (tag) next.set('tag', tag);
   if (scope !== 'all') next.set('scope', scope);
+  if (sort !== 'best') next.set('sort', sort);
   const query = next.toString();
   const nextUrl = window.location.pathname + (query ? '?' + query : '');
   window.history.replaceState(null, '', nextUrl);
@@ -534,6 +546,7 @@ function renderContentResult(item) {
 
 function renderShellResult(item) {
   const site = item.shell || item.site || {};
+  const shellName = item.shellName || {};
   const title = site.title || site.handle || hostFromUrl(site.url) || 'PostSnail Shell';
   const media = renderMedia(site.logoUrl, title);
   const details = renderDetails('Shell details', mergeDetails(site.details, {
@@ -549,9 +562,19 @@ function renderShellResult(item) {
     verifiedAt: site.lastVerifiedAt,
     crawlStatus: site.latestCrawlStatus,
     crawlMessage: site.latestCrawlMessage,
-    logoUrl: site.logoUrl
+    logoUrl: site.logoUrl,
+    name: shellName.name,
+    fullName: shellName.fullName,
+    forest: shellName.forest,
+    expiresAt: shellName.expiresAt
   }));
-  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2><p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
+  return '<article class="result">' + media + '<div class="result-body"><div class="meta"><span>Shell</span><span>@' + escapeHtml(site.handle || 'site') + '</span><span>' + escapeHtml(site.lastVerifiedAt || '') + '</span></div><h2><a href="' + escapeAttr(site.url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title) + '</a></h2>' + renderShellAlias(shellName) + '<p>' + escapeHtml(site.description || 'Public PostSnail site profile indexed by Forest.') + '</p>' + details + '</div></article>';
+}
+
+function renderShellAlias(shellName) {
+  if (!shellName || !shellName.name) return '';
+  const label = shellName.fullName || ('@' + shellName.name + '@forest.postsnail.org');
+  return '<div class="actions"><a class="alias-badge" href="/@' + escapeAttr(shellName.name) + '">' + escapeHtml(label.replace(/^@/, '')) + '</a><a class="btn" href="/shellnames/' + escapeAttr(shellName.name) + '.json">Alias JSON</a></div>';
 }
 
 function renderShellNameResult(item) {

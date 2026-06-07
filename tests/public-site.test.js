@@ -129,6 +129,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-pages-field="title"/);
   assert.match(appJs, /data-pages-field="body"/);
   assert.match(appJs, /data-pages-seo-field="description"/);
+  assert.match(appJs, /data-action="delete-unused-images"/);
+  assert.match(appJs, /Delete unused/);
   assert.match(appJs, /renderExtensions/);
   assert.match(appJs, /Official bundled plugins/);
   assert.match(appJs, /postsnail-snaillift/);

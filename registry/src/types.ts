@@ -86,13 +86,14 @@ export interface SearchParams {
   q: string;
   tag: string;
   scope?: "all" | "content" | "shell";
+  sort?: "best" | "newest" | "oldest" | "az" | "za" | "verified";
   limit: number;
   cursor: string | null;
 }
 
 export type SearchResultItem =
   | { type: "content"; site: RegistrySite; post: RegistryPost; shell?: undefined; sortAt?: string }
-  | { type: "shell"; site: RegistrySite; shell: RegistrySite; post?: undefined; sortAt?: string }
+  | { type: "shell"; site: RegistrySite; shell: RegistrySite; shellName?: ShellNameRecord; post?: undefined; sortAt?: string }
   | { type: "shellname"; shellName: ShellNameRecord; site?: undefined; shell?: undefined; post?: undefined; sortAt?: string };
 
 export interface SearchResult {

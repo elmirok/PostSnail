@@ -34,6 +34,11 @@ describe("registry homepage", () => {
     expect(html).toMatch(/name="scope" value="all"[^>]*checked/);
     expect(html).toContain("Content");
     expect(html).toContain("Shell");
+    expect(html).toContain('id="sort"');
+    expect(html).toContain('name="sort"');
+    expect(html).toContain("Best match");
+    expect(html).toContain("Newest");
+    expect(html).toContain("A-Z");
     expect(renderForestScript()).toContain("setRegistrationOpen");
     expect(renderForestScript()).toContain("Hide registration form");
     expect(renderForestScript()).toContain("renderSavedSubmissionSummary");
@@ -53,6 +58,8 @@ describe("registry homepage", () => {
     expect(script).toContain('referrerpolicy="no-referrer"');
     expect(script).toContain("Shell details");
     expect(script).toContain("Post details");
+    expect(script).toContain("alias-badge");
+    expect(script).toContain("renderShellAlias");
     expect(script).not.toContain("private|secret|passphrase");
   });
 
@@ -95,8 +102,10 @@ describe("registry homepage", () => {
     expect(script).toContain("params.get('q')");
     expect(script).toContain("params.get('tag')");
     expect(script).toContain("params.get('scope')");
+    expect(script).toContain("params.get('sort')");
     expect(script).toContain("qInput.value = initialQ");
     expect(script).toContain("tagInput.value = initialTag");
+    expect(script).toContain("sortInput.value = initialSort");
     expect(script).toContain("if (initialQ || initialTag) search()");
     expect(script).toContain("syncUrlParams");
   });

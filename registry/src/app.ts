@@ -27,6 +27,7 @@ const MAX_SHELLNAME_BYTES = 24 * 1024;
 const MAX_SEARCH_QUERY_CHARS = 160;
 const MAX_SEARCH_TAG_CHARS = 48;
 const MAX_SEARCH_CURSOR_CHARS = 512;
+const SEARCH_SORTS = new Set(["best", "newest", "oldest", "az", "za", "verified"]);
 const PUBLIC_DETAIL_KEYS = new Set([
   "bundleFingerprint",
   "createdAt",
@@ -219,6 +220,7 @@ async function handleSearch(url: URL, deps: AppDeps): Promise<Response> {
     q: normalizedSearchText(url.searchParams.get("q") || ""),
     tag,
     scope: normalizeScope(url.searchParams.get("scope")),
+    sort: normalizeSort(url.searchParams.get("sort")),
     limit: clampLimit(url.searchParams.get("limit")),
     cursor: url.searchParams.get("cursor"),
   };
@@ -461,6 +463,10 @@ function validateSearchInputs(url: URL): void {
   if ((url.searchParams.get("cursor") || "").length > MAX_SEARCH_CURSOR_CHARS) {
     throw new PublicError(400, "Search cursor is too long.");
   }
+  const sort = url.searchParams.get("sort");
+  if (sort && !SEARCH_SORTS.has(sort)) {
+    throw new PublicError(400, "Unsupported search sort.");
+  }
 }
 
 async function readJsonRequest(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
@@ -553,6 +559,7 @@ function publicSearchItem(item: Awaited<ReturnType<RegistryStore["search"]>>["it
     site: publicSite(item.site),
     post: item.post ? publicPost(item.post) : undefined,
     shell: item.shell ? publicShell(item.shell) : undefined,
+    shellName: item.type === "shell" && item.shellName ? publicShellName(item.shellName, now) : undefined,
   };
 }
 
@@ -595,6 +602,11 @@ function sanitizePublicDetails(value: unknown): Record<string, unknown> {
 function normalizeScope(value: string | null): SearchParams["scope"] {
   if (value === "all" || value === "shell" || value === "content") return value;
   return "content";
+}
+
+function normalizeSort(value: string | null): SearchParams["sort"] {
+  if (value && SEARCH_SORTS.has(value)) return value as SearchParams["sort"];
+  return "best";
 }
 
 function clampLimit(value: string | null): number {

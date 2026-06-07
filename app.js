@@ -1,4 +1,5 @@
 import DOMPurify from "./vendor/dompurify/purify.es.mjs";
+import { findUnusedAssets } from "./src/assetCleanup.js";
 import { normalizePost, uniqueSlug } from "./src/content.js";
 import {
   decryptSecretKey,
@@ -253,6 +254,10 @@ async function handleAction(button) {
     state.form.imageIds = state.form.imageIds.filter((id) => id !== button.dataset.id);
     setStatus("Image detached from this post.");
     render();
+    return;
+  }
+  if (action === "delete-unused-images") {
+    await deleteUnusedImages();
     return;
   }
   if (action === "generate-key") {
@@ -603,6 +608,23 @@ async function addImages(files) {
   }
   await persistLocalShellNow();
   setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} attached. Originals may contain metadata.`);
+  render();
+}
+
+async function deleteUnusedImages() {
+  const unused = unusedAssets();
+  if (!unused.length) {
+    setStatus("No unused images found.");
+    render();
+    return;
+  }
+  const message = `Delete ${unused.length} unused image${unused.length === 1 ? "" : "s"} from this Shell?`;
+  if (!window.confirm(message)) return;
+  const unusedIds = new Set(unused.map((asset) => asset.id));
+  state.assets = state.assets.filter((asset) => !unusedIds.has(asset.id));
+  state.form.imageIds = state.form.imageIds.filter((id) => !unusedIds.has(id));
+  await persistLocalShellNow();
+  setStatus(`Deleted ${unused.length} unused image${unused.length === 1 ? "" : "s"}.`);
   render();
 }
 
@@ -1298,6 +1320,7 @@ function renderWrite() {
 }
 
 function renderLibrary() {
+  const unused = unusedAssets();
   return `
     <div class="grid-2">
       <section class="panel-box">
@@ -1310,13 +1333,21 @@ function renderLibrary() {
         </div>
       </section>
       <section class="panel-box">
-        <h2 class="panel-title">Images</h2>
+        <div class="actions">
+          <h2 class="panel-title">Images</h2>
+          <span class="status-badge ${unused.length ? "draft" : ""}">Unused ${unused.length}</span>
+          <button class="btn small danger" type="button" data-action="delete-unused-images" ${unused.length ? "" : "disabled"}>Delete unused</button>
+        </div>
         <div class="asset-list">
           ${state.assets.map(renderAssetSummary).join("") || `<div class="empty-state"><span>No images</span><p>Images are imported only from files you select.</p></div>`}
         </div>
       </section>
     </div>
   `;
+}
+
+function unusedAssets() {
+  return findUnusedAssets(snapshotState(), { extraReferences: [state.form] });
 }
 
 function renderIdentity() {

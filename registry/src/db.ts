@@ -268,21 +268,29 @@ export class D1RegistryStore implements RegistryStore {
   async search(params: SearchParams): Promise<SearchResult> {
     const limit = Math.min(Math.max(params.limit || 20, 1), 50);
     const scope = params.scope || "content";
+    const sort = params.sort || "best";
     const now = new Date().toISOString();
     const sources = [
       scope !== "shell" ? "content" : "",
       scope !== "content" ? "shell" : "",
       scope !== "content" ? "shellname" : "",
     ].filter(Boolean);
-    const sourceLimit = scope === "all" ? Math.min(Math.ceil(limit / Math.max(sources.length, 1)) + 5, limit + 1) : limit + 1;
+    const sourceLimit = params.cursor
+      ? 100
+      : scope === "all"
+        ? Math.min(Math.ceil(limit / Math.max(sources.length, 1)) + 5, limit + 1)
+        : limit + 1;
+    const fetchParams = { ...params, sort, cursor: null };
     const rows = [
-      ...(scope === "shell" ? [] : await this.searchContentRows(params, sourceLimit)),
-      ...(scope === "content" ? [] : await this.searchShellRows(params, sourceLimit)),
-      ...(scope === "content" ? [] : await this.searchShellNameRows(params, sourceLimit, now)),
-    ].sort(compareSearchRows);
-    const pageRows = rows.slice(0, limit);
-    const items = pageRows.map(searchRowToItem);
-    const nextCursor = rows.length > limit ? makeCursorForItem(items.at(-1)) : null;
+      ...(scope === "shell" ? [] : await this.searchContentRows(fetchParams, sourceLimit)),
+      ...(scope === "content" ? [] : await this.searchShellRows(fetchParams, sourceLimit, now)),
+      ...(scope === "content" ? [] : await this.searchShellNameRows(fetchParams, sourceLimit, now)),
+    ];
+    const mergedItems = mergeSearchItems(rows.map(searchRowToItem), fetchParams).sort((left, right) => compareSearchItems(left, right, fetchParams));
+    const cursor = parseCursor(params.cursor);
+    const start = cursor ? Math.max(mergedItems.findIndex((item) => stableItemId(item) === cursor.id && (!cursor.type || item.type === cursor.type)) + 1, 0) : 0;
+    const items = mergedItems.slice(start, start + limit);
+    const nextCursor = mergedItems.length > start + limit ? makeCursorForItem(items.at(-1), fetchParams) : null;
     return {
       items,
       nextCursor,
@@ -307,15 +315,15 @@ export class D1RegistryStore implements RegistryStore {
        FROM posts p
        JOIN sites s ON s.id = p.site_id
        WHERE ${conditions.join(" AND ")}
-       ORDER BY p.published_at DESC, p.id DESC
+       ORDER BY ${contentOrderBy(params.sort)}
        LIMIT ?`,
     ).bind(...values).all<Row>();
     return result.results || [];
   }
 
-  private async searchShellRows(params: SearchParams, limit: number): Promise<Row[]> {
+  private async searchShellRows(params: SearchParams, limit: number, now: string): Promise<Row[]> {
     const conditions = ["s.hidden = 0"];
-    const values: unknown[] = [];
+    const values: unknown[] = [now];
     if (params.q) {
       const like = `%${escapeLike(params.q)}%`;
       conditions.push(
@@ -336,11 +344,6 @@ export class D1RegistryStore implements RegistryStore {
       );
       values.push(`%|${params.tag}|%`);
     }
-    const cursor = parseCursor(params.cursor);
-    if (cursor) {
-      conditions.push("((COALESCE(s.last_verified_at, s.generated_at) < ?) OR (COALESCE(s.last_verified_at, s.generated_at) = ? AND s.id < ?))");
-      values.push(cursor.sortAt, cursor.sortAt, cursor.id);
-    }
     values.push(limit);
     const result = await this.db.prepare(
       `SELECT
@@ -348,10 +351,21 @@ export class D1RegistryStore implements RegistryStore {
         s.id AS site_id, s.canonical_url, s.manifest_url, s.site_title, s.handle, s.description,
         s.site_url, s.public_key, s.bundle_fingerprint, s.logo_url, s.details_json AS site_details_json,
         s.generated_at, s.last_verified_at, s.hidden, s.created_at AS site_created_at,
-        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message
+        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message,
+        sn.name AS shell_name_name, sn.full_name AS shell_name_full_name, sn.forest AS shell_name_forest,
+        sn.site_url AS shell_name_site_url, sn.public_key AS shell_name_public_key,
+        sn.bundle_fingerprint AS shell_name_bundle_fingerprint, sn.record_json AS shell_name_record_json,
+        sn.signature AS shell_name_signature, sn.status AS shell_name_status, sn.hidden AS shell_name_hidden,
+        sn.expires_at AS shell_name_expires_at, sn.search_text AS shell_name_search_text,
+        sn.created_at AS shell_name_created_at, sn.updated_at AS shell_name_updated_at
        FROM sites s
+       LEFT JOIN shell_names sn
+         ON sn.hidden = 0
+        AND sn.status = 'active'
+        AND sn.expires_at > ?
+        AND (sn.public_key = s.public_key OR sn.site_url = s.canonical_url OR sn.site_url = s.site_url)
        WHERE ${conditions.join(" AND ")}
-       ORDER BY COALESCE(s.last_verified_at, s.generated_at) DESC, s.id DESC
+       ORDER BY ${shellOrderBy(params.sort)}
        LIMIT ?`,
     ).bind(...values).all<Row>();
     return result.results || [];
@@ -365,21 +379,30 @@ export class D1RegistryStore implements RegistryStore {
       conditions.push("sn.search_text LIKE ? ESCAPE '\\'");
       values.push(`%${escapeLike(params.q)}%`);
     }
-    const cursor = parseCursor(params.cursor);
-    if (cursor) {
-      conditions.push("(sn.updated_at < ? OR (sn.updated_at = ? AND sn.name < ?))");
-      values.push(cursor.sortAt, cursor.sortAt, cursor.id);
-    }
     values.push(limit);
     const result = await this.db.prepare(
       `SELECT
         'shellname' AS result_type, sn.updated_at AS sort_at,
+        s.id AS site_id, s.canonical_url, s.manifest_url, s.site_title, s.handle, s.description,
+        s.site_url AS indexed_site_url, s.public_key AS indexed_public_key,
+        s.bundle_fingerprint AS indexed_bundle_fingerprint, s.logo_url, s.details_json AS site_details_json,
+        s.generated_at, s.last_verified_at, s.hidden, s.created_at AS site_created_at,
+        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message,
         sn.name, sn.full_name, sn.forest, sn.site_url, sn.public_key, sn.bundle_fingerprint,
         sn.record_json, sn.signature, sn.status, sn.hidden, sn.expires_at, sn.search_text,
+        sn.name AS shell_name_name, sn.full_name AS shell_name_full_name, sn.forest AS shell_name_forest,
+        sn.site_url AS shell_name_site_url, sn.public_key AS shell_name_public_key,
+        sn.bundle_fingerprint AS shell_name_bundle_fingerprint, sn.record_json AS shell_name_record_json,
+        sn.signature AS shell_name_signature, sn.status AS shell_name_status, sn.hidden AS shell_name_hidden,
+        sn.expires_at AS shell_name_expires_at, sn.search_text AS shell_name_search_text,
+        sn.created_at AS shell_name_created_at, sn.updated_at AS shell_name_updated_at,
         sn.created_at, sn.updated_at
        FROM shell_names sn
+       LEFT JOIN sites s
+         ON s.hidden = 0
+        AND (sn.public_key = s.public_key OR sn.site_url = s.canonical_url OR sn.site_url = s.site_url)
        WHERE ${conditions.join(" AND ")}
-       ORDER BY sn.updated_at DESC, sn.name DESC
+       ORDER BY ${shellNameOrderBy(params.sort)}
        LIMIT ?`,
     ).bind(...values).all<Row>();
     return result.results || [];
@@ -497,11 +520,6 @@ function addContentSearchConditions(conditions: string[], values: unknown[], par
     conditions.push("p.tags_text LIKE ?");
     values.push(`%|${params.tag}|%`);
   }
-  const cursor = parseCursor(params.cursor);
-  if (cursor) {
-    conditions.push("(p.published_at < ? OR (p.published_at = ? AND p.id < ?))");
-    values.push(cursor.sortAt, cursor.sortAt, cursor.id);
-  }
 }
 
 function rowToSubmission(row: Row): SubmissionRecord {
@@ -568,34 +586,206 @@ function rowToPost(row: Row): RegistryPost {
 
 function searchRowToItem(row: Row): SearchResultItem {
   if (row.result_type === "shellname") {
+    if (row.site_id) {
+      const site = rowToSite(row);
+      return { type: "shell", site, shell: site, shellName: rowToShellName(row), sortAt: String(row.sort_at || row.updated_at || "") };
+    }
     return { type: "shellname", shellName: rowToShellName(row), sortAt: String(row.sort_at || row.updated_at || "") };
   }
   const site = rowToSite(row);
   if (row.result_type === "shell") {
-    return { type: "shell", site, shell: site, sortAt: String(row.sort_at || site.lastVerifiedAt || site.generatedAt || "") };
+    const shellName = row.shell_name_name ? rowToShellName(row) : undefined;
+    return { type: "shell", site, shell: site, shellName, sortAt: String(row.sort_at || site.lastVerifiedAt || site.generatedAt || "") };
   }
   return { type: "content", site, post: rowToPost(row), sortAt: String(row.sort_at || row.published_at || "") };
 }
 
 function rowToShellName(row: Row): ShellNameRecord {
-  const record = parseDetails(row.record_json);
-  const status = Number(row.hidden || 0) ? "hidden" : String(row.status || "active");
+  const record = parseDetails(row.shell_name_record_json || row.record_json);
+  const hidden = Number(row.shell_name_hidden ?? row.hidden ?? 0);
+  const status = hidden ? "hidden" : String(row.shell_name_status || row.status || "active");
   return {
-    name: String(row.name || ""),
-    fullName: String(row.full_name || ""),
-    forest: String(row.forest || ""),
-    siteUrl: String(row.site_url || ""),
-    publicKey: String(row.public_key || ""),
-    bundleFingerprint: String(row.bundle_fingerprint || ""),
+    name: String(row.shell_name_name || row.name || ""),
+    fullName: String(row.shell_name_full_name || row.full_name || ""),
+    forest: String(row.shell_name_forest || row.forest || ""),
+    siteUrl: String(row.shell_name_site_url || row.site_url || ""),
+    publicKey: String(row.shell_name_public_key || row.public_key || ""),
+    bundleFingerprint: String(row.shell_name_bundle_fingerprint || row.bundle_fingerprint || ""),
     record,
-    signature: String(row.signature || record.signature || ""),
+    signature: String(row.shell_name_signature || row.signature || record.signature || ""),
     status: status === "hidden" || status === "expired" ? status : "active",
-    hidden: Number(row.hidden || 0),
-    expiresAt: String(row.expires_at || ""),
-    searchText: String(row.search_text || ""),
-    createdAt: String(row.created_at || ""),
-    updatedAt: String(row.updated_at || ""),
+    hidden,
+    expiresAt: String(row.shell_name_expires_at || row.expires_at || ""),
+    searchText: String(row.shell_name_search_text || row.search_text || ""),
+    createdAt: String(row.shell_name_created_at || row.created_at || ""),
+    updatedAt: String(row.shell_name_updated_at || row.updated_at || ""),
   };
+}
+
+function mergeSearchItems(items: SearchResultItem[], params: SearchParams): SearchResultItem[] {
+  const merged: SearchResultItem[] = [];
+  const shellByKey = new Map<string, Extract<SearchResultItem, { type: "shell" }>>();
+  const standaloneAliases = new Map<string, Extract<SearchResultItem, { type: "shellname" }>>();
+
+  for (const item of items) {
+    if (item.type === "content") {
+      merged.push(item);
+      continue;
+    }
+    if (item.type === "shell") {
+      const key = shellMergeKey(item);
+      const existing = key ? shellByKey.get(key) : undefined;
+      const target = existing || item;
+      if (item.shellName && !target.shellName) target.shellName = item.shellName;
+      if (!existing) {
+        merged.push(target);
+        if (key) shellByKey.set(key, target);
+      }
+      if (key && standaloneAliases.has(key)) {
+        const alias = standaloneAliases.get(key);
+        if (alias && !target.shellName) target.shellName = alias.shellName;
+        standaloneAliases.delete(key);
+        const index = merged.indexOf(alias as SearchResultItem);
+        if (index >= 0) merged.splice(index, 1);
+      }
+      continue;
+    }
+    const key = shellNameMergeKey(item.shellName);
+    const shell = key ? shellByKey.get(key) : undefined;
+    if (shell) {
+      if (!shell.shellName) shell.shellName = item.shellName;
+      continue;
+    }
+    merged.push(item);
+    if (key) standaloneAliases.set(key, item);
+  }
+
+  if (params.scope === "content") return merged.filter((item) => item.type === "content");
+  return merged;
+}
+
+function shellMergeKey(item: Extract<SearchResultItem, { type: "shell" }>): string {
+  return mergeKey(item.shell.publicKey, item.shell.canonicalUrl || item.shell.siteUrl);
+}
+
+function shellNameMergeKey(shellName: ShellNameRecord): string {
+  return mergeKey(shellName.publicKey, shellName.siteUrl);
+}
+
+function mergeKey(publicKey: string, siteUrl: string): string {
+  if (publicKey) return `key:${publicKey}`;
+  return siteUrl ? `url:${normalizeResultUrl(siteUrl)}` : "";
+}
+
+function compareSearchItems(left: SearchResultItem, right: SearchResultItem, params: SearchParams): number {
+  const sort = params.sort || "best";
+  if (sort === "best") {
+    const rank = searchRank(left, params.q) - searchRank(right, params.q);
+    if (rank) return rank;
+    return compareDesc(sortDate(left, "newest"), sortDate(right, "newest")) || compareAsc(resultLabel(left), resultLabel(right)) || compareAsc(stableItemId(left), stableItemId(right));
+  }
+  if (sort === "newest") return compareDesc(sortDate(left, "newest"), sortDate(right, "newest")) || compareAsc(resultLabel(left), resultLabel(right));
+  if (sort === "oldest") return compareAsc(sortDate(left, "oldest"), sortDate(right, "oldest")) || compareAsc(resultLabel(left), resultLabel(right));
+  if (sort === "az") return compareAsc(resultLabel(left), resultLabel(right)) || compareDesc(sortDate(left, "newest"), sortDate(right, "newest"));
+  if (sort === "za") return compareDesc(resultLabel(left), resultLabel(right)) || compareDesc(sortDate(left, "newest"), sortDate(right, "newest"));
+  return compareDesc(sortDate(left, "verified"), sortDate(right, "verified")) || compareAsc(resultLabel(left), resultLabel(right));
+}
+
+function searchRank(item: SearchResultItem, q: string): number {
+  if (!q) return 0;
+  const fields = rankFields(item).map(normalizeSearchValue).filter(Boolean);
+  if (fields.some((field) => field === q)) return 0;
+  if (fields.some((field) => field.startsWith(q))) return 1;
+  if (fields.some((field) => field.includes(q))) return 2;
+  return 3;
+}
+
+function rankFields(item: SearchResultItem): string[] {
+  if (item.type === "content") {
+    return [item.post.title, item.site.handle, item.site.siteTitle, item.site.canonicalUrl, item.site.siteUrl, item.post.searchText];
+  }
+  if (item.type === "shell") {
+    return [
+      item.shellName?.name || "",
+      item.shellName?.fullName || "",
+      item.shell.handle,
+      item.shell.siteTitle,
+      item.shell.canonicalUrl,
+      item.shell.siteUrl,
+    ];
+  }
+  return [item.shellName.name, item.shellName.fullName, item.shellName.siteUrl, item.shellName.searchText];
+}
+
+function sortDate(item: SearchResultItem, mode: "newest" | "oldest" | "verified"): string {
+  if (item.type === "content") return mode === "verified" ? item.site.lastVerifiedAt || item.site.generatedAt : item.post.publishedAt;
+  if (item.type === "shell") {
+    if (mode === "verified") return item.shell.lastVerifiedAt || item.shell.generatedAt || item.shellName?.updatedAt || "";
+    return maxDate(item.shellName?.updatedAt || "", item.shell.lastVerifiedAt || item.shell.generatedAt || "");
+  }
+  return item.shellName.updatedAt || item.shellName.createdAt || "";
+}
+
+function resultLabel(item: SearchResultItem): string {
+  if (item.type === "content") return normalizeSearchValue(item.post.title || item.site.siteTitle || item.post.slug);
+  if (item.type === "shell") return normalizeSearchValue(item.shell.siteTitle || item.shell.handle || item.shellName?.fullName || item.shell.canonicalUrl);
+  return normalizeSearchValue(item.shellName.fullName || item.shellName.name);
+}
+
+function stableItemId(item: SearchResultItem): string {
+  if (item.type === "content") return `content:${item.post.id}`;
+  if (item.type === "shell") return `shell:${item.shell.id || item.shellName?.name || item.shell.canonicalUrl}`;
+  return `shellname:${item.shellName.name}`;
+}
+
+function normalizeSearchValue(value: string): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeResultUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.search = "";
+    if (!url.pathname) url.pathname = "/";
+    return url.toString().replace(/\/$/u, "/");
+  } catch {
+    return String(value || "").trim().toLowerCase();
+  }
+}
+
+function maxDate(left: string, right: string): string {
+  return left > right ? left : right;
+}
+
+function compareAsc(left: string, right: string): number {
+  return String(left || "").localeCompare(String(right || ""));
+}
+
+function compareDesc(left: string, right: string): number {
+  return String(right || "").localeCompare(String(left || ""));
+}
+
+function contentOrderBy(sort: SearchParams["sort"]): string {
+  if (sort === "oldest") return "p.published_at ASC, p.id ASC";
+  if (sort === "az") return "LOWER(p.title) ASC, p.published_at DESC, p.id DESC";
+  if (sort === "za") return "LOWER(p.title) DESC, p.published_at DESC, p.id DESC";
+  if (sort === "verified") return "COALESCE(s.last_verified_at, s.generated_at) DESC, p.published_at DESC, p.id DESC";
+  return "p.published_at DESC, p.id DESC";
+}
+
+function shellOrderBy(sort: SearchParams["sort"]): string {
+  if (sort === "oldest") return "COALESCE(s.last_verified_at, s.generated_at) ASC, s.id ASC";
+  if (sort === "az") return "LOWER(COALESCE(s.site_title, s.handle, s.canonical_url)) ASC, s.id ASC";
+  if (sort === "za") return "LOWER(COALESCE(s.site_title, s.handle, s.canonical_url)) DESC, s.id DESC";
+  return "COALESCE(s.last_verified_at, s.generated_at) DESC, s.id DESC";
+}
+
+function shellNameOrderBy(sort: SearchParams["sort"]): string {
+  if (sort === "oldest") return "sn.updated_at ASC, sn.name ASC";
+  if (sort === "az") return "LOWER(COALESCE(sn.full_name, sn.name)) ASC, sn.name ASC";
+  if (sort === "za") return "LOWER(COALESCE(sn.full_name, sn.name)) DESC, sn.name DESC";
+  return "sn.updated_at DESC, sn.name DESC";
 }
 
 function parseTags(value: unknown): string[] {
@@ -620,31 +810,35 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/gu, (match) => `\\${match}`);
 }
 
-function makeCursorForItem(item?: SearchResultItem): string | null {
+function makeCursorForItem(item: SearchResultItem | undefined, params: SearchParams): string | null {
   if (!item) return null;
-  const id = item.type === "shellname" ? item.shellName.name : item.type === "shell" ? item.shell.id : item.post.id;
-  const sortAt = item.sortAt || (item.type === "shellname" ? item.shellName.updatedAt : item.type === "shell" ? item.shell.lastVerifiedAt || item.shell.generatedAt : item.post.publishedAt);
-  return btoa(JSON.stringify({ sortAt, id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  return btoa(JSON.stringify({
+    sort: params.sort || "best",
+    sortValue: cursorSortValue(item, params.sort || "best"),
+    type: item.type,
+    id: stableItemId(item),
+  })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
 }
 
-function parseCursor(value: string | null): { sortAt: string; id: string } | null {
+function parseCursor(value: string | null): { sort?: string; sortValue?: string; type?: SearchResultItem["type"]; id: string } | null {
   if (!value) return null;
   try {
     const padded = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
     const parsed = JSON.parse(atob(padded));
-    if (typeof parsed.sortAt === "string" && typeof parsed.id === "string") return parsed;
-    if (typeof parsed.publishedAt === "string" && typeof parsed.id === "string") return { sortAt: parsed.publishedAt, id: parsed.id };
+    if (typeof parsed.id === "string") return parsed;
+    if (typeof parsed.sortAt === "string" && typeof parsed.id === "string") return { sortValue: parsed.sortAt, id: parsed.id };
+    if (typeof parsed.publishedAt === "string" && typeof parsed.id === "string") return { sortValue: parsed.publishedAt, id: parsed.id };
     return null;
   } catch {
     return null;
   }
 }
 
-function compareSearchRows(left: Row, right: Row): number {
-  const leftSort = String(left.sort_at || left.published_at || left.last_verified_at || "");
-  const rightSort = String(right.sort_at || right.published_at || right.last_verified_at || "");
-  if (leftSort !== rightSort) return rightSort.localeCompare(leftSort);
-  return String(right.post_id || right.site_id || right.name || "").localeCompare(String(left.post_id || left.site_id || left.name || ""));
+function cursorSortValue(item: SearchResultItem, sort: SearchParams["sort"]): string {
+  if (sort === "az" || sort === "za") return resultLabel(item);
+  if (sort === "verified") return sortDate(item, "verified");
+  if (sort === "oldest") return sortDate(item, "oldest");
+  return sortDate(item, "newest");
 }
 
 function addMinutes(value: string, minutes: number): string {

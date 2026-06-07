@@ -141,17 +141,22 @@ class MemoryStore implements RegistryStore {
     if (site) site.hidden = hidden ? 1 : 0;
   }
 
-  async search({ q, tag, scope = "content" }: { q: string; tag: string; scope?: string }): Promise<{ items: any[]; nextCursor: string | null }> {
+  async search({ q, tag, scope = "content", sort = "best", limit = 20, cursor = null }: { q: string; tag: string; scope?: string; sort?: string; limit?: number; cursor?: string | null }): Promise<{ items: any[]; nextCursor: string | null }> {
     const items = [];
     const now = "2026-06-05T00:00:00.000Z";
     for (const site of this.sites.values()) {
       if (site.hidden) continue;
       const siteText = `${site.siteTitle} ${site.description} ${site.handle} ${site.canonicalUrl} ${site.siteUrl}`.toLowerCase();
       const sitePosts = this.posts.get(site.id) || [];
-      const shellMatchesQ = !q || siteText.includes(q);
+      const shellName = Array.from(this.shellNames.values()).find((record) => {
+        if (record.hidden || record.status !== "active" || record.expiresAt <= now) return false;
+        return record.publicKey === site.publicKey || normalizeTestUrl(record.siteUrl) === normalizeTestUrl(site.canonicalUrl) || normalizeTestUrl(record.siteUrl) === normalizeTestUrl(site.siteUrl);
+      });
+      const shellNameText = shellName ? `${shellName.name} ${shellName.fullName} ${shellName.siteUrl} ${shellName.searchText}`.toLowerCase() : "";
+      const shellMatchesQ = !q || siteText.includes(q) || shellNameText.includes(q);
       const shellMatchesTag = !tag || sitePosts.some((post) => post.tags.includes(tag));
       if ((scope === "all" || scope === "shell") && shellMatchesQ && shellMatchesTag) {
-        items.push({ type: "shell", site, shell: site });
+        items.push({ type: "shell", site, shell: site, shellName });
       }
       if (scope === "shell") continue;
       for (const post of this.posts.get(site.id) || []) {
@@ -163,11 +168,19 @@ class MemoryStore implements RegistryStore {
     if (scope === "all" || scope === "shell") {
       for (const shellName of this.shellNames.values()) {
         if (shellName.hidden || shellName.status !== "active" || shellName.expiresAt <= now) continue;
+        const indexedSite = Array.from(this.sites.values()).find((site) => {
+          if (site.hidden) return false;
+          return shellName.publicKey === site.publicKey || normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.canonicalUrl) || normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.siteUrl);
+        });
+        if (indexedSite) continue;
         const matchesQ = !q || shellName.searchText.includes(q);
         if (matchesQ && !tag) items.push({ type: "shellname", shellName, sortAt: shellName.updatedAt });
       }
     }
-    return { items, nextCursor: null };
+    items.sort((left: any, right: any) => compareTestItems(left, right, sort));
+    const start = cursor ? Math.max(items.findIndex((item: any) => testCursorId(item) === cursor) + 1, 0) : 0;
+    const page = items.slice(start, start + limit);
+    return { items: page, nextCursor: items.length > start + limit ? testCursorId(page.at(-1)) : null };
   }
 
   async getShellName(name: string): Promise<ShellNameRecord | null> {
@@ -207,6 +220,51 @@ class MemoryStore implements RegistryStore {
   async exportShellNames(now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
     return Array.from(this.shellNames.values())
       .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now);
+  }
+}
+
+function compareTestItems(left: any, right: any, sort: string): number {
+  if (sort === "az") return testLabel(left).localeCompare(testLabel(right));
+  if (sort === "za") return testLabel(right).localeCompare(testLabel(left));
+  if (sort === "oldest") return testDate(left).localeCompare(testDate(right));
+  if (sort === "verified") return testVerifiedDate(right).localeCompare(testVerifiedDate(left));
+  return testDate(right).localeCompare(testDate(left)) || testLabel(left).localeCompare(testLabel(right));
+}
+
+function testLabel(item: any): string {
+  if (item.type === "content") return String(item.post.title || "").toLowerCase();
+  if (item.type === "shell") return String(item.shell.siteTitle || item.shell.handle || item.shellName?.fullName || "").toLowerCase();
+  return String(item.shellName.fullName || item.shellName.name || "").toLowerCase();
+}
+
+function testDate(item: any): string {
+  if (item.type === "content") return item.post.publishedAt || "";
+  if (item.type === "shell") return [item.shellName?.updatedAt || "", item.shell.lastVerifiedAt || item.shell.generatedAt || ""].sort().at(-1) || "";
+  return item.shellName.updatedAt || "";
+}
+
+function testVerifiedDate(item: any): string {
+  if (item.type === "content") return item.site.lastVerifiedAt || item.site.generatedAt || "";
+  if (item.type === "shell") return item.shell.lastVerifiedAt || item.shell.generatedAt || "";
+  return item.shellName.updatedAt || "";
+}
+
+function testCursorId(item: any): string {
+  if (!item) return "";
+  if (item.type === "content") return `content:${item.post.id}`;
+  if (item.type === "shell") return `shell:${item.shell.id}`;
+  return `shellname:${item.shellName.name}`;
+}
+
+function normalizeTestUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.search = "";
+    if (!url.pathname) url.pathname = "/";
+    return url.toString();
+  } catch {
+    return String(value || "").toLowerCase();
   }
 }
 
@@ -558,6 +616,143 @@ describe("registry API and crawl flow", () => {
     const all = await handleRequest(new Request("https://registry.example/api/search?q=search-feed&scope=all"), deps);
     const allResults = await all.json() as any;
     expect(allResults.items.map((item: any) => item.type)).toEqual(expect.arrayContaining(["shell", "content"]));
+  });
+
+  test("search merges a ShellName alias into the matching indexed Shell result", async () => {
+    const documents = await fixtureDocuments();
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(documents)
+    };
+
+    const submitted = await handleRequest(
+      new Request("https://registry.example/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://creator.example/" })
+      }),
+      deps
+    );
+    await submitted.json();
+    await processCrawlMessage(queue.messages[0], deps);
+
+    const shellName = signedShellNameRecord({
+      publicKey: publicKeyToText(documents.keys.publicKey),
+      secretKey: documents.keys.secretKey,
+      bundleFingerprint: documents.announcePayload.bundleFingerprint,
+    });
+    const registered = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "elmirok", record: shellName.record }),
+      }),
+      deps,
+    );
+    expect(registered.status).toBe(201);
+
+    const search = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=elmirok&scope=shell"), deps);
+    const json = await search.json() as any;
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0]).toMatchObject({
+      type: "shell",
+      shell: { title: "Search Feed" },
+      shellName: {
+        name: "elmirok",
+        fullName: "@elmirok@forest.postsnail.org",
+      },
+    });
+  });
+
+  test("search supports validated sort modes for content results", async () => {
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
+    const site = {
+      id: "site_sort",
+      canonicalUrl: "https://sort.example/",
+      manifestUrl: "https://sort.example/postsnail.manifest.json",
+      siteTitle: "Sort Shell",
+      handle: "sort-shell",
+      description: "Sorting proof shell",
+      siteUrl: "https://sort.example/",
+      publicKey: "base64:sort-public",
+      bundleFingerprint: "psn1-sha3-512-sort",
+      logoUrl: "",
+      details: {},
+      generatedAt: "2026-06-01T00:00:00.000Z",
+      lastVerifiedAt: "2026-06-06T00:00:00.000Z",
+      hidden: 0,
+      createdAt: "2026-06-01T00:00:00.000Z",
+      updatedAt: "2026-06-06T00:00:00.000Z",
+      latestCrawlStatus: "indexed",
+      latestCrawlMessage: "",
+      lastCheckedAt: "2026-06-06T00:00:00.000Z",
+      nextCheckAt: "2026-06-06T01:00:00.000Z",
+      checkIntervalMinutes: 60,
+      unchangedCheckCount: 0,
+      failureCount: 0,
+      pendingFingerprint: "",
+    };
+    store.sites.set(site.id, site);
+    store.posts.set(site.id, [
+      {
+        id: "post_zeta",
+        siteId: site.id,
+        slug: "zeta",
+        title: "Zeta Proof",
+        url: "https://sort.example/posts/zeta/",
+        excerpt: "Newest proof",
+        tags: ["proof"],
+        digest: "digest-zeta",
+        thumbnailUrl: "",
+        details: {},
+        publishedAt: "2026-06-05T00:00:00.000Z",
+        searchText: "zeta proof newest",
+        visible: 1,
+        createdAt: "2026-06-05T00:00:00.000Z",
+        updatedAt: "2026-06-05T00:00:00.000Z",
+      },
+      {
+        id: "post_alpha",
+        siteId: site.id,
+        slug: "alpha",
+        title: "Alpha Proof",
+        url: "https://sort.example/posts/alpha/",
+        excerpt: "Oldest proof",
+        tags: ["proof"],
+        digest: "digest-alpha",
+        thumbnailUrl: "",
+        details: {},
+        publishedAt: "2026-06-04T00:00:00.000Z",
+        searchText: "alpha proof oldest",
+        visible: 1,
+        createdAt: "2026-06-04T00:00:00.000Z",
+        updatedAt: "2026-06-04T00:00:00.000Z",
+      },
+    ]);
+
+    const az = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=proof&scope=content&sort=az"), deps);
+    expect(az.status).toBe(200);
+    expect(((await az.json()) as any).items.map((item: any) => item.post.title)).toEqual(["Alpha Proof", "Zeta Proof"]);
+
+    const oldest = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=proof&scope=content&sort=oldest"), deps);
+    expect(((await oldest.json()) as any).items.map((item: any) => item.post.title)).toEqual(["Alpha Proof", "Zeta Proof"]);
+
+    const firstPage = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=proof&scope=content&sort=az&limit=1"), deps);
+    const firstPageJson = await firstPage.json() as any;
+    expect(firstPageJson.items.map((item: any) => item.post.title)).toEqual(["Alpha Proof"]);
+    expect(firstPageJson.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await handleRequest(new Request(`https://forest.postsnail.org/api/search?q=proof&scope=content&sort=az&limit=1&cursor=${encodeURIComponent(firstPageJson.nextCursor)}`), deps);
+    expect(((await secondPage.json()) as any).items.map((item: any) => item.post.title)).toEqual(["Zeta Proof"]);
+
+    const invalid = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=proof&scope=content&sort=random"), deps);
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({ error: "Unsupported search sort." });
   });
 
   test("ShellNames registration, resolution, search, export, update, and renewal use signed records", async () => {
