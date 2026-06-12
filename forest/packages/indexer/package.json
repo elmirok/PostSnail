@@ -1,0 +1,14 @@
+{
+  "name": "@postsnail/forest-indexer",
+  "version": "0.1.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.0",
+    "minisearch": "^7.1.0",
+    "zlib": "^1.0.5"
+  }
+}

@@ -53,30 +53,32 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
 
   const files = unzipSync(result.zipBytes);
   const names = Object.keys(files).sort();
+  const expectedNames = [
+    ".well-known/postsnail.json",
+    ".well-known/postsnail/commits.json",
+    ".well-known/postsnail/latest-commit.json",
+    "_headers",
+    "CORS",
+    "about/index.html",
+    "archive/index.html",
+    "assets/postsnail-brand/postsnail-icon.png",
+    "assets/postsnail-brand/postsnail-logo.png",
+    "assets/tiny-proof.png",
+    "feed.json",
+    "index.html",
+    "netlify.toml",
+    "posts/hello-postsnail/index.html",
+    "postsnail.manifest.json",
+    "rss.xml",
+    "sitemap.xml",
+    "tags/intro/index.html",
+    "tags/signed/index.html",
+  ];
 
-  assert.deepEqual(
-    [
-      ".well-known/postsnail.json",
-      ".well-known/postsnail/commits.json",
-      ".well-known/postsnail/latest-commit.json",
-      "_headers",
-      "about/index.html",
-      "archive/index.html",
-      "assets/postsnail-brand/postsnail-icon.png",
-      "assets/postsnail-brand/postsnail-logo.png",
-      "assets/tiny-proof.png",
-      "feed.json",
-      "index.html",
-      "netlify.toml",
-      "posts/hello-postsnail/index.html",
-      "postsnail.manifest.json",
-      "rss.xml",
-      "sitemap.xml",
-      "tags/intro/index.html",
-      "tags/signed/index.html",
-    ],
-    names,
-  );
+  assert.equal(names.length, expectedNames.length);
+  for (const name of expectedNames) {
+    assert.ok(names.includes(name), `expected ZIP to include ${name}`);
+  }
 
   const manifest = JSON.parse(decodeText(files["postsnail.manifest.json"]));
   assert.ok(result.files["index.html"]);
@@ -298,8 +300,9 @@ test("buildStaticExport does not publish SnailLift settings or private plugin st
         state: {
           [POSTSNAIL_SNAILLIFT_PLUGIN_ID]: {
             schemaVersion: 1,
-            provider: "cloudflare-pages",
-            apiToken: "private-provider-token",
+            provider: "surge",
+            surgeLogin: "boaz@example.com",
+            surgeToken: "private-provider-token",
           },
         },
       },
@@ -313,10 +316,11 @@ test("buildStaticExport does not publish SnailLift settings or private plugin st
     posts: [published],
     assets: [],
     settings: {
-      snailLiftCloudflareAccountId: "private-account-id",
-      snailLiftCloudflareProjectName: "private-project-name",
-      snailLiftGithubRepo: "private-repo",
-      snailLiftGithubToken: "private-github-token",
+      snailLiftSurgeSiteUrl: "https://creator.example/",
+      snailLiftSurgeDomain: "creator.surge.sh",
+      snailLiftSurgeProjectDir: "postsnail-public",
+      snailLiftSurgeLogin: "boaz@example.com",
+      snailLiftSurgeToken: "private-surge-token",
     },
     plugins,
     publicKey: keys.publicKey,
@@ -333,10 +337,8 @@ test("buildStaticExport does not publish SnailLift settings or private plugin st
   assert.equal(manifest.extensions.plugins[POSTSNAIL_SNAILLIFT_PLUGIN_ID].version, "0.1.0");
   assert.deepEqual(manifest.extensions.plugins[POSTSNAIL_SNAILLIFT_PLUGIN_ID].publicFiles, []);
   assert.doesNotMatch(combined, /private-provider-token/);
-  assert.doesNotMatch(combined, /private-account-id/);
-  assert.doesNotMatch(combined, /private-project-name/);
-  assert.doesNotMatch(combined, /private-repo/);
-  assert.doesNotMatch(combined, /private-github-token/);
+  assert.doesNotMatch(combined, /private-surge-token/);
+  assert.doesNotMatch(combined, /creator\.surge\.sh/);
 });
 
 test("buildStaticExport publishes Pages routes and moves blog index when homepage is overridden", async () => {

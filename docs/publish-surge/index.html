@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Publish On Cloudflare Pages - PostSnail Alpha 1</title>
-    <meta name="description" content="Publish a signed PostSnail static microblog on Cloudflare Pages.">
-    <link rel="canonical" href="https://postsnail.org/docs/publish-cloudflare/">
+    <title>Publish On Surge - PostSnail Alpha 1</title>
+    <meta name="description" content="Publish a signed PostSnail static microblog through the Surge bridge.">
+    <link rel="canonical" href="https://postsnail.org/docs/publish-surge/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -38,17 +38,19 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>Publish On Cloudflare Pages</h1>
-            <p class="lede">PostSnail exports plain static files, so Cloudflare Pages can host the microblog without a server bill.</p>
+            <h1>Publish On Surge</h1>
+            <p class="lede">PostSnail exports plain static files, so Surge can host the microblog without a server bill.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Cloudflare tutorial sections"><a href="#workspace">Save Your Shell</a><a href="#export">Export Website ZIP</a><a href="#upload">Upload</a><a href="#check">Check Proof Files</a><a href="#register">Register In Forest</a></nav>
+            <nav class="doc-nav" aria-label="Surge tutorial sections"><a href="#workspace">Save Your Shell</a><a href="#export">Export Website ZIP</a><a href="#bridge">Start Bridge</a><a href="#upload">Upload</a><a href="#check">Check Proof Files</a><a href="#register">Register In Forest</a><a href="#cors">Surge CORS</a></nav>
             <div class="doc-content">
-              <section id="workspace"><h2>0. Save Your Shell</h2><p>Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Cloudflare Pages.</p></section>
+              <section id="workspace"><h2>0. Save Your Shell</h2><p>Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Surge.</p></section>
               <section id="export"><h2>1. Export Website ZIP</h2><p>In the admin Generate tab, unlock your key and click Export Website ZIP. Use the Verify tab before uploading.</p></section>
-              <section id="upload"><h2>2. Upload</h2><p>Create a Cloudflare Pages project and upload the unzipped bundle contents. The deployed root should contain index.html, postsnail.manifest.json, and .well-known/postsnail.json.</p></section>
-              <section id="check"><h2>3. Check Proof Files</h2><p>Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them.</p></section>
-              <section id="register"><h2>4. Register In Forest</h2><p>Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.</p></section>
+              <section id="bridge"><h2>2. Start Bridge</h2><p>Start the local Surge bridge with npm run surge:bridge. Leave it running on the creator machine so PostSnail can hand off the publish request.</p></section>
+              <section id="upload"><h2>3. Upload</h2><p>Click Publish to Surge from the admin. The local bridge receives the public ZIP, stages the files, and publishes the public site.</p></section>
+              <section id="check"><h2>4. Check Proof Files</h2><p>Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them.</p></section>
+              <section id="register"><h2>5. Register In Forest</h2><p>Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.</p></section>
+              <section id="cors"><h2>6. Surge CORS</h2><p>Surge needs a CORS file at the published root so the PostSnail admin verifier can fetch public proof files cross-origin.</p></section>
             </div>
           </article>
     </main>

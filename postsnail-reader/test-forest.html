@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Forest Integration Test</title>
+</head>
+<body>
+    <h1>Forest Integration Test</h1>
+    <p>This page tests the Forest URL parameter parsing functionality.</p>
+    
+    <p>Test URLs:</p>
+    <ul>
+        <li><a href="/postsnail-reader/src/index.html?forest=true&site=https://example.com">Forest with site</a></li>
+        <li><a href="/postsnail-reader/src/index.html?forest=true">Forest only</a></li>
+        <li><a href="/postsnail-reader/src/index.html">Normal operation</a></li>
+    </ul>
+    
+    <p>Check the browser console to see log messages from the Forest detection code.</p>
+    
+    <script>
+        // Simple test of URL parameter parsing
+        function testUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const forestParam = urlParams.get('forest');
+            const siteParam = urlParams.get('site');
+            
+            console.log('URL Parameters:', {
+                forest: forestParam,
+                site: siteParam
+            });
+        }
+        
+        testUrlParams();
+    </script>
+</body>
+</html>

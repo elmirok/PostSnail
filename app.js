@@ -48,6 +48,9 @@ import {
   githubPagesProvider,
   runSnailLiftSafety,
   verifySnailLiftLiveSite,
+  buildSurgeBridgeCommand,
+  surgeProvider,
+  validateSurgeSettings,
 } from "./src/snaillift/index.js";
 
 globalThis.DOMPurify = DOMPurify;
@@ -73,11 +76,17 @@ const defaultSettings = {
   snailLiftCloudflareProjectName: "",
   snailLiftCloudflareBranch: "main",
   snailLiftSiteUrl: "",
+  snailLiftSurgeSiteUrl: "",
+  snailLiftSurgeDomain: "",
+  snailLiftSurgeProjectDir: "postsnail-public",
+  snailLiftSurgeLogin: "",
+  snailLiftSurgeToken: "",
   snailLiftGithubOwner: "",
   snailLiftGithubRepo: "",
   snailLiftGithubBranch: "gh-pages",
   snailLiftGithubTargetDir: ".",
   snailLiftGithubSiteUrl: "",
+  publishRemember: false,
   shellNameForestUrl: "https://forest.postsnail.org",
   shellNameDesiredName: "",
 };
@@ -89,6 +98,9 @@ const state = {
   pendingLegacyState: null,
   localShellEnvelope: null,
   shellPassphrase: "",
+  snailLiftCloudflareApiToken: "",
+  snailLiftCloudflareProgress: "",
+  snailLiftSurgeProgress: "",
   shellSaveTimer: null,
   localShellNotice: false,
   localShellSaveError: false,
@@ -168,6 +180,9 @@ app.addEventListener("input", (event) => {
   if (input.matches("[data-settings-field]")) {
     updateSettingFromInput(input);
   }
+  if (input.matches("[data-runtime-field]")) {
+    updateRuntimeFieldFromInput(input);
+  }
 });
 
 app.addEventListener("change", async (event) => {
@@ -178,6 +193,9 @@ app.addEventListener("change", async (event) => {
   }
   if (input.matches("[data-settings-field]")) {
     updateSettingFromInput(input);
+  }
+  if (input.matches("[data-runtime-field]")) {
+    updateRuntimeFieldFromInput(input);
   }
   if (input.id === "image-upload") {
     await addImages(input.files);
@@ -298,6 +316,16 @@ async function handleAction(button) {
     state.activeTab = "extensions";
     setStatus("Review official bundled plugins.");
     render();
+    return;
+  }
+  if (action === "publish-snaillift-surge") {
+    if (!snailLiftEnabled()) {
+      state.activeTab = "extensions";
+      setStatus("Enable SnailLift in Extensions before publishing with Surge.");
+      render();
+      return;
+    }
+    await publishSnailLiftSurge();
     return;
   }
   if (action === "pages-section") {
@@ -454,12 +482,12 @@ async function handleAction(button) {
   }
   if (action === "copy-snaillift-command") {
     await copyText(state.lastSnailLiftCommand || "");
-    setStatus("Copied the SnailLift Wrangler command.");
+    setStatus("Copied the Surge bridge command.");
     return;
   }
   if (action === "copy-snaillift-commands") {
     await copyText((state.lastSnailLiftCommands || []).join("\n"));
-    setStatus("Copied the SnailLift GitHub commands.");
+    setStatus("Copied the SnailLift helper commands.");
     return;
   }
   if (action === "go-verify") {
@@ -770,33 +798,9 @@ async function submitShellName(action) {
 }
 
 async function generateSiteZip() {
-  if (!state.identity?.publicKey || !state.secretKey) {
-    setStatus("Unlock the publisher key before generating a signed site.");
-    state.activeTab = "identity";
-    render();
-    return;
-  }
-  const published = state.posts.filter((post) => post.status === "published");
-  if (!published.length && !publishedPagesCount()) {
-    setStatus("Publish at least one post, page, or doc before generating the site.");
-    return;
-  }
-  setStatus("Generating signed static ZIP...");
-  await nextFrame();
-  const result = await buildStaticExport({
-    profile: state.profile,
-    posts: state.posts,
-    assets: state.assets,
-    settings: state.settings,
-    commitHistory: state.commitHistory,
-    plugins: state.plugins,
-    moderation: state.moderation,
-    appearance: state.appearance,
-    shellNames: state.shellNames,
-    publicKey: textToBytes(state.identity.publicKey),
-    secretKey: state.secretKey,
-  });
-  const verification = await verifyPostSnailZip(result.zipBytes);
+  const exportResult = await buildCurrentWebsiteExport();
+  if (!exportResult) return;
+  const { result, verification } = exportResult;
   downloadBytes(result.zipBytes, result.filename, "application/zip");
   state.lastManifest = result.manifest;
   state.lastExportResult = result;
@@ -818,6 +822,309 @@ async function generateSiteZip() {
   );
   render();
   window.setTimeout(blinkNotifyForest, 40);
+}
+
+async function buildCurrentWebsiteExport() {
+  if (!state.identity?.publicKey || !state.secretKey) {
+    setStatus("Unlock the publisher key before generating a signed site.");
+    state.activeTab = "identity";
+    render();
+    return null;
+  }
+  const published = state.posts.filter((post) => post.status === "published");
+  if (!published.length && !publishedPagesCount()) {
+    setStatus("Publish at least one post, page, or doc before generating the site.");
+    return null;
+  }
+  setStatus("Building signed static files...");
+  await nextFrame();
+  const result = await buildStaticExport({
+    profile: state.profile,
+    posts: state.posts,
+    assets: state.assets,
+    settings: state.settings,
+    commitHistory: state.commitHistory,
+    plugins: state.plugins,
+    moderation: state.moderation,
+    appearance: state.appearance,
+    shellNames: state.shellNames,
+    publicKey: textToBytes(state.identity.publicKey),
+    secretKey: state.secretKey,
+  });
+  const verification = await verifyPostSnailZip(result.zipBytes);
+  return { result, verification };
+}
+
+async function publishSnailLiftSurge() {
+  const settings = snailLiftSurgeSettings();
+  const ready = snailLiftSurgeCanPublish(settings);
+  if (!ready.ok) {
+    state.snailLiftSurgeProgress = "not-configured";
+    state.lastSnailLiftCommand = "";
+    state.lastSnailLiftCommands = [];
+    setStatus(ready.message);
+    render();
+    return;
+  }
+
+  state.snailLiftSurgeProgress = "publishing";
+  state.lastAnnounceStatus = null;
+  state.lastSnailLiftVerification = null;
+  setStatus("Building files, checking safety, and publishing to Surge...");
+  render();
+
+  const exportResult = await buildCurrentWebsiteExport();
+  if (!exportResult) {
+    state.snailLiftSurgeProgress = "error";
+    render();
+    return;
+  }
+
+  const { result, verification } = exportResult;
+  state.lastManifest = result.manifest;
+  state.lastExportResult = result;
+  state.commitHistory = result.commitHistory;
+  state.lastExportVerification = verification;
+  if (!verification.ok) {
+    state.snailLiftSurgeProgress = "error";
+    setStatus(`Surge publish paused because local ZIP verification found ${verification.errors.length} issue(s).`);
+    render();
+    return;
+  }
+
+  try {
+    const deploy = await surgeProvider.deploy({
+      files: result.files,
+      settings,
+      secrets: {},
+    });
+
+    state.lastSnailLiftSafety = deploy.safety || null;
+    state.lastSnailLiftCommand = deploy.bridgeCommand || buildSurgeBridgeCommand();
+    state.lastSnailLiftCommands = [];
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "surge",
+      siteUrl: settings.siteUrl,
+      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: deploy.ok ? "verified" : "failed",
+      message: deploy.message,
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+
+    if (!deploy.ok) {
+      state.snailLiftSurgeProgress = deploy.code === "invalid-surge-settings" ? "not-configured" : "error";
+      setStatus(deploy.message || "Surge publish failed.");
+      render();
+      return;
+    }
+
+    state.lastSnailLiftVerification = await verifySnailLiftLiveSite({
+      siteUrl: settings.siteUrl,
+      exportResult: result,
+    });
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "surge",
+      siteUrl: settings.siteUrl,
+      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: state.lastSnailLiftVerification.ok ? "verified" : "failed",
+      message: state.lastSnailLiftVerification.ok
+        ? "Surge publish completed and live proof verified."
+        : state.lastSnailLiftVerification.errors[0] || "Surge deployed, but live proof verification failed.",
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+
+    if (state.lastSnailLiftVerification.ok) {
+      const announceResult = await announceForestAfterLiveVerification({
+        liveVerification: state.lastSnailLiftVerification,
+        announcePayload: result.announcePayload,
+      });
+      state.lastAnnounceStatus = {
+        ok: announceResult.ok,
+        status: announceResult.body?.status || "",
+        message: announceResult.message || "",
+        submissionId: announceResult.body?.submissionId || "",
+      };
+      state.notifyForestAttention = false;
+      state.snailLiftSurgeProgress = "verified";
+      setStatus(
+        state.lastAnnounceStatus?.ok
+          ? "Surge publish verified and Forest notified."
+          : "Surge publish verified, but Forest notification needs attention.",
+      );
+    } else {
+      state.snailLiftSurgeProgress = "error";
+      setStatus(state.lastSnailLiftVerification.errors[0] || "Surge publish completed, but live proof verification failed.");
+    }
+    await persistLocalShellNow();
+    render();
+  } catch (error) {
+    state.snailLiftSurgeProgress = "error";
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "surge",
+      siteUrl: settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Surge publish failed.",
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+    setStatus(error instanceof Error ? error.message : "Surge publish failed.");
+    render();
+  }
+}
+
+async function publishSnailLiftCloudflare() {
+  const settings = snailLiftCloudflareSettings();
+  const token = snailLiftCloudflareToken();
+  const ready = snailLiftCloudflareCanPublish(settings, token);
+  if (!ready.ok) {
+    state.snailLiftCloudflareProgress = "not-configured";
+    state.lastSnailLiftCommand = "";
+    state.lastSnailLiftCommands = [];
+    setStatus(ready.message);
+    render();
+    return;
+  }
+
+  state.snailLiftCloudflareProgress = "publishing";
+  state.lastAnnounceStatus = null;
+  state.lastSnailLiftVerification = null;
+  setStatus("Building files, checking safety, and publishing to Cloudflare Pages...");
+  render();
+  const exportResult = await buildCurrentWebsiteExport();
+  if (!exportResult) {
+    state.snailLiftCloudflareProgress = "error";
+    render();
+    return;
+  }
+
+  const { result, verification } = exportResult;
+  state.lastManifest = result.manifest;
+  state.lastExportResult = result;
+  state.commitHistory = result.commitHistory;
+  state.lastExportVerification = verification;
+  if (!verification.ok) {
+    state.snailLiftCloudflareProgress = "error";
+    setStatus(`Cloudflare publish paused because local ZIP verification found ${verification.errors.length} issue(s).`);
+    render();
+    return;
+  }
+
+  try {
+    let deploy = await cloudflarePagesProvider.deploy({
+      files: result.files,
+      settings,
+      secrets: { apiToken: token },
+    });
+
+    if (deploy.code === "cloudflare-project-missing") {
+      const createPrompt = `${deploy.message}\n\nCreate the Cloudflare Pages project now?`;
+      if (!window.confirm(createPrompt)) {
+        state.snailLiftCloudflareProgress = "not-configured";
+        state.lastSnailLiftCommand = deploy.createProjectCommand || state.lastSnailLiftCommand;
+        state.lastSnailLiftCommands = [];
+        setStatus("Cloudflare publish cancelled until the Pages project exists.");
+        render();
+        return;
+      }
+
+      state.snailLiftCloudflareProgress = "setting-up";
+      setStatus(`Creating ${settings.projectName} on Cloudflare Pages, then publishing...`);
+      render();
+
+      deploy = await cloudflarePagesProvider.deploy({
+        files: result.files,
+        settings,
+        secrets: { apiToken: token },
+        createProjectIfMissing: true,
+      });
+    }
+
+    state.lastSnailLiftSafety = deploy.safety || null;
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "cloudflare-pages",
+      siteUrl: settings.siteUrl,
+      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: deploy.ok ? "success" : "failed",
+      message: deploy.message,
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+    state.lastSnailLiftCommand = deploy.fallbackCommand || "";
+    state.lastSnailLiftCommands = [];
+    if (!deploy.ok) {
+      state.snailLiftCloudflareProgress = "error";
+      setStatus(deploy.message || "Cloudflare publish failed.");
+      render();
+      return;
+    }
+
+    state.lastSnailLiftVerification = await verifySnailLiftLiveSite({
+      siteUrl: settings.siteUrl,
+      exportResult: result,
+    });
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "cloudflare-pages",
+      siteUrl: settings.siteUrl,
+      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: state.lastSnailLiftVerification.ok ? "success" : "failed",
+      message: state.lastSnailLiftVerification.ok
+        ? "Cloudflare Pages publish completed and live proof verified."
+        : state.lastSnailLiftVerification.errors[0] || "Cloudflare Pages deployed, but live proof verification failed.",
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+
+    if (state.lastSnailLiftVerification.ok) {
+      const announceResult = await announceForestAfterLiveVerification({
+        liveVerification: state.lastSnailLiftVerification,
+        announcePayload: result.announcePayload,
+      });
+      state.lastAnnounceStatus = {
+        ok: announceResult.ok,
+        status: announceResult.body?.status || "",
+        message: announceResult.message || "",
+        submissionId: announceResult.body?.submissionId || "",
+      };
+      state.notifyForestAttention = false;
+      state.snailLiftCloudflareProgress = "verified";
+      setStatus(
+        state.lastAnnounceStatus?.ok
+          ? "Cloudflare publish verified and Forest notified."
+          : "Cloudflare publish verified, but Forest notification needs attention.",
+      );
+    } else {
+      state.snailLiftCloudflareProgress = "error";
+      setStatus(state.lastSnailLiftVerification.errors[0] || "Cloudflare publish completed, but live proof verification failed.");
+    }
+    await persistLocalShellNow();
+    render();
+  } catch (error) {
+    state.snailLiftCloudflareProgress = "error";
+    state.lastSnailLiftLog = createDeploymentLogEntry({
+      provider: "cloudflare-pages",
+      siteUrl: settings.siteUrl,
+      bundleFingerprint: result.bundleFingerprint,
+      status: "failed",
+      message: error instanceof Error ? error.message : "Cloudflare publish failed.",
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    await rememberSnailLiftLog(state.lastSnailLiftLog);
+    setStatus(error instanceof Error ? error.message : "Cloudflare publish failed.");
+    render();
+  }
 }
 
 async function notifyForest() {
@@ -1962,70 +2269,7 @@ function renderGenerate() {
             <strong>Deployment boundary</strong>
             <p>SnailLift deploys only your public generated site. Your <code>.postsnail</code> Shell, drafts, private keys, rejected comments, and private plugin state are not uploaded.</p>
           </div>
-          <h3 class="panel-title">Cloudflare Pages</h3>
-          <div class="grid-2 snaillift-fields">
-            <label class="field">
-              <span>Cloudflare Account ID</span>
-              <input data-settings-field="snailLiftCloudflareAccountId" value="${escapeAttr(state.settings.snailLiftCloudflareAccountId || "")}" placeholder="account id">
-            </label>
-            <label class="field">
-              <span>Project name</span>
-              <input data-settings-field="snailLiftCloudflareProjectName" value="${escapeAttr(state.settings.snailLiftCloudflareProjectName || "")}" placeholder="my-postsnail">
-            </label>
-            <label class="field">
-              <span>Branch</span>
-              <input data-settings-field="snailLiftCloudflareBranch" value="${escapeAttr(state.settings.snailLiftCloudflareBranch || "main")}">
-            </label>
-            <label class="field">
-              <span>Live site URL</span>
-              <input data-settings-field="snailLiftSiteUrl" value="${escapeAttr(state.settings.snailLiftSiteUrl || state.profile.siteUrl || "")}" placeholder="https://creator.example/">
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn small primary" type="button" data-action="prepare-snaillift-cloudflare" ${state.lastExportResult ? "" : "disabled"}>Prepare Cloudflare deploy</button>
-          </div>
-          ${state.lastSnailLiftCommand ? `
-            <pre class="deploy-command"><code>${escapeHtml(state.lastSnailLiftCommand)}</code></pre>
-            <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-command">Copy command</button></div>
-          ` : ""}
-          <h3 class="panel-title">GitHub Pages</h3>
-          <p class="help">GitHub Pages support is a command assistant. It does not ask for or store a GitHub token.</p>
-          <div class="grid-2 snaillift-fields">
-            <label class="field">
-              <span>Owner</span>
-              <input data-settings-field="snailLiftGithubOwner" value="${escapeAttr(state.settings.snailLiftGithubOwner || "")}" placeholder="github-user">
-            </label>
-            <label class="field">
-              <span>Repository</span>
-              <input data-settings-field="snailLiftGithubRepo" value="${escapeAttr(state.settings.snailLiftGithubRepo || "")}" placeholder="postsnail-site">
-            </label>
-            <label class="field">
-              <span>Branch</span>
-              <input data-settings-field="snailLiftGithubBranch" value="${escapeAttr(state.settings.snailLiftGithubBranch || "gh-pages")}">
-            </label>
-            <label class="field">
-              <span>Target folder</span>
-              <input data-settings-field="snailLiftGithubTargetDir" value="${escapeAttr(state.settings.snailLiftGithubTargetDir || ".")}" placeholder=".">
-            </label>
-            <label class="field wide">
-              <span>Live site URL</span>
-              <input data-settings-field="snailLiftGithubSiteUrl" value="${escapeAttr(state.settings.snailLiftGithubSiteUrl || state.profile.siteUrl || "")}" placeholder="https://user.github.io/repo/">
-            </label>
-          </div>
-          <div class="actions">
-            <button class="btn small primary" type="button" data-action="prepare-snaillift-github" ${state.lastExportResult ? "" : "disabled"}>Prepare GitHub deploy</button>
-          </div>
-          ${state.lastSnailLiftCommands?.length ? `
-            <ol class="deploy-commands">
-              ${state.lastSnailLiftCommands.map((command) => `<li><code>${escapeHtml(command)}</code></li>`).join("")}
-            </ol>
-            <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-commands">Copy commands</button></div>
-          ` : ""}
-          <div class="actions">
-            <button class="btn small" type="button" data-action="verify-snaillift-live" ${state.lastExportResult ? "" : "disabled"}>Verify live site</button>
-            <button class="btn small" type="button" data-action="announce-snaillift-forest" ${state.lastSnailLiftVerification?.ok ? "" : "disabled"}>Notify Forest after verify</button>
-          </div>
-          <p class="help">Forest notify unlocks only after live verification passes.</p>
+          ${renderSnailLiftSurgePanel()}
           ${renderSnailLiftStatus()}
           ${renderSnailLiftLog()}
         </section>
@@ -2043,11 +2287,145 @@ function renderSnailLiftDisabledPrompt() {
       </div>
       <div class="notice warning">
         <strong>Enable SnailLift in Extensions</strong>
-        <p>SnailLift is an official bundled plugin. Enable it to show Cloudflare Pages and GitHub Pages command assistants. Export Website ZIP remains available without it.</p>
+        <p>SnailLift is an official bundled plugin. Enable it to show the Surge publish card. Export Website ZIP remains available without it.</p>
       </div>
       <div class="actions">
         <button class="btn small primary" type="button" data-action="go-extensions">Open Extensions</button>
       </div>
+    </section>
+  `;
+}
+
+function renderSnailLiftSurgePanel() {
+  const settings = snailLiftSurgeSettings();
+  const phase = snailLiftSurgePhase();
+  const canPublish = snailLiftSurgeCanPublish(settings);
+  const phaseLabel = snailLiftSurgePhaseLabel(phase);
+  const phaseCopy = snailLiftSurgePhaseCopy(phase);
+  const phaseClass = phase === "verified" ? "good" : phase === "error" || phase === "not-configured" || phase === "setting-up" ? "warning" : phase === "publishing" ? "warning" : "good";
+  return `
+    <section class="surge-publish-card">
+      <div class="snaillift-card-head">
+        <div>
+          <p class="kicker">Primary publish path</p>
+          <h3 class="panel-title">Surge setup</h3>
+          <p class="help">Set this up once. Publish to Surge uses the local bridge, uploads the public site, verifies the live proof files, and notifies Forest only after verification passes.</p>
+        </div>
+        <span class="publish-state ${phaseClass}">${escapeHtml(phaseLabel)}</span>
+      </div>
+      <div class="notice ${phase === "error" ? "warning" : phase === "verified" ? "good" : ""}">
+        <strong>${escapeHtml(phaseLabel)}</strong>
+        <p>${escapeHtml(phaseCopy)}</p>
+      </div>
+      <div class="grid-2 snaillift-fields">
+        <label class="field">
+          <span class="field-label-row">Site URL <button class="field-help" type="button" title="The public HTTPS URL where Surge will serve the site." aria-label="Surge site URL help">?</button></span>
+          <input data-settings-field="snailLiftSurgeSiteUrl" value="${escapeAttr(settings.siteUrl || state.profile.siteUrl || "")}" placeholder="https://creator.example/">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Domain <button class="field-help" type="button" title="The Surge domain or hostname for the public site." aria-label="Surge domain help">?</button></span>
+          <input data-settings-field="snailLiftSurgeDomain" value="${escapeAttr(settings.domain || "")}" placeholder="creator.surge.sh">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Project folder <button class="field-help" type="button" title="The local folder that holds the generated public files for Surge." aria-label="Surge project folder help">?</button></span>
+          <input data-settings-field="snailLiftSurgeProjectDir" value="${escapeAttr(settings.projectDir || "postsnail-public")}" placeholder="postsnail-public">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Surge login <button class="field-help" type="button" title="The Surge login email or account identifier stored inside the encrypted Shell." aria-label="Surge login help">?</button></span>
+          <input data-settings-field="snailLiftSurgeLogin" value="${escapeAttr(settings.surgeLogin || "")}" placeholder="boaz@example.com">
+        </label>
+        <label class="field token-field wide">
+          <span class="field-label-row">Surge token <button class="field-help" type="button" title="The Surge token stays inside the encrypted Shell and is never written to the public ZIP." aria-label="Surge token help">?</button></span>
+          <input data-settings-field="snailLiftSurgeToken" type="password" autocomplete="off" spellcheck="false" value="${escapeAttr(settings.surgeToken || "")}" placeholder="surge-token-value">
+          <p class="help">Credentials stay inside the encrypted Shell. They never go into the public ZIP, localStorage, or tracker payloads.</p>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="btn small primary" type="button" data-action="publish-snaillift-surge" ${state.lastExportResult ? "" : "disabled"}>Publish to Surge</button>
+      </div>
+      <details class="snaillift-advanced" ${state.lastSnailLiftCommand ? "open" : ""}>
+        <summary>Bridge helper</summary>
+        <p class="help">If the one-click bridge is not running yet, start it locally and publish again.</p>
+        <div class="actions">
+          <button class="btn small" type="button" data-action="copy-snaillift-command" ${state.lastSnailLiftCommand ? "" : "disabled"}>Copy bridge command</button>
+        </div>
+        ${state.lastSnailLiftCommand ? `<pre class="deploy-command"><code>${escapeHtml(state.lastSnailLiftCommand)}</code></pre>` : ""}
+      </details>
+      ${!canPublish.ok ? `<div class="notice warning"><strong>Setup needed</strong><p>${escapeHtml(canPublish.message)}</p></div>` : ""}
+      <div class="actions">
+        <button class="btn small" type="button" data-action="verify-snaillift-live" ${state.lastExportResult ? "" : "disabled"}>Verify live site</button>
+        <button class="btn small" type="button" data-action="announce-snaillift-forest" ${state.lastSnailLiftVerification?.ok ? "" : "disabled"}>Notify Forest after verify</button>
+      </div>
+      <p class="help">Forest notify unlocks only after live verification passes.</p>
+    </section>
+  `;
+}
+
+function renderSnailLiftCloudflarePanel() {
+  const settings = snailLiftCloudflareSettings();
+  const token = snailLiftCloudflareToken();
+  const phase = snailLiftCloudflarePhase();
+  const canPublish = snailLiftCloudflareCanPublish(settings, token);
+  const phaseLabel = snailLiftCloudflarePhaseLabel(phase);
+  const phaseCopy = snailLiftCloudflarePhaseCopy(phase);
+  const phaseClass = phase === "verified" ? "good" : phase === "error" ? "warning" : phase === "publishing" ? "warning" : phase === "not-configured" ? "warning" : phase === "prepared" ? "good" : "good";
+  return `
+    <section class="cloudflare-publish-card">
+      <div class="snaillift-card-head">
+        <div>
+          <p class="kicker">Primary publish path</p>
+          <h3 class="panel-title">Cloudflare Pages setup</h3>
+          <p class="help">Set this up once. Publish to Cloudflare checks whether the Pages project exists, offers to create it if needed, then uploads the live site, checks the proof files, and notifies Forest only after verification passes.</p>
+        </div>
+        <span class="publish-state ${phaseClass}">${escapeHtml(phaseLabel)}</span>
+      </div>
+      <div class="notice ${phase === "error" ? "warning" : phase === "verified" ? "good" : ""}">
+        <strong>${escapeHtml(phaseLabel)}</strong>
+        <p>${escapeHtml(phaseCopy)}</p>
+      </div>
+      <div class="grid-2 snaillift-fields">
+        <label class="field">
+          <span class="field-label-row">Cloudflare Account ID <button class="field-help" type="button" title="Your Cloudflare account ID. Needed for the Pages project API." aria-label="Cloudflare account ID help">?</button></span>
+          <input data-settings-field="snailLiftCloudflareAccountId" value="${escapeAttr(settings.accountId || "")}" placeholder="account id">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Project name <button class="field-help" type="button" title="The Cloudflare Pages project name that will receive the public site." aria-label="Cloudflare project name help">?</button></span>
+          <input data-settings-field="snailLiftCloudflareProjectName" value="${escapeAttr(settings.projectName || "")}" placeholder="my-postsnail">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Branch <button class="field-help" type="button" title="The production branch that Cloudflare Pages should publish from." aria-label="Cloudflare branch help">?</button></span>
+          <input data-settings-field="snailLiftCloudflareBranch" value="${escapeAttr(state.settings.snailLiftCloudflareBranch || "main")}">
+        </label>
+        <label class="field">
+          <span class="field-label-row">Live site URL <button class="field-help" type="button" title="The public HTTPS URL where the site will live after publishing." aria-label="Cloudflare site URL help">?</button></span>
+          <input data-settings-field="snailLiftSiteUrl" value="${escapeAttr(settings.siteUrl || state.profile.siteUrl || "")}" placeholder="https://creator.example/">
+        </label>
+      </div>
+      <label class="field token-field">
+        <span class="field-label-row">Cloudflare API token <button class="field-help" type="button" title="Paste a limited Cloudflare Pages token. It stays in memory unless you choose to remember it in the encrypted Shell." aria-label="Cloudflare API token help">?</button></span>
+        <input data-runtime-field="snailLiftCloudflareApiToken" type="password" autocomplete="off" spellcheck="false" value="${escapeAttr(token)}" placeholder="Session-only until you choose to remember it">
+        <p class="help">Session-only token means the secret stays in memory for this browser session. Remember in Shell saves it in the encrypted workspace.</p>
+      </label>
+      <label class="field checkbox-field cloudflare-remember-token">
+        <input type="checkbox" data-settings-field="snailLiftCloudflareRememberToken" ${snailLiftCloudflareRememberToken() ? "checked" : ""}>
+        <span>Remember in Shell</span>
+      </label>
+      <div class="actions">
+        <button class="btn small primary" type="button" data-action="publish-snaillift-cloudflare">Publish to Cloudflare</button>
+      </div>
+      ${!canPublish.ok ? `<div class="notice warning"><strong>Setup needed</strong><p>${escapeHtml(canPublish.message)}</p></div>` : ""}
+      <details class="snaillift-advanced">
+        <summary>Advanced: command assistant</summary>
+        <p class="help">Keep this as a fallback if you prefer running deploy commands locally. It stays separate from the main one-button publish flow.</p>
+        <div class="actions">
+          <button class="btn small" type="button" data-action="prepare-snaillift-cloudflare" ${state.lastExportResult ? "" : "disabled"}>Prepare command assistant</button>
+        </div>
+        ${state.lastSnailLiftCommand ? `
+          <pre class="deploy-command"><code>${escapeHtml(state.lastSnailLiftCommand)}</code></pre>
+          <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-command">Copy command</button></div>
+        ` : ""}
+      </details>
+      ${renderSnailLiftStatus()}
     </section>
   `;
 }
@@ -2068,22 +2446,42 @@ function renderSnailLiftStatus() {
 
 function renderSnailLiftLog() {
   const logs = state.exportHistory
-    .filter((entry) => ["cloudflare-pages", "github-pages"].includes(entry?.provider))
+    .filter((entry) => ["surge", "cloudflare-pages", "github-pages"].includes(entry?.provider))
     .slice(-5)
     .reverse();
   if (!logs.length) return "";
   return `
-    <div class="deploy-log">
-      <h3>Deployment log</h3>
-      ${logs.map((log) => `
-        <div class="deploy-log-row">
-          <strong>${escapeHtml(log.provider || "provider")}</strong>
-          <span>${escapeHtml(log.status || "status")}</span>
-          <span>${escapeHtml(log.siteUrl || "")}</span>
-          <span class="hash-cell">${escapeHtml(log.bundleFingerprint || "")}</span>
-          ${log.message ? `<p>${escapeHtml(log.message)}</p>` : ""}
-        </div>
-      `).join("")}
+    <div class="deploy-log" aria-label="Deployment log">
+      <div class="deploy-log-head">
+        <h3>Deployment log</h3>
+        <p>Expand a row to inspect the full status, timing, fingerprint, and troubleshooting message.</p>
+      </div>
+      <div class="deploy-log-scroll">
+        ${logs.map((log) => {
+          const timestamp = formatDateTime(log.finishedAt || log.startedAt);
+          const summaryStatus = escapeHtml(log.status || "status");
+          const summaryClass = `deploy-log-status status-${escapeAttr(log.status || "failed")}`;
+          const detailsOpen = log.status === "failed" ? " open" : "";
+          return `
+            <details class="deploy-log-item"${detailsOpen}>
+              <summary class="deploy-log-summary">
+                <span class="deploy-log-provider">${escapeHtml(log.provider || "provider")}</span>
+                <span class="${summaryClass}">${summaryStatus}</span>
+                <span class="deploy-log-time">${escapeHtml(timestamp)}</span>
+                <span class="deploy-log-site">${escapeHtml(log.siteUrl || "")}</span>
+                <span class="hash-cell deploy-log-fingerprint">${escapeHtml(log.bundleFingerprint || "")}</span>
+              </summary>
+              <div class="deploy-log-body">
+                <p><strong>Started:</strong> ${escapeHtml(formatDateTime(log.startedAt))}</p>
+                <p><strong>Finished:</strong> ${escapeHtml(formatDateTime(log.finishedAt || log.startedAt))}</p>
+                ${log.deploymentUrl ? `<p><strong>Deployment URL:</strong> <a href="${escapeAttr(log.deploymentUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(log.deploymentUrl)}</a></p>` : ""}
+                ${log.message ? `<p><strong>Log / error:</strong> ${escapeHtml(log.message)}</p>` : ""}
+                ${log.forestAnnounced ? "<p><strong>Forest:</strong> Announced after verification.</p>" : ""}
+              </div>
+            </details>
+          `;
+        }).join("")}
+      </div>
     </div>
   `;
 }
@@ -2272,7 +2670,19 @@ function postToForm(post) {
 function applyLoadedState(loaded) {
   state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
   state.identity = loaded.identity;
-  state.settings = { ...defaultSettings, ...(loaded.settings || {}) };
+  const loadedSettings = loaded.settings || {};
+  const rememberToken =
+    loadedSettings.publishRemember ??
+    loadedSettings.cloudflareRememberToken ??
+    loadedSettings.snailLiftCloudflareRememberToken ??
+    defaultSettings.publishRemember;
+  state.settings = {
+    ...defaultSettings,
+    ...loadedSettings,
+    publishRemember: rememberToken,
+  };
+  delete state.settings.cloudflareRememberToken;
+  delete state.settings.snailLiftCloudflareRememberToken;
   state.commitHistory = loaded.commitHistory || [];
   state.plugins = loaded.plugins || { installed: [], lock: {}, state: {} };
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
@@ -2310,6 +2720,7 @@ function resetEditableState() {
   state.lastAnnouncePayload = null;
   state.lastAnnounceStatus = null;
   state.notifyForestAttention = false;
+  state.snailLiftSurgeProgress = "";
   state.verifyResult = null;
   state.localShellNotice = false;
   state.localShellSaveError = false;
@@ -2339,6 +2750,16 @@ function hasLegacyLocalData(loaded) {
 
 function updateSettingFromInput(input) {
   state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
+  if (input.dataset.settingsField === "snailLiftCloudflareRememberToken") {
+    state.settings.publishRemember = Boolean(input.checked);
+    delete state.settings.cloudflareRememberToken;
+    delete state.settings.snailLiftCloudflareRememberToken;
+    if (input.checked) {
+      state.settings.snailLiftCloudflareApiToken = snailLiftCloudflareToken();
+    } else {
+      delete state.settings.snailLiftCloudflareApiToken;
+    }
+  }
   scheduleLocalShellSave();
 }
 
@@ -2726,6 +3147,75 @@ function publishedPagesCount() {
   return [...pages.pages, ...pages.docs].filter((item) => item.status === "published").length;
 }
 
+function snailLiftSurgeSettings() {
+  const siteUrl = String(state.settings.snailLiftSurgeSiteUrl || state.profile.siteUrl || "").trim();
+  const domain = String(state.settings.snailLiftSurgeDomain || "").trim() || deriveDomainFromSiteUrl(siteUrl);
+  return {
+    siteUrl,
+    domain,
+    projectDir: state.settings.snailLiftSurgeProjectDir || "postsnail-public",
+    surgeLogin: state.settings.snailLiftSurgeLogin || "",
+    surgeToken: state.settings.snailLiftSurgeToken || "",
+  };
+}
+
+function snailLiftSurgeCanPublish(settings = snailLiftSurgeSettings()) {
+  const validation = validateSurgeSettings(settings);
+  return {
+    ok: validation.ok,
+    errors: validation.errors,
+    message: validation.errors[0] || "",
+    normalized: validation.normalized,
+  };
+}
+
+function snailLiftSurgePhase() {
+  if (state.snailLiftSurgeProgress) return state.snailLiftSurgeProgress;
+  const settings = snailLiftSurgeSettings();
+  if (!settings.siteUrl || !settings.domain || !settings.surgeLogin || !settings.surgeToken) return "not-configured";
+  if (state.lastSnailLiftVerification?.ok && state.lastSnailLiftLog?.provider === "surge") return "verified";
+  if (state.lastSnailLiftLog?.provider === "surge" && state.lastSnailLiftLog?.status === "failed") return "error";
+  if (state.lastSnailLiftLog?.provider === "surge" && state.lastSnailLiftLog?.status === "prepared") return "setting-up";
+  if (state.lastSnailLiftLog?.provider === "surge" && state.lastSnailLiftLog?.status === "verified") return "verified";
+  return "connected";
+}
+
+function snailLiftSurgePhaseLabel(phase = snailLiftSurgePhase()) {
+  return {
+    "not-configured": "Not configured",
+    "setting-up": "Setting up",
+    connected: "Connected",
+    publishing: "Publishing",
+    verified: "Verified",
+    error: "Error",
+  }[phase] || "Connected";
+}
+
+function snailLiftSurgePhaseCopy(phase = snailLiftSurgePhase()) {
+  const siteUrl = snailLiftSurgeSettings().siteUrl || state.profile.siteUrl;
+  const lastError = String(state.lastSnailLiftLog?.message || "");
+  switch (phase) {
+    case "not-configured":
+      return "Add the Surge site URL, domain, project folder, login, and token to unlock the one-button publish flow. The local bridge must also be running.";
+    case "setting-up":
+      return "Surge setup is in progress.";
+    case "publishing":
+      return `Publishing to ${siteUrl || "Surge"} now. We will verify the live manifest before notifying Forest.`;
+    case "verified":
+      return `Surge is connected and verified for ${siteUrl || "your site"}.`;
+    case "error":
+      if (String(lastError).toLowerCase().includes("bridge")) {
+        return "The local Surge bridge is unavailable. Start it with npm run surge:bridge, then publish again.";
+      }
+      if (String(lastError).toLowerCase().includes("token") || String(lastError).toLowerCase().includes("authorization")) {
+        return "Surge rejected the token. Check the encrypted Shell credentials and try again.";
+      }
+      return "Surge publish needs attention. Check the status and repair messages below.";
+    default:
+      return "Surge is connected. Publish to Surge uses the local bridge, verifies the live proof files, then notifies Forest.";
+  }
+}
+
 function snailLiftCloudflareSettings() {
   return {
     accountId: state.settings.snailLiftCloudflareAccountId,
@@ -2733,6 +3223,81 @@ function snailLiftCloudflareSettings() {
     branch: state.settings.snailLiftCloudflareBranch || "main",
     siteUrl: state.settings.snailLiftSiteUrl || state.profile.siteUrl,
   };
+}
+
+function snailLiftCloudflareToken() {
+  return String(state.snailLiftCloudflareApiToken || state.settings.snailLiftCloudflareApiToken || "").trim();
+}
+
+function snailLiftCloudflareRememberToken() {
+  const remembered =
+    state.settings.publishRemember ??
+    state.settings.cloudflareRememberToken ??
+    state.settings.snailLiftCloudflareRememberToken ??
+    false;
+  return remembered !== false && remembered !== "false";
+}
+
+function snailLiftCloudflareCanPublish(settings = snailLiftCloudflareSettings(), token = snailLiftCloudflareToken()) {
+  const errors = [];
+  if (!settings.accountId) errors.push("Account ID is required.");
+  if (!settings.projectName) errors.push("Project name is required.");
+  if (!settings.siteUrl) errors.push("Live site URL is required.");
+  if (!token) errors.push("Add a Cloudflare API token to publish directly, or use the advanced command assistant.");
+  return {
+    ok: errors.length === 0,
+    errors,
+    message: errors[0] || "",
+  };
+}
+
+function snailLiftCloudflarePhase() {
+  if (state.snailLiftCloudflareProgress) return state.snailLiftCloudflareProgress;
+  if (!snailLiftCloudflareToken()) return "not-configured";
+  if (state.lastSnailLiftVerification?.ok && state.lastSnailLiftLog?.provider === "cloudflare-pages") return "verified";
+  if (state.lastSnailLiftLog?.provider === "cloudflare-pages" && state.lastSnailLiftLog?.status === "failed") return "error";
+  return "connected";
+}
+
+function snailLiftCloudflarePhaseLabel(phase = snailLiftCloudflarePhase()) {
+  return {
+    "not-configured": "Not configured",
+    "setting-up": "Setting up",
+    connected: "Connected",
+    prepared: "Prepared",
+    publishing: "Publishing",
+    verified: "Verified",
+    error: "Error",
+  }[phase] || "Connected";
+}
+
+function snailLiftCloudflarePhaseCopy(phase = snailLiftCloudflarePhase()) {
+  const siteUrl = snailLiftCloudflareSettings().siteUrl || state.profile.siteUrl;
+  const lastError = String(state.lastSnailLiftLog?.message || "");
+  switch (phase) {
+    case "not-configured":
+      return "Add your Cloudflare account, project, site URL, and a token to unlock the one-button publish flow. If the Pages project does not exist yet, PostSnail will ask whether to create it.";
+    case "setting-up":
+      return "Cloudflare setup is in progress.";
+    case "prepared":
+      return "SnailLift prepared the command assistant fallback.";
+    case "publishing":
+      return `Publishing to ${siteUrl || "Cloudflare Pages"} now. We will verify the live manifest before notifying Forest.`;
+    case "verified":
+      return `Cloudflare Pages is connected and verified for ${siteUrl || "your site"}.`;
+    case "error":
+      if (isCloudflareTokenPermissionError(lastError)) {
+        return "Cloudflare rejected the token. Check Pages Write or Pages Edit permissions for this account. If Wrangler still needs account visibility, add Memberships Read. This is a Cloudflare setup issue, not a PostSnail failure.";
+      }
+      return "Cloudflare publish needs attention. Check the status and repair messages below.";
+    default:
+      return "Cloudflare Pages is connected. Publish to Cloudflare checks for the project, creates it if you approve, then deploys the live site and verifies the proof files.";
+  }
+}
+
+function isCloudflareTokenPermissionError(message = "") {
+  const text = String(message || "").toLowerCase();
+  return text.includes("authentication error") || text.includes("unauthorized") || text.includes("forbidden") || text.includes("code: 10000");
 }
 
 function snailLiftGithubSettings() {
@@ -2748,10 +3313,20 @@ function snailLiftGithubSettings() {
 function snailLiftLiveSiteUrl() {
   return (
     state.lastSnailLiftLog?.siteUrl ||
+    state.settings.snailLiftSurgeSiteUrl ||
     state.settings.snailLiftSiteUrl ||
-    state.settings.snailLiftGithubSiteUrl ||
     state.profile.siteUrl
   );
+}
+
+function updateRuntimeFieldFromInput(input) {
+  if (input.dataset.runtimeField === "snailLiftCloudflareApiToken") {
+    state.snailLiftCloudflareApiToken = input.value;
+    if (snailLiftCloudflareRememberToken()) {
+      state.settings.snailLiftCloudflareApiToken = input.value;
+      scheduleLocalShellSave();
+    }
+  }
 }
 
 function normalizeForestUrl(value) {
@@ -2764,6 +3339,14 @@ function normalizeForestUrl(value) {
     url.search = "";
     url.pathname = "/";
     return url.toString().replace(/\/$/u, "");
+  } catch {
+    return "";
+  }
+}
+
+function deriveDomainFromSiteUrl(siteUrl) {
+  try {
+    return new URL(String(siteUrl || "")).hostname;
   } catch {
     return "";
   }

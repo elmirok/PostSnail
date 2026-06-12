@@ -437,6 +437,78 @@ textarea:disabled {
   margin: 0;
 }
 
+.snaillift-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.surge-publish-card,
+.cloudflare-publish-card {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.surge-publish-card .notice,
+.cloudflare-publish-card .notice {
+  margin: 0;
+}
+
+.publish-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.publish-state.good {
+  background: #e4f4e9;
+  border-color: #bfe6ce;
+}
+
+.publish-state.warning {
+  background: #fff1dc;
+  border-color: #f0d49a;
+}
+
+.token-field {
+  margin-top: 2px;
+}
+
+.snaillift-advanced {
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.snaillift-advanced > summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.snaillift-advanced .help {
+  margin-top: 6px;
+}
+
 .shellname-panel {
   display: grid;
   gap: 12px;
@@ -607,20 +679,119 @@ textarea:disabled {
   padding: 10px;
   border: 2px solid var(--line);
   background: var(--surface);
+  max-height: min(360px, 45dvh);
+  overflow: hidden;
 }
 
-.deploy-log h3 {
+.deploy-log-head {
+  display: grid;
+  gap: 4px;
+}
+
+.deploy-log-head h3 {
   margin: 0;
 }
 
-.deploy-log-row {
+.deploy-log-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.deploy-log-scroll {
   display: grid;
-  gap: 4px;
-  padding-top: 8px;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.deploy-log-item {
+  border: 2px solid rgba(8, 10, 47, 0.18);
+  background: var(--surface-soft);
+}
+
+.deploy-log-item[open] {
+  background: #fff;
+}
+
+.deploy-log-summary {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) auto minmax(110px, auto) minmax(0, 1fr) minmax(120px, 1.2fr);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 11px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.deploy-log-summary::-webkit-details-marker {
+  display: none;
+}
+
+.deploy-log-summary::marker {
+  content: "";
+}
+
+.deploy-log-provider,
+.deploy-log-time,
+.deploy-log-site,
+.deploy-log-fingerprint,
+.deploy-log-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.deploy-log-provider {
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.deploy-log-time {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.deploy-log-site {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.deploy-log-status {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.deploy-log-status.status-success,
+.deploy-log-status.status-verified,
+.deploy-log-status.status-prepared {
+  background: #e4f4e9;
+}
+
+.deploy-log-status.status-failed {
+  background: #ffe4e8;
+}
+
+.deploy-log-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 11px 11px;
   border-top: 2px solid rgba(8, 10, 47, 0.14);
   color: var(--muted);
   font-size: 0.78rem;
   overflow-wrap: anywhere;
+}
+
+.deploy-log-body p {
+  margin: 0;
 }
 
 .panel-title {
@@ -652,6 +823,36 @@ textarea:disabled {
   border-radius: var(--radius);
   background: var(--surface);
   padding: 10px 11px;
+}
+
+.field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-help {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 20px;
+  block-size: 20px;
+  border: 2px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0;
+  cursor: help;
+}
+
+.field-help:hover,
+.field-help:focus-visible {
+  background: #e4f4e9;
+  outline: none;
 }
 
 .field input,
@@ -1048,6 +1249,7 @@ code {
   .shell-gate,
   .shell-card-grid,
   .shell-trust-ribbon,
+  .snaillift-card-head,
   .remote-shell {
     grid-template-columns: 1fr;
   }
@@ -1062,6 +1264,10 @@ code {
 
   .recovery-shell-card {
     order: 3;
+  }
+
+  .snaillift-card-head {
+    flex-direction: column;
   }
 }
 

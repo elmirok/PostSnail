@@ -1,4 +1,4 @@
-# SnailLift
+# SnailLift Surge
 
 SnailLift is the PostSnail deployment assistant.
 

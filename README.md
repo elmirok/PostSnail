@@ -5,7 +5,7 @@ PostSnail Alpha 1 has two public surfaces:
 - `https://postsnail.org/` is the project website, manifesto, media kit, docs, and entry point to the browser admin.
 - `https://forest.postsnail.org/` is PostSnail Forest, the searchable tracker where creators register published PostSnail sites.
 
-The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It keeps editable browser-local Shell data encrypted at rest, stores encrypted workspace vaults and encrypted publisher keys locally, then downloads a static ZIP that can be hosted on Cloudflare Pages, GitHub Pages, Netlify, or any plain static host.
+The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It keeps editable browser-local Shell data encrypted at rest, stores encrypted workspace vaults and encrypted publisher keys locally, then downloads a static ZIP that can be hosted on Surge, Netlify, GitHub Pages, or any plain static host.
 
 PostSnail has two exports:
 
@@ -45,11 +45,11 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 1. Write at least one published post.
 2. Generate or unlock the encrypted ML-DSA-65 publisher key.
 3. Open Generate and export an encrypted `.postsnail` Shell.
-4. Click `Export Website ZIP`.
-5. Open Verify and choose the ZIP to validate it locally.
-6. Unzip the bundle and upload its contents to a static host.
-7. Register the public site on PostSnail Forest after it is live.
-8. After later publishes, click `Notify Forest` once the new ZIP is live so Forest can refresh quickly.
+4. Use the SnailLift Surge setup card to enter your site URL, domain, project folder, login, and token.
+5. Keep the credentials inside the encrypted Shell.
+6. Click `Publish to Surge` to publish through the local bridge, or click `Export Website ZIP` if you want the static fallback.
+7. PostSnail builds the public files, runs local safety checks, publishes through the Surge bridge, verifies the live proof files, and notifies Forest only after verification passes.
+8. Open Verify and choose the ZIP to validate it locally if you used the fallback path or want an extra local proof check.
 
 ## PostSnail CLI
 
@@ -73,11 +73,11 @@ CLI 1A is local/headless only. It does not yet add deploy providers, automatic F
 
 ## SnailLift
 
-SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, helps with Cloudflare Pages and GitHub Pages command-assisted deployment, verifies the live proof files, and only then notifies Forest.
+SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, prepares the Surge publish step through the local bridge, verifies the live proof files, and only then notifies Forest.
 
 SnailLift is built in for Alpha 1 but isolated from PostSnail Core. Provider-specific deployment code lives under `src/snaillift/`; exporter, workspace, identity, manifest, protocol, and signing modules stay provider-neutral so SnailLift can later move to `plugins/postsnail-snaillift`.
 
-SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [Cloudflare Pages](docs/snaillift-cloudflare.md), [GitHub Pages](docs/snaillift-github.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
+SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [SnailLift Surge](docs/snaillift-surge.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
 
 ## What “Post-Quantum Signed Fingerprint” Means
 
@@ -134,7 +134,7 @@ See [PostSnail Comments](docs/comments.md) and [PostSnail Pages](docs/postsnail-
 - A published ZIP or public site can only recover public content. It cannot recover private keys, drafts, private plugin state, rejected comments, or moderation notes.
 - Image files are copied into the ZIP as selected; strip EXIF/GPS metadata before importing images if that matters for your threat model.
 
-More detail: [workspace vaults](docs/workspace-vault.md), [Cloudflare Pages guide](docs/cloudflare-pages.md), [security notes](docs/security.md), [workspace migrations](docs/migrations.md), and [recovery/proof notes](docs/recovery-and-proof.md).
+More detail: [workspace vaults](docs/workspace-vault.md), [Surge publish guide](docs/publish-surge.md), [security notes](docs/security.md), [workspace migrations](docs/migrations.md), and [recovery/proof notes](docs/recovery-and-proof.md).
 
 ## License And Attribution
 

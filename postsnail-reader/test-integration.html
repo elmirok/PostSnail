@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Forest Integration Test</title>
+</head>
+<body>
+    <h1>Forest Integration Test</h1>
+    <p>Open browser console to see test results:</p>
+    
+    <script>
+        // Mock the storage manager functionality
+        const storageManager = {
+            getSubscriptions: function() {
+                return [];
+            },
+            addSubscription: function() {
+                console.log('Subscription added - mock function');
+            }
+        };
+        
+        // Mock the feed verifier functionality  
+        const feedVerifier = {
+            verifySite: function(siteUrl) {
+                console.log('Verifying site:', siteUrl);
+                // Return a mock verification result
+                return Promise.resolve({
+                    success: true,
+                    status: 'verified'
+                });
+            }
+        };
+        
+        // Test Forest context detection
+        function testForestIntegration() {
+            console.log('Testing Forest integration...');
+            
+            // Simulate URL parameters from Forest
+            const testUrls = [
+                '?forest=true&site=https://example.com',
+                '?forest=true', 
+                '?site=https://example.com',
+                ''
+            ];
+            
+            testUrls.forEach((url, index) => {
+                console.log(`\nTest ${index + 1}: ${url || 'No parameters'}`);
+                
+                // Parse URL parameters (simplified version of what my app does)
+                const urlParams = new URLSearchParams(url);
+                const forestParam = urlParams.get('forest');
+                const siteParam = urlParams.get('site');
+                
+                console.log('  Forest param:', forestParam);
+                console.log('  Site param:', siteParam);
+                
+                if (forestParam && siteParam) {
+                    console.log('  ✓ Detected Forest context with site - would auto-add');
+                } else if (forestParam) {
+                    console.log('  ✓ Detected Forest context (no site)');
+                } else {
+                    console.log('  ✗ No Forest context detected');
+                }
+            });
+        }
+        
+        // Run tests
+        testForestIntegration();
+    </script>
+</body>
+</html>

@@ -5,14 +5,16 @@ import { join } from "node:path";
 
 import { encodeText } from "../src/bytes.js";
 import { normalizePost } from "../src/content.js";
-import { generateSigningKeyPair } from "../src/crypto.js";
+import { generateSigningKeyPair, sha3Hex } from "../src/crypto.js";
 import { buildStaticExport } from "../src/exporter.js";
 import { createDeploymentLogEntry, redactDeploymentSecrets } from "../src/snaillift/deploymentLog.js";
 import { announceForestAfterLiveVerification } from "../src/snaillift/forestAnnounce.js";
 import { verifySnailLiftLiveSite } from "../src/snaillift/liveVerifier.js";
 import { validateProviderManifest } from "../src/snaillift/providers.js";
+import { buildSurgeBridgeCommand, surgeProvider, validateSurgeSettings } from "../src/snaillift/providers/surge.js";
 import {
   buildCloudflarePagesCommand,
+  buildCloudflarePagesCreateCommand,
   cloudflarePagesProvider,
   validateCloudflarePagesSettings,
 } from "../src/snaillift/providers/cloudflarePages.js";
@@ -22,6 +24,7 @@ import {
   validateGithubPagesSettings,
 } from "../src/snaillift/providers/githubPages.js";
 import { runSnailLiftSafety } from "../src/snaillift/safety.js";
+import { zipSync } from "../vendor/fflate/browser.js";
 
 const root = process.cwd();
 
@@ -168,6 +171,115 @@ test("GitHub Pages provider builds command-assistant commands without token plac
   assert.doesNotMatch(JSON.stringify(result), /secret-token-value|authorization/iu);
 });
 
+test("Surge settings validate required publish fields and safe paths", () => {
+  const missing = validateSurgeSettings({});
+  assert.equal(missing.ok, false);
+  assert.match(missing.errors.join("\n"), /domain is required/);
+  assert.match(missing.errors.join("\n"), /siteUrl is required/);
+  assert.match(missing.errors.join("\n"), /surgeLogin is required/);
+  assert.match(missing.errors.join("\n"), /surgeToken is required/);
+
+  const valid = validateSurgeSettings({
+    domain: "Elmirok.Hilazon6.Com",
+    siteUrl: "https://elmirok.hilazon6.com",
+    projectDir: "postsnail-public",
+    surgeLogin: "boaz@example.com",
+    surgeToken: "surge-token-value",
+  });
+
+  assert.equal(valid.ok, true, valid.errors.join("\n"));
+  assert.equal(valid.normalized.domain, "elmirok.hilazon6.com");
+  assert.equal(valid.normalized.siteUrl, "https://elmirok.hilazon6.com/");
+  assert.equal(valid.normalized.projectDir, "postsnail-public");
+});
+
+test("Surge bridge command stays token-free and names the helper", () => {
+  const command = buildSurgeBridgeCommand({
+    domain: "elmirok.hilazon6.com",
+    siteUrl: "https://elmirok.hilazon6.com/",
+    projectDir: "postsnail-public",
+  });
+
+  assert.match(command, /npm run surge:bridge/);
+  assert.doesNotMatch(command, /token|login|password|authorization/iu);
+});
+
+test("Surge provider publishes through the local bridge without leaking secrets", async () => {
+  const zipBytes = zipSync({
+    "index.html": encodeText("<h1>ok</h1>"),
+    "postsnail.manifest.json": encodeText("{}"),
+    ".well-known/postsnail.json": encodeText("{}"),
+  });
+
+  let posted = null;
+  const result = await surgeProvider.deploy({
+    zipBytes,
+    settings: {
+      domain: "elmirok.hilazon6.com",
+      siteUrl: "https://elmirok.hilazon6.com",
+      projectDir: "postsnail-public",
+      surgeLogin: "boaz@example.com",
+      surgeToken: "surge-token-value",
+    },
+    fetcher: async (input, init = {}) => {
+      const url = String(input);
+      if (url === "http://127.0.0.1:8788/health") {
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (url === "http://127.0.0.1:8788/publish") {
+        posted = JSON.parse(String(init.body || "{}"));
+        return new Response(JSON.stringify({
+          ok: true,
+          message: "Surge published.",
+          deploymentUrl: "https://elmirok.hilazon6.com/",
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      throw new Error(`Unexpected bridge request: ${url}`);
+    },
+  });
+
+  assert.equal(result.ok, true, result.message);
+  assert.equal(result.code, "published");
+  assert.equal(result.deploymentUrl, "https://elmirok.hilazon6.com/");
+  assert.equal(result.publishState, "verified");
+  assert.equal(result.safety.ok, true);
+  assert.match(JSON.stringify(result), /Surge published/);
+  assert.equal(typeof posted.zipBase64, "string");
+  assert.equal(posted.domain, "elmirok.hilazon6.com");
+  assert.equal(posted.siteUrl, "https://elmirok.hilazon6.com/");
+  assert.equal(posted.projectDir, "postsnail-public");
+  assert.equal(posted.surgeLogin, "boaz@example.com");
+  assert.doesNotMatch(JSON.stringify(result), /surge-token-value|authorization|password/iu);
+});
+
+test("Surge provider falls back cleanly when the local bridge is unavailable", async () => {
+  const zipBytes = zipSync({
+    "index.html": encodeText("<h1>ok</h1>"),
+    "postsnail.manifest.json": encodeText("{}"),
+    ".well-known/postsnail.json": encodeText("{}"),
+  });
+
+  const result = await surgeProvider.deploy({
+    zipBytes,
+    settings: {
+      domain: "elmirok.hilazon6.com",
+      siteUrl: "https://elmirok.hilazon6.com",
+      projectDir: "postsnail-public",
+      surgeLogin: "boaz@example.com",
+      surgeToken: "surge-token-value",
+    },
+    fetcher: async () => {
+      throw new TypeError("Failed to fetch");
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "surge-bridge-unavailable");
+  assert.match(result.message, /local Surge bridge/i);
+  assert.match(result.bridgeCommand, /npm run surge:bridge/);
+  assert.doesNotMatch(JSON.stringify(result), /surge-token-value|authorization|password/iu);
+});
+
 test("Cloudflare Pages settings validate required deploy fields", () => {
   const missing = validateCloudflarePagesSettings({});
   assert.equal(missing.ok, false);
@@ -202,7 +314,7 @@ test("Cloudflare Pages provider builds a Wrangler fallback command without leaki
   assert.doesNotMatch(command, /secret-token-value/);
 });
 
-test("Cloudflare Pages browser deploy fails clearly with Wrangler fallback for Sprint 1A", async () => {
+test("Cloudflare Pages provider falls back to the command assistant when no token is available", async () => {
   const result = await cloudflarePagesProvider.deploy({
     files: { "index.html": encodeText("ok") },
     settings: {
@@ -211,14 +323,310 @@ test("Cloudflare Pages browser deploy fails clearly with Wrangler fallback for S
       branch: "main",
       siteUrl: "https://creator.example/",
     },
-    secrets: { apiToken: "secret-token-value" },
   });
 
   assert.equal(result.ok, false);
-  assert.equal(result.code, "browser-direct-upload-not-enabled");
-  assert.match(result.message, /Use the Wrangler command/);
+  assert.equal(result.code, "cloudflare-token-missing");
+  assert.match(result.message, /command assistant fallback/);
   assert.match(result.fallbackCommand, /wrangler pages deploy/);
   assert.doesNotMatch(JSON.stringify(result), /secret-token-value/);
+});
+
+test("Cloudflare Pages provider asks to create a missing project before publishing", async () => {
+  const result = await cloudflarePagesProvider.deploy({
+    files: { "index.html": encodeText("ok") },
+    settings: {
+      accountId: "abc123",
+      projectName: "my-postsnail",
+      branch: "main",
+      siteUrl: "https://creator.example/",
+    },
+    secrets: { apiToken: "cf-secret-token" },
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.endsWith("/pages/projects/my-postsnail")) {
+        return new Response(JSON.stringify({
+          errors: [{ message: "Project not found" }],
+        }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "cloudflare-project-missing");
+  assert.match(result.message, /does not exist yet/i);
+  assert.equal(result.createProjectCommand, buildCloudflarePagesCreateCommand({
+    accountId: "abc123",
+    projectName: "my-postsnail",
+    branch: "main",
+    siteUrl: "https://creator.example/",
+  }));
+  assert.match(result.fallbackCommand, /wrangler pages deploy/);
+});
+
+test("Cloudflare Pages provider creates a missing project and publishes when approved", async () => {
+  const calls = [];
+  const files = { "index.html": encodeText("ok") };
+
+  const result = await cloudflarePagesProvider.deploy({
+    files,
+    settings: {
+      accountId: "abc123",
+      projectName: "my-postsnail",
+      branch: "main",
+      siteUrl: "https://creator.example/",
+    },
+    secrets: { apiToken: "cf-secret-token" },
+    createProjectIfMissing: true,
+    fetcher: async (input, init = {}) => {
+      const url = String(input);
+      const method = String(init.method || "GET").toUpperCase();
+      calls.push({ url, method, body: init.body });
+
+      if (url.endsWith("/pages/projects/my-postsnail")) {
+        return new Response(JSON.stringify({
+          errors: [{ message: "Project not found" }],
+        }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.endsWith("/pages/projects")) {
+        assert.equal(method, "POST");
+        const body = JSON.parse(String(init.body || "{}"));
+        assert.deepEqual(body, {
+          name: "my-postsnail",
+          production_branch: "main",
+        });
+        return new Response(JSON.stringify({
+          result: {
+            name: "my-postsnail",
+            subdomain: "my-postsnail.pages.dev",
+          },
+        }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.endsWith("/upload-token")) {
+        return jsonResponse({ jwt: "upload-jwt" });
+      }
+      if (url.endsWith("/pages/assets/upload")) {
+        return jsonResponse({ jwt: "completion-jwt" });
+      }
+      if (url.endsWith("/pages/assets/upsert-hashes")) {
+        return jsonResponse({ ok: true });
+      }
+      if (url.endsWith("/deployments")) {
+        return jsonResponse({
+          id: "deployment-1",
+          url: "https://my-postsnail.pages.dev/",
+          project_name: "my-postsnail",
+          latest_stage: { name: "deploy", status: "success" },
+        });
+      }
+      throw new Error(`Unexpected fetch ${method} ${url}`);
+    },
+  });
+
+  assert.equal(result.ok, true, result.message);
+  assert.equal(result.code, "published");
+  assert.equal(result.projectCreated, true);
+  assert.equal(result.deploymentUrl, "https://my-postsnail.pages.dev/");
+  assert.match(JSON.stringify(calls), /pages\/projects","method":"POST"/);
+  assert.match(JSON.stringify(calls), /upload-token/);
+  assert.match(JSON.stringify(calls), /deployments/);
+});
+
+test("Cloudflare Pages provider explains token permission failures clearly", async () => {
+  const result = await cloudflarePagesProvider.deploy({
+    files: { "index.html": encodeText("ok") },
+    settings: {
+      accountId: "abc123",
+      projectName: "my-postsnail",
+      branch: "main",
+      siteUrl: "https://creator.example/",
+    },
+    secrets: { apiToken: "cf-secret-token" },
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.endsWith("/pages/projects/my-postsnail")) {
+        return new Response(JSON.stringify({
+          errors: [{ message: "Authentication error [code: 10000]" }],
+        }), {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      throw new Error(`Unexpected fetch ${url}`);
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "cloudflare-publish-failed");
+  assert.match(result.message, /Cloudflare rejected the token/i);
+  assert.match(result.message, /Pages (Write|Edit)/i);
+  assert.match(result.message, /Memberships Read/i);
+  assert.doesNotMatch(JSON.stringify(result), /cf-secret-token/);
+});
+
+test("Cloudflare Pages provider can publish from browser runtimes when the API calls succeed", async () => {
+  const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, "window");
+  const hadDocument = Object.prototype.hasOwnProperty.call(globalThis, "document");
+  const originalWindow = globalThis.window;
+  const originalDocument = globalThis.document;
+  const calls = [];
+
+  try {
+    globalThis.window = {};
+    globalThis.document = {};
+
+    const result = await cloudflarePagesProvider.deploy({
+      files: { "index.html": encodeText("ok") },
+      settings: {
+        accountId: "abc123",
+        projectName: "my-postsnail",
+        branch: "main",
+        siteUrl: "https://creator.example/",
+      },
+      secrets: { apiToken: "cf-secret-token" },
+      fetcher: async (input, init = {}) => {
+        const url = String(input);
+        const method = String(init.method || "GET").toUpperCase();
+        calls.push({ url, method, body: init.body });
+
+        if (url.endsWith("/pages/projects/my-postsnail")) {
+          return jsonResponse({
+            name: "my-postsnail",
+            production_branch: "main",
+          });
+        }
+        if (url.endsWith("/pages/projects/my-postsnail/upload-token")) {
+          return jsonResponse({ jwt: "upload-jwt" });
+        }
+        if (url.endsWith("/pages/assets/upload")) {
+          return jsonResponse({ jwt: "completion-jwt" });
+        }
+        if (url.endsWith("/pages/assets/upsert-hashes")) {
+          return jsonResponse({ ok: true });
+        }
+        if (url.endsWith("/pages/projects/my-postsnail/deployments")) {
+          return jsonResponse({
+            id: "deployment-1",
+            url: "https://my-postsnail.pages.dev/",
+            project_name: "my-postsnail",
+            latest_stage: { name: "deploy", status: "success" },
+          });
+        }
+        throw new Error(`Unexpected fetch ${method} ${url}`);
+      },
+    });
+
+    assert.equal(result.ok, true, result.message);
+    assert.equal(result.code, "published");
+    assert.equal(result.publishState, "verified");
+    assert.match(JSON.stringify(calls), /upload-token/);
+    assert.match(JSON.stringify(calls), /deployments/);
+    assert.equal(result.safety.ok, true);
+    assert.doesNotMatch(JSON.stringify(result), /cf-secret-token/);
+  } finally {
+    if (hadWindow) {
+      globalThis.window = originalWindow;
+    } else {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+    if (hadDocument) {
+      globalThis.document = originalDocument;
+    } else {
+      Reflect.deleteProperty(globalThis, "document");
+    }
+  }
+});
+
+test("Cloudflare Pages provider publishes public files via the Pages API when a token is available", async () => {
+  const calls = [];
+  const files = {
+    "index.html": encodeText("<h1>Publish me</h1>"),
+    "about/index.html": encodeText("<p>About page</p>"),
+    "_headers": encodeText("/\n  X-Test: 1"),
+    "postsnail.manifest.json": encodeText("{}"),
+    ".well-known/postsnail.json": encodeText("{}"),
+  };
+
+  const fetcher = async (input, init = {}) => {
+    const url = String(input);
+    const method = String(init.method || "GET").toUpperCase();
+    const body = init.body;
+    calls.push({ url, method, body });
+
+    if (url.endsWith("/pages/projects/my-postsnail")) {
+      return jsonResponse({
+        name: "my-postsnail",
+        production_branch: "main",
+        deployment_configs: {
+          production: { compatibility_date: "2026-06-01", compatibility_flags: [] },
+        },
+      });
+    }
+    if (url.endsWith("/pages/projects/my-postsnail/upload-token")) {
+      return jsonResponse({ jwt: "upload-jwt" });
+    }
+    if (url.endsWith("/pages/assets/upload")) {
+      assert.equal(init.headers.Authorization, "Bearer upload-jwt");
+      const payload = JSON.parse(String(body));
+      assert.equal(Array.isArray(payload), true);
+      assert.equal(payload.length > 0, true);
+      return jsonResponse({ jwt: "completion-jwt" });
+    }
+    if (url.endsWith("/pages/assets/upsert-hashes")) {
+      assert.equal(init.headers.Authorization, "Bearer upload-jwt");
+      return jsonResponse({ ok: true });
+    }
+    if (url.endsWith("/pages/projects/my-postsnail/deployments")) {
+      assert.equal(method, "POST");
+      assert.ok(body instanceof FormData);
+      assert.equal(body.get("branch"), "main");
+      assert.equal(body.get("manifest"), JSON.stringify({
+        "index.html": hashForPagesUpload("index.html", files["index.html"]),
+        "about/index.html": hashForPagesUpload("about/index.html", files["about/index.html"]),
+        "_headers": hashForPagesUpload("_headers", files["_headers"]),
+        "postsnail.manifest.json": hashForPagesUpload("postsnail.manifest.json", files["postsnail.manifest.json"]),
+        ".well-known/postsnail.json": hashForPagesUpload(".well-known/postsnail.json", files[".well-known/postsnail.json"]),
+      }));
+      return jsonResponse({
+        id: "deployment-1",
+        url: "https://my-postsnail.pages.dev/",
+        project_name: "my-postsnail",
+        latest_stage: { name: "deploy", status: "success" },
+      });
+    }
+    throw new Error(`Unexpected fetch ${method} ${url}`);
+  };
+
+  const result = await cloudflarePagesProvider.deploy({
+    files,
+    settings: {
+      accountId: "abc123",
+      projectName: "my-postsnail",
+      branch: "main",
+      siteUrl: "https://creator.example/",
+    },
+    secrets: { apiToken: "cf-secret-token" },
+    fetcher,
+  });
+
+  assert.equal(result.ok, true, result.message);
+  assert.equal(result.code, "published");
+  assert.equal(result.deploymentUrl, "https://my-postsnail.pages.dev/");
+  assert.equal(result.safety.ok, true);
+  assert.match(JSON.stringify(calls), /upload-token/);
+  assert.match(JSON.stringify(calls), /assets\/upload/);
+  assert.match(JSON.stringify(calls), /upsert-hashes/);
+  assert.match(JSON.stringify(calls), /deployments/);
 });
 
 test("verifySnailLiftLiveSite passes when live proof matches generated export", async () => {
@@ -296,7 +704,6 @@ test("SnailLift provider logic stays out of PostSnail Core modules", () => {
   const coreFiles = [
     "src/exporter.js",
     "src/workspace.js",
-    "src/workspaceSchema.js",
     "src/workspaceCrypto.js",
     "src/proof-documents.js",
     "src/protocol.js",
@@ -307,6 +714,9 @@ test("SnailLift provider logic stays out of PostSnail Core modules", () => {
     const source = readFileSync(join(root, file), "utf8");
     assert.doesNotMatch(source, /snaillift|snailLift|cloudflare|github|wrangler/iu, file);
   }
+
+  const workspaceSchema = readFileSync(join(root, "src/workspaceSchema.js"), "utf8");
+  assert.doesNotMatch(workspaceSchema, /cloudflare|github|wrangler/iu, "src/workspaceSchema.js");
 });
 
 async function makeExportFixture() {
@@ -343,4 +753,16 @@ function liveFilesFetcher(files) {
 
 function fileKeyFromUrl(url) {
   return new URL(url).pathname.replace(/^\//u, "") || "index.html";
+}
+
+function jsonResponse(value) {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function hashForPagesUpload(filePath, bytes) {
+  const extension = /\.[^.]+$/u.exec(filePath)?.[0] || "";
+  return sha3Hex(encodeText(`${Buffer.from(bytes).toString("base64")}${extension}`)).slice(0, 32);
 }

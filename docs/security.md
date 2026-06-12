@@ -10,6 +10,8 @@ Browser-local editable Shell data is encrypted the same way in IndexedDB. Reopen
 
 The passphrase matters. PostSnail has no account system, no recovery server, and no backend that can reset it.
 
+SnailLift publishes through Surge in Alpha 1B. The Surge login and token stay inside the encrypted Shell. PostSnail does not write them to the public Website ZIP, browser localStorage, or tracker payloads.
+
 ## What Encryption Protects
 
 Workspace encryption protects the editable source file and browser-local Shell cache at rest when the passphrase is strong and the device/browser is not compromised. It keeps drafts, private plugin state, moderation notes, rejected comments, images, settings, and encrypted identity material out of the public Website ZIP.

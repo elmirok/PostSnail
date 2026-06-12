@@ -1,0 +1,13 @@
+{
+  "name": "@postsnail/forest-crawler",
+  "version": "0.1.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.4.0",
+    "@noble/post-quantum": "^0.2.0"
+  }
+}

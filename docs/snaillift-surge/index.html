@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SnailLift Cloudflare Pages - Alpha 1</title>
-    <meta name="description" content="Use SnailLift with the Wrangler-assisted Cloudflare Pages path.">
-    <link rel="canonical" href="https://postsnail.org/docs/snaillift-cloudflare/">
+    <title>SnailLift Surge - Alpha 1</title>
+    <meta name="description" content="Use SnailLift with the local Surge bridge and encrypted Shell credentials.">
+    <link rel="canonical" href="https://postsnail.org/docs/snaillift-surge/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -38,15 +38,18 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>SnailLift Cloudflare Pages</h1>
-            <p class="lede">SnailLift Sprint 1A supports a Cloudflare Pages Wrangler-assisted path.</p>
+            <h1>SnailLift Surge</h1>
+            <p class="lede">SnailLift Alpha 1B supports a Surge publish flow inside the admin.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="SnailLift Cloudflare sections"><a href="#steps">Steps</a><a href="#token">Token Guidance</a><a href="#limits">Sprint 1A Limit</a></nav>
+            <nav class="doc-nav" aria-label="SnailLift Surge sections"><a href="#setup">Setup</a><a href="#bridge">Local Bridge</a><a href="#publish">Publish</a><a href="#token">Token Guidance</a><a href="#assist">Bridge Helper</a><a href="#cors">CORS</a></nav>
             <div class="doc-content">
-              <section id="steps"><h2>Steps</h2><p>Export Website ZIP, extract it into postsnail-public, prepare Cloudflare settings in the admin, copy the generated Wrangler command, run it locally, return to PostSnail, verify live, then notify Forest.</p></section>
-              <section id="token"><h2>Token Guidance</h2><p>Use a limited Cloudflare Pages token. Do not paste long-lived account-wide tokens unless you understand the risk.</p></section>
-              <section id="limits"><h2>Sprint 1A Limit</h2><p>Sprint 1A does not store tokens by default and does not claim browser direct upload is universally available.</p></section>
+              <section id="setup"><h2>Setup</h2><p>Enter the Surge site URL, domain, project folder, login, and token. The login and token stay inside the encrypted Shell.</p></section>
+              <section id="bridge"><h2>Local Bridge</h2><p>The one-click publish flow hands off to a local bridge at 127.0.0.1. Start it with npm run surge:bridge before publishing.</p></section>
+              <section id="publish"><h2>Publish</h2><p>Click Publish to Surge. PostSnail builds the public files, runs the local safety checks, uploads through the bridge, verifies the live proof files, and notifies Forest only after verification passes.</p></section>
+              <section id="token"><h2>Token Guidance</h2><p>Use a limited Surge token. Do not paste secrets you do not want stored inside the encrypted Shell. The token is never written to the public Website ZIP, localStorage, or tracker payloads.</p></section>
+              <section id="assist"><h2>Bridge Helper</h2><p>The bridge command remains available in the advanced section for creators who want to start the helper manually.</p></section>
+              <section id="cors"><h2>CORS</h2><p>The public ZIP includes a Surge CORS file so the browser verifier can fetch the live proof files.</p></section>
             </div>
           </article>
     </main>

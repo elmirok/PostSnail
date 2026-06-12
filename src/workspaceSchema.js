@@ -1,11 +1,16 @@
 export const WORKSPACE_SCHEMA = "postsnail-workspace-data";
 export const RAW_PRIVATE_KEY_ERROR = "Workspace data must not contain raw private signing keys.";
 const SECRET_LIKE_FIELD_PATTERN = /(api[-_]?key|apiKey|apiToken|token|secret|authorization|password)/iu;
+const PRESERVED_SETTINGS_SECRET_KEYS = new Set([
+  "snailLiftSurgeToken",
+]);
 
 export function createWorkspaceData(source = {}, options = {}) {
   const now = options.now || new Date().toISOString();
   assertNoRawPrivateKeys(source);
-  const settings = stripSecretLikeFields(cleanObject(source.settings));
+  const settings = stripSecretLikeFields(cleanObject(source.settings), {
+    allowKeys: PRESERVED_SETTINGS_SECRET_KEYS,
+  });
   return {
     schema: WORKSPACE_SCHEMA,
     version: Number.isInteger(source.version) ? source.version : 1,
@@ -97,12 +102,13 @@ function normalizeExportHistory(value) {
   return cleanArray(value).map((entry) => stripSecretLikeFields(entry));
 }
 
-function stripSecretLikeFields(value) {
+function stripSecretLikeFields(value, options = {}) {
+  const allowKeys = options.allowKeys || new Set();
   if (Array.isArray(value)) return value.map((entry) => stripSecretLikeFields(entry));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => !SECRET_LIKE_FIELD_PATTERN.test(key))
+      .filter(([key]) => !SECRET_LIKE_FIELD_PATTERN.test(key) || allowKeys.has(key))
       .map(([key, nested]) => [key, stripSecretLikeFields(nested)]),
   );
 }

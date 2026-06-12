@@ -69,6 +69,9 @@ const CORS_HEADERS = `
   Access-Control-Allow-Headers: Content-Type
 `;
 
+const SURGE_CORS = `*
+`;
+
 const NETLIFY_TOML = `
 [[headers]]
   for = "/postsnail.manifest.json"
@@ -220,6 +223,7 @@ export async function buildStaticExport({
   }
 
   files["_headers"] = htmlBytes(CORS_HEADERS.trim());
+  files["CORS"] = htmlBytes(SURGE_CORS.trim());
   files["netlify.toml"] = htmlBytes(NETLIFY_TOML.trim());
   if (commentsOutput) {
     files["plugins/postsnail-comments/runtime/comments.js"] = htmlBytes(commentsRuntimeScript());

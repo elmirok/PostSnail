@@ -2,6 +2,20 @@
 
 PostSnail has two publishing paths.
 
+## Publish To Surge
+
+SnailLift can publish directly through the local Surge bridge after a one-time setup in the admin. The creator enters the site URL, domain, project folder, Surge login, and a limited token.
+
+The credentials stay inside the encrypted Shell. They are never written to the public Website ZIP, localStorage, or tracker payloads.
+
+The direct publish flow:
+
+1. Build the public files.
+2. Run the local safety checks.
+3. Upload through the local Surge bridge.
+4. Verify the live manifest and `.well-known` files.
+5. Notify Forest only after verification passes.
+
 ## Download ZIP
 
 Download ZIP remains the fallback. It is the universal public static artifact and works on any static host.
@@ -14,7 +28,7 @@ SnailLift prepares a safe public bundle, helps deploy it, verifies the live proo
 
 SnailLift is optional. It is a deployment assistant, not hosting.
 
-Alpha 1B includes command assistants for Cloudflare Pages and GitHub Pages. The creator still controls the hosting account and runs provider commands locally.
+Alpha 1B uses Surge as the publish path. The creator still controls the hosting account and runs the helper locally.
 
 ## Forest
 

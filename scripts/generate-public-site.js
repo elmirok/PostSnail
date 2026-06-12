@@ -72,7 +72,7 @@ const pages = [
         </div>
         <div class="copy-block">
           <p>PostSnail is an admin you open in the browser. Posts, images, encrypted Shell caches, encrypted workspace vaults, and encrypted publisher keys stay local. When you are ready, PostSnail exports a public Website ZIP with proof files and no required backend.</p>
-          <p>The generated blog can live on Cloudflare Pages or any static host. Forest is only a tracker: it verifies public proofs and indexes summaries so people can find you.</p>
+          <p>The generated blog can live on Surge or any static host. Forest is only a tracker: it verifies public proofs and indexes summaries so people can find you.</p>
         </div>
       </section>
       <section class="feature-row" aria-label="PostSnail principles">
@@ -94,7 +94,7 @@ const pages = [
       <section class="link-grid" aria-label="Explore PostSnail">
         <a href="/manifesto/"><strong>Manifesto</strong><span>The plain-language why behind creator-owned signed microblogs.</span></a>
         <a href="/media-kit/"><strong>Media Kit</strong><span>Logo files, colors, typography, pixel-art rules, and Alpha 1 usage notes.</span></a>
-        <a href="/docs/publish-cloudflare/"><strong>Publish Guide</strong><span>Export a signed ZIP and host it on Cloudflare Pages for free.</span></a>
+        <a href="/docs/publish-surge/"><strong>Publish Guide</strong><span>Export a signed ZIP and host it through the Surge bridge for free.</span></a>
         <a href="/docs/architecture/"><strong>Developer Architecture</strong><span>Admin, static bundle, proof files, Forest registry, and extension points.</span></a>
       </section>
     `,
@@ -126,7 +126,7 @@ const pages = [
         <section><h2>Does PostSnail Upload My Writing?</h2><p>No. The admin is browser-only and does not automatically register or upload anything. Forest registration is a separate action after your public site is live.</p></section>
         <section><h2>Does The Fingerprint Prove Identity?</h2><p>It proves the bundle matches the manifest and publisher public key. It does not prove legal identity, factual accuracy, or that the JavaScript runtime is FIPS-validated.</p></section>
         <section><h2>Can Forest Index My Site?</h2><p>Yes, if your deployed site exposes <code>.well-known/postsnail.json</code> and <code>postsnail.manifest.json</code>. Forest verifies those public proof files before indexing summaries.</p></section>
-        <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Cloudflare Pages, GitHub Pages, Netlify, and similar static hosts.</p></section>
+        <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Surge, GitHub Pages, Netlify, and similar static hosts.</p></section>
         <section><h2>Does My Generated Blog Show PostSnail Branding?</h2><p>Generated blogs can show a small Powered by PostSnail footer and tracker credit by default. The creator can disable those Generate settings before export.</p></section>
       </section>
     `,
@@ -145,7 +145,7 @@ const pages = [
       <section class="doc-layout">
         <nav class="doc-nav" aria-label="Manifesto sections"><a href="#ownership">Ownership</a><a href="#proof">Proof</a><a href="#discovery">Discovery</a><a href="#limits">Limits</a></nav>
         <article class="doc-content">
-          <section id="ownership"><h2>Creators Should Own The Files</h2><p>A microblog can be a folder of static pages. It does not need a platform database to exist, load, or survive. PostSnail starts from that premise: the creator writes locally, exports files, and chooses where those files live.</p><p>Free static hosting is enough for Alpha 1. A creator can publish on Cloudflare Pages or a similar host and still keep the whole bundle as a backup.</p></section>
+          <section id="ownership"><h2>Creators Should Own The Files</h2><p>A microblog can be a folder of static pages. It does not need a platform database to exist, load, or survive. PostSnail starts from that premise: the creator writes locally, exports files, and chooses where those files live.</p><p>Free static hosting is enough for Alpha 1. A creator can publish on Surge or a similar host and still keep the whole bundle as a backup.</p></section>
           <section id="proof"><h2>Accountability Should Travel With The Content</h2><p>PostSnail exports signed proof files with SHA3-512 digests, ML-DSA-65 signatures, and a bundle fingerprint. This lets readers, registries, and future tools verify that public summaries match the creator's signed manifest.</p><p>The phrase post-quantum signed fingerprint means the content proof uses a post-quantum signature algorithm. It does not claim the browser runtime is FIPS-validated, and it does not prove truth, legal identity, or moral authority.</p></section>
           <section id="discovery"><h2>Discovery Should Not Become Ownership</h2><p>Forest is a tracker, not the source of truth. It indexes verified public summaries so people can find microblogs, but the creator's site and manifest remain authoritative.</p><p>Anyone should be able to run a compatible tracker later. Alpha 1 begins with one central Forest server because simple working paths matter.</p></section>
           <section id="limits"><h2>Alpha 1 Is Honest About Its Edges</h2><p>PostSnail does not provide accounts, ownership claims, automatic deployment, moderation, federation, semantic search, or legal identity. Those are real problems, but they should not block a first usable path for creator-owned publishing.</p><p>The first promise is narrow: write locally, publish statically, verify proofs, register summaries, and keep control.</p></section>
@@ -203,11 +203,10 @@ const pages = [
         <a href="/docs/cli/"><strong>PostSnail CLI</strong><span>Open encrypted Shells, import Markdown drafts, build public files, verify output, and create ZIPs from a terminal.</span></a>
         <a href="/docs/headless-publishing/"><strong>Headless Publishing</strong><span>Use trusted local automation without turning the browser admin into a backend dependency.</span></a>
         <a href="/docs/workspace-vault/"><strong>Encrypted Workspace Vault</strong><span>Use private <code>.postsnail</code> files as the editable source for your microblog.</span></a>
-        <a href="/docs/publishing/"><strong>Publishing</strong><span>Choose Download ZIP or SnailLift while keeping the private Shell out of public hosting.</span></a>
-        <a href="/docs/publish-cloudflare/"><strong>Publish On Cloudflare Pages</strong><span>Upload the public Website ZIP contents and verify public proof files.</span></a>
-        <a href="/docs/snaillift/"><strong>SnailLift</strong><span>Deploy public generated files, verify live proof files, and notify Forest after verification.</span></a>
-        <a href="/docs/snaillift-cloudflare/"><strong>SnailLift Cloudflare</strong><span>Use the Wrangler-assisted Cloudflare Pages path for Sprint 1A.</span></a>
-        <a href="/docs/snaillift-github/"><strong>SnailLift GitHub</strong><span>Use the GitHub Pages command assistant without browser token storage.</span></a>
+        <a href="/docs/publishing/"><strong>Publishing</strong><span>Choose Download ZIP or Surge while keeping the private Shell out of public hosting.</span></a>
+        <a href="/docs/publish-surge/"><strong>Publish On Surge</strong><span>Use the Surge bridge or public ZIP fallback to deploy and verify public proof files.</span></a>
+        <a href="/docs/snaillift/"><strong>SnailLift</strong><span>Deploy public generated files through Surge, verify live proof files, and notify Forest after verification.</span></a>
+        <a href="/docs/snaillift-surge/"><strong>SnailLift Surge</strong><span>Use the local bridge and Surge credentials stored in the encrypted Shell.</span></a>
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
         <a href="/docs/postsnail-pages/"><strong>PostSnail Pages</strong><span>Enable the official CMS plugin for static pages, docs, navigation, and homepage override.</span></a>
         <a href="/docs/comments/"><strong>PostSnail Comments</strong><span>Enable the official comments plugin for approved static replies and private moderation in the Shell.</span></a>
@@ -293,25 +292,28 @@ const pages = [
   {
     path: "docs/publishing/index.html",
     title: "Publishing PostSnail - Alpha 1",
-    description: "PostSnail publishing paths: Download ZIP and optional SnailLift deployment assistant.",
+    description: "PostSnail publishing paths: Surge publish, Download ZIP fallback, and SnailLift assistance.",
     canonical: "https://postsnail.org/docs/publishing/",
     body: docPage("Publishing sections", "Publishing PostSnail", "PostSnail can publish through a manual ZIP upload or through the optional SnailLift deployment assistant.", [
       ["zip", "Download ZIP", "Download ZIP remains the fallback. It is the universal public static artifact and works on any static host. The ZIP is public and is not the full project source."],
-      ["snaillift", "SnailLift", "SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. Alpha 1B includes command assistants for Cloudflare Pages and GitHub Pages. It is a deployment assistant, not hosting."],
+      ["surge", "Publish To Surge", "SnailLift can publish directly through the local Surge bridge after a one-time setup. PostSnail builds the public files, runs the local safety checks, uploads through the bridge, verifies the live proof files, and notifies Forest only after verification passes."],
+      ["snaillift", "SnailLift", "SnailLift prepares a safe public bundle, helps deploy it, verifies the live proof files, and then notifies Forest. It is a deployment assistant, not hosting."],
       ["forest", "Forest", "Forest should be notified only after the new public ZIP contents are live and live verification passes. This keeps search updates tied to the actual deployed fingerprint."],
     ]),
   },
   {
-    path: "docs/publish-cloudflare/index.html",
-    title: "Publish On Cloudflare Pages - PostSnail Alpha 1",
-    description: "Publish a signed PostSnail static microblog on Cloudflare Pages.",
-    canonical: "https://postsnail.org/docs/publish-cloudflare/",
-    body: docPage("Cloudflare tutorial sections", "Publish On Cloudflare Pages", "PostSnail exports plain static files, so Cloudflare Pages can host the microblog without a server bill.", [
-      ["workspace", "0. Save Your Shell", "Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Cloudflare Pages."],
+    path: "docs/publish-surge/index.html",
+    title: "Publish On Surge - PostSnail Alpha 1",
+    description: "Publish a signed PostSnail static microblog through the Surge bridge.",
+    canonical: "https://postsnail.org/docs/publish-surge/",
+    body: docPage("Surge tutorial sections", "Publish On Surge", "PostSnail exports plain static files, so Surge can host the microblog without a server bill.", [
+      ["workspace", "0. Save Your Shell", "Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Surge."],
       ["export", "1. Export Website ZIP", "In the admin Generate tab, unlock your key and click Export Website ZIP. Use the Verify tab before uploading."],
-      ["upload", "2. Upload", "Create a Cloudflare Pages project and upload the unzipped bundle contents. The deployed root should contain index.html, postsnail.manifest.json, and .well-known/postsnail.json."],
-      ["check", "3. Check Proof Files", "Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them."],
-      ["register", "4. Register In Forest", `Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.`],
+      ["bridge", "2. Start Bridge", "Start the local Surge bridge with npm run surge:bridge. Leave it running on the creator machine so PostSnail can hand off the publish request."],
+      ["upload", "3. Upload", "Click Publish to Surge from the admin. The local bridge receives the public ZIP, stages the files, and publishes the public site."],
+      ["check", "4. Check Proof Files", "Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them."],
+      ["register", "5. Register In Forest", `Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.`],
+      ["cors", "6. Surge CORS", "Surge needs a CORS file at the published root so the PostSnail admin verifier can fetch public proof files cross-origin."],
     ]),
   },
   {
@@ -322,32 +324,24 @@ const pages = [
     body: docPage("SnailLift sections", "SnailLift", "Your shell stays private. Your trail goes live.", [
       ["role", "Deployment Assistant", "SnailLift helps deploy public generated files. It is not hosting and does not own your Shell, key, account, source, or domain."],
       ["isolation", "Official Bundled Plugin", "SnailLift is surfaced as the official bundled plugin postsnail-snaillift in the admin Extensions tab. Provider-specific deployment logic still stays isolated under src/snaillift and out of Core modules."],
-      ["enable", "Enable In Extensions", "Disabling the plugin hides SnailLift provider panels but does not delete deployment settings. Download Website ZIP remains available either way."],
-      ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, prepare Cloudflare Pages or GitHub Pages commands, deploy public static files from a trusted terminal, verify the live PostSnail proof files, then notify Forest."],
+      ["enable", "Enable In Extensions", "Disabling the plugin hides the Surge publish card but does not delete deployment settings. Download Website ZIP remains available either way."],
+      ["flow", "Flow", "Export Website ZIP, run the SnailLift safety check, publish through the local Surge bridge after one-time setup, deploy public static files from a trusted terminal, verify the live PostSnail proof files, then notify Forest."],
       ["boundaries", "Boundaries", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
       ["fallback", "ZIP Fallback", "Download ZIP remains the universal fallback for every creator. SnailLift is optional and must be enabled before deployment assistants appear."],
     ]),
   },
   {
-    path: "docs/snaillift-cloudflare/index.html",
-    title: "SnailLift Cloudflare Pages - Alpha 1",
-    description: "Use SnailLift with the Wrangler-assisted Cloudflare Pages path.",
-    canonical: "https://postsnail.org/docs/snaillift-cloudflare/",
-    body: docPage("SnailLift Cloudflare sections", "SnailLift Cloudflare Pages", "SnailLift Sprint 1A supports a Cloudflare Pages Wrangler-assisted path.", [
-      ["steps", "Steps", "Export Website ZIP, extract it into postsnail-public, prepare Cloudflare settings in the admin, copy the generated Wrangler command, run it locally, return to PostSnail, verify live, then notify Forest."],
-      ["token", "Token Guidance", "Use a limited Cloudflare Pages token. Do not paste long-lived account-wide tokens unless you understand the risk."],
-      ["limits", "Sprint 1A Limit", "Sprint 1A does not store tokens by default and does not claim browser direct upload is universally available."],
-    ]),
-  },
-  {
-    path: "docs/snaillift-github/index.html",
-    title: "SnailLift GitHub Pages - Alpha 1",
-    description: "Use SnailLift with the GitHub Pages command assistant.",
-    canonical: "https://postsnail.org/docs/snaillift-github/",
-    body: docPage("SnailLift GitHub sections", "SnailLift GitHub Pages", "SnailLift Sprint 1B supports GitHub Pages as a command assistant.", [
-      ["steps", "Steps", "Export Website ZIP, extract it into postsnail-public, prepare GitHub settings in the admin, copy the generated commands, run them locally with your own git or GitHub CLI credentials, return to PostSnail, verify live, then notify Forest."],
-      ["tokens", "No Browser Token", "PostSnail does not ask for or store a GitHub token in the browser for Alpha 1B. GitHub credentials stay with your local git tooling."],
-      ["limits", "Sprint 1B Limit", "SnailLift prepares commands and checks public proof files. It does not configure GitHub Pages settings for you or write to GitHub through the browser."],
+    path: "docs/snaillift-surge/index.html",
+    title: "SnailLift Surge - Alpha 1",
+    description: "Use SnailLift with the local Surge bridge and encrypted Shell credentials.",
+    canonical: "https://postsnail.org/docs/snaillift-surge/",
+    body: docPage("SnailLift Surge sections", "SnailLift Surge", "SnailLift Alpha 1B supports a Surge publish flow inside the admin.", [
+      ["setup", "Setup", "Enter the Surge site URL, domain, project folder, login, and token. The login and token stay inside the encrypted Shell."],
+      ["bridge", "Local Bridge", "The one-click publish flow hands off to a local bridge at 127.0.0.1. Start it with npm run surge:bridge before publishing."],
+      ["publish", "Publish", "Click Publish to Surge. PostSnail builds the public files, runs the local safety checks, uploads through the bridge, verifies the live proof files, and notifies Forest only after verification passes."],
+      ["token", "Token Guidance", "Use a limited Surge token. Do not paste secrets you do not want stored inside the encrypted Shell. The token is never written to the public Website ZIP, localStorage, or tracker payloads."],
+      ["assist", "Bridge Helper", "The bridge command remains available in the advanced section for creators who want to start the helper manually."],
+      ["cors", "CORS", "The public ZIP includes a Surge CORS file so the browser verifier can fetch the live proof files."],
     ]),
   },
   {
@@ -355,7 +349,7 @@ const pages = [
     title: "SnailLift Security - Alpha 1",
     description: "SnailLift token, Shell privacy, safety scan, live verification, and Forest notify boundaries.",
     canonical: "https://postsnail.org/docs/snaillift-security/",
-    body: docPage("SnailLift security sections", "SnailLift Security", "Tokens are not stored by default.", [
+    body: docPage("SnailLift security sections", "SnailLift Security", "Surge credentials are stored only in the encrypted Shell.", [
       ["private", "Private Data", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
       ["isolation", "Core Isolation", "SnailLift is an official built-in Alpha 1 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward."],
       ["gate", "Verification Gate", "Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification."],
@@ -650,7 +644,7 @@ const pages = [
       <section class="page-hero">
         <p class="eyebrow">Remote proof check</p>
         <h1>Verify a PostSnail site URL.</h1>
-        <p class="lede">Fetch public proof files from a creator domain. If the host blocks cross-origin fetches, publish CORS headers or verify the ZIP locally instead.</p>
+        <p class="lede">Fetch public proof files from a creator domain. If the host blocks cross-origin fetches, publish a Surge CORS file or verify the ZIP locally instead.</p>
       </section>
       <section class="verify-layout">
         <form id="remote-form" class="kit-card verify-panel">

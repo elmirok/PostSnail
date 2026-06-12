@@ -1,0 +1,23 @@
+{
+  "name": "@postsnail/forest",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "crawl": "node packages/crawler/index.js",
+    "index": "node packages/indexer/index.js",
+    "build": "npm run crawl && npm run index",
+    "search-api": "node packages/search-api/index.js",
+    "dev": "npm run build && npm run search-api",
+    "test": "node --test packages/**/*.test.js"
+  },
+  "devDependencies": {
+    "minisearch": "^7.1.0",
+    "roaring-bitmap": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

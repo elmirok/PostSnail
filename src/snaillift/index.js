@@ -12,4 +12,9 @@ export {
   githubPagesProvider,
   validateGithubPagesSettings,
 } from "./providers/githubPages.js";
+export {
+  buildSurgeBridgeCommand,
+  surgeProvider,
+  validateSurgeSettings,
+} from "./providers/surge.js";
 export { assertSnailLiftSafe, runSnailLiftSafety } from "./safety.js";
