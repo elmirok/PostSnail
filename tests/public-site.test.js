@@ -26,6 +26,7 @@ const projectHtmlPages = [
   "docs/shellnames/index.html",
   "docs/shellnames-protocol/index.html",
   "docs/shellnames-security/index.html",
+  "docs/portable-bundle/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
   "docs/core-foundation/index.html",
@@ -88,6 +89,9 @@ test("public pages are generated from the shared PostSnail layout", () => {
     assert.match(html, /href="\/LICENSE"/, path);
     assert.match(html, /href="\/NOTICE"/, path);
     assert.match(html, /href="\/THIRD_PARTY_NOTICES\.md"/, path);
+    if (path === "docs/index.html") {
+      assert.match(html, /href="\/docs\/portable-bundle\/"/, path);
+    }
   }
 });
 

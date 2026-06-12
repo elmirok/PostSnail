@@ -29,6 +29,22 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173` for the public website or `http://localhost:4173/admin/` for the local-first admin.
 
+## Portable Bundle
+
+PostSnail also ships a USB-friendly portable bundle. Build it with:
+
+```bash
+npm run portable:build
+```
+
+The bundle lands in `dist/postsnail-portable/` with a matching ZIP at `dist/postsnail-portable.zip`. You can launch it from a local folder or removable drive with:
+
+```bash
+node bin/postsnail-portable.js
+```
+
+The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then opens the local admin and starts the bridge helper. If the update check is offline or fails verification, it keeps the bundled snapshot and still opens the admin.
+
 ## Deploy The Public Site And Admin
 
 The repository contains tests, registry code, and development dependencies that must not be uploaded as static assets. Use the committed Wrangler config and package script:

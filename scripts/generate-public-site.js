@@ -227,6 +227,7 @@ const pages = [
         <a href="/docs/compatibility/"><strong>Compatibility Contract</strong><span>Stable core, optional extensions, required features, legacy warnings, and migration promises.</span></a>
         <a href="/docs/protocol/"><strong>Protocol Reference</strong><span>Manifest, well-known identity, commit proofs, Shell vaults, and tracker announce records.</span></a>
         <a href="/docs/migrations/"><strong>Workspace Migrations</strong><span>How versioned workspace migrations keep old editable projects importable.</span></a>
+        <a href="/docs/portable-bundle/"><strong>Portable Bundle</strong><span>Run the admin locally from a flash drive, check for signed updates, and keep writable data inside the bundle.</span></a>
         <a href="/docs/psep/"><strong>PSEP Process</strong><span>How PostSnail Enhancement Proposals govern protocol-risk changes.</span></a>
         <a href="/docs/legal/"><strong>PostSnail Legal</strong><span>Apache-2.0 license, NOTICE attribution, third-party notices, logo provenance, and Forest cost notes.</span></a>
       </section>
@@ -598,6 +599,19 @@ const pages = [
       ["chain", "Future Chains", "Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step."],
       ["future", "Future Version Failure", "If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version."],
       ["legacy", "Legacy JSON", "Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema."],
+    ]),
+  },
+  {
+    path: "docs/portable-bundle/index.html",
+    title: "PostSnail Portable Bundle - Alpha 1",
+    description: "Run PostSnail from a flash drive or local folder with a self-updating local admin and bridge helper.",
+    canonical: "https://postsnail.org/docs/portable-bundle/",
+    body: docPage("Portable bundle sections", "Portable Bundle", "A folder bundle that can launch the admin locally, start the bridge locally, and keep writable state on removable media.", [
+      ["launch", "First Launch", "Open the portable launcher script or run `node bin/postsnail-portable.js`. The launcher resolves the bundle root, checks a signed release manifest, and then opens the local admin in your browser."],
+      ["update", "Update Behavior", "The launcher checks a signed release manifest on start. If a newer release is verified and the bundle fingerprint matches, it stages the new release into the bundle-local data cache and starts from that staged snapshot. If offline or verification fails, it keeps the bundled snapshot and still opens the admin."],
+      ["data", "Writable Data", "Portable state stays in the bundle-local data directory. The updater stores staged releases and logs there, and the Surge bridge uses that same area for temporary files so the portable bundle does not write outside its own folder."],
+      ["workflow", "Portable Workflow", "Use the portable admin to open a Shell, write posts, export the public ZIP, run the local verifier, start the local bridge, notify Forest, and publish without any hosted admin."],
+      ["move", "Move To Another Computer", "Copy the portable folder or ZIP to another machine, run the launcher again, import the same `.postsnail` Shell if needed, and continue from the same local workspace."],
     ]),
   },
   {
