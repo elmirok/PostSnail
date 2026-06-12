@@ -36,6 +36,82 @@ import {
   signatureToText,
 } from "./crypto.js";
 import { renderMarkdown } from "./markdown.js";
+
+const CORS_HEADERS = `
+/postsnail.manifest.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/feed.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/rss.xml
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/.well-known/postsnail.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/.well-known/postsnail/latest-commit.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/.well-known/postsnail/commits.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+`;
+
+const NETLIFY_TOML = `
+[[headers]]
+  for = "/postsnail.manifest.json"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/feed.json"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/rss.xml"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/.well-known/postsnail.json"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/.well-known/postsnail/latest-commit.json"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/.well-known/postsnail/commits.json"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+`;
 import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
 import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
@@ -142,6 +218,9 @@ export async function buildStaticExport({
     files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.logo}`] = await loadBrandAsset(BRAND_ASSET_FILES.logo);
     files[`${BRAND_EXPORT_PATH}${BRAND_ASSET_FILES.icon}`] = await loadBrandAsset(BRAND_ASSET_FILES.icon);
   }
+
+  files["_headers"] = htmlBytes(CORS_HEADERS.trim());
+  files["netlify.toml"] = htmlBytes(NETLIFY_TOML.trim());
   if (commentsOutput) {
     files["plugins/postsnail-comments/runtime/comments.js"] = htmlBytes(commentsRuntimeScript());
     files["plugins/postsnail-comments/runtime/comments.css"] = htmlBytes(commentsRuntimeCss());
