@@ -45,6 +45,14 @@ node bin/postsnail-portable.js
 
 The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then opens the local admin and starts the bridge helper. If the update check is offline or fails verification, it keeps the bundled snapshot and still opens the admin.
 
+If you want a GitHub-hosted one-command startup flow, use the bootstrapper in this repo. It downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers to install missing tools when a package manager is available, and then launches the bundle:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
+```
+
+The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail.
+
 ## Deploy The Public Site And Admin
 
 The repository contains tests, registry code, and development dependencies that must not be uploaded as static assets. Use the committed Wrangler config and package script:

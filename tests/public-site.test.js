@@ -92,6 +92,9 @@ test("public pages are generated from the shared PostSnail layout", () => {
     if (path === "docs/index.html") {
       assert.match(html, /href="\/docs\/portable-bundle\/"/, path);
     }
+    if (path === "docs/portable-bundle/index.html") {
+      assert.match(html, /raw\.githubusercontent\.com\/elmirok\/PostSnail\/main\/portable\/bootstrap\.sh/, path);
+    }
   }
 });
 

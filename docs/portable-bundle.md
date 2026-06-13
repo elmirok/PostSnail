@@ -19,6 +19,14 @@ node bin/postsnail-portable.js
 
 On macOS and Linux you can also use the wrapper scripts in `portable/launchers/`.
 
+For a GitHub-hosted one-command bootstrap, use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
+```
+
+The bootstrapper downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle.
+
 The launcher:
 
 1. Resolves the bundle root.
@@ -57,4 +65,3 @@ The portable bundle does not need a hosted admin to write, build, verify, notify
 Copy the portable folder or ZIP to the new machine, launch it again, open or import your `.postsnail` Shell, and continue working locally.
 
 If the bundle is offline, it still opens with the bundled snapshot.
-

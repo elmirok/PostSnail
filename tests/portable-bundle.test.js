@@ -101,6 +101,7 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
 
   assert.equal(result.bundleInfo.version.length > 0, true);
   assert.equal(existsSync(join(outDir, "bin", "postsnail-portable.js")), true);
+  assert.equal(existsSync(join(outDir, "portable", "bootstrap.sh")), true);
   assert.equal(existsSync(join(outDir, "portable", "launchers", "postsnail.sh")), true);
   assert.equal(existsSync(join(outDir, "portable", "launchers", "postsnail.command")), true);
   assert.equal(existsSync(join(outDir, "portable", "launchers", "postsnail.cmd")), true);
@@ -111,12 +112,15 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
 
   const zipEntries = Object.keys(unzipSync(readFileSync(zipPath)));
   assert.match(zipEntries.join("\n"), /portable\/bundle\.json/);
+  assert.match(zipEntries.join("\n"), /portable\/bootstrap\.sh/);
   assert.match(zipEntries.join("\n"), /docs\/portable-bundle\/index\.html/);
   assert.match(zipEntries.join("\n"), /bin\/postsnail-portable\.js/);
   assert.doesNotMatch(zipEntries.join("\n"), /\.postsnail\b/);
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)(drafts|private)(\/|$)/i);
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)\.env$/i);
   assert.doesNotMatch(zipEntries.join("\n"), /\.(pem|key|secret)$/i);
+  assert.match(readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8"), /RELEASE_URL="https:\/\/github\.com\/\$\{REPO_SLUG\}\/releases\/latest\/download\/\$\{RELEASE_ASSET\}"/);
+  assert.match(readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8"), /apt-get|dnf|pacman|zypper|apk|brew/);
 });
 
 test("portable launcher resolves spaced bundle paths and starts the local admin and bridge", async () => {
