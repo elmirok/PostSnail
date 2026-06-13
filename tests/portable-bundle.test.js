@@ -16,6 +16,7 @@ import {
 import { buildPortableBundle } from "../src/portable/bundle.js";
 import { runPortableLauncher } from "../src/portable/launcher.js";
 import { derivePortableSeedBytes } from "../src/portable/seed.js";
+import { startPortableServer } from "../src/portable/server.js";
 import {
   loadPortableBundleInfo,
   selectPortableRuntimeRoot,
@@ -197,4 +198,22 @@ test("portable update check falls back offline when the manifest fetch is unavai
   assert.match(result.message, /offline/i);
 
   await rm(fixtureDir, { recursive: true, force: true });
+});
+
+test("portable server serves mjs modules with JavaScript MIME type", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-portable-mime-"));
+  const rootDir = join(fixtureDir, "root");
+  await mkdir(join(rootDir, "vendor"), { recursive: true });
+  writeFileSync(join(rootDir, "index.html"), "<script type=\"module\" src=\"./vendor/module.mjs\"></script>");
+  writeFileSync(join(rootDir, "vendor", "module.mjs"), "export const value = 1;");
+
+  const server = await startPortableServer({ rootDir, host: "127.0.0.1", port: 0 });
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.port}/vendor/module.mjs`);
+    assert.equal(response.headers.get("content-type"), "text/javascript; charset=utf-8");
+    assert.equal((await response.text()).includes("export const value = 1;"), true);
+  } finally {
+    await server.close();
+    await rm(fixtureDir, { recursive: true, force: true });
+  }
 });
