@@ -260,11 +260,11 @@ prompt_yes_no() {
   if [ "$AUTO_INSTALL" -eq 1 ]; then
     return 0
   fi
-  if [ ! -t 0 ]; then
+  if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
     return 1
   fi
-  printf '%s [Y/n] ' "$prompt"
-  read -r reply || true
+  printf '%s [Y/n] ' "$prompt" >/dev/tty
+  read -r reply </dev/tty || true
   case "${reply:-y}" in
     n|N|no|NO|No) return 1 ;;
     *) return 0 ;;

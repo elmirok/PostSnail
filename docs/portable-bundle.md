@@ -26,6 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/boo
 ```
 
 The bootstrapper tries the latest portable ZIP from GitHub Releases first. If that asset is not published yet, it falls back to the GitHub source archive on `main`, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle.
+It reads prompts from your terminal, so it can still ask for permission even when invoked through `curl | bash`.
 
 The launcher:
 
