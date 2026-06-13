@@ -51,7 +51,7 @@ If you want a GitHub-hosted one-command startup flow, use the bootstrapper in th
 curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
 ```
 
-The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail.
+The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail. If a GitHub Release asset is not published yet, it falls back to the GitHub source archive on `main` and still launches the portable admin.
 
 ## Deploy The Public Site And Admin
 

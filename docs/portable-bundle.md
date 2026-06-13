@@ -25,7 +25,7 @@ For a GitHub-hosted one-command bootstrap, use:
 curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
 ```
 
-The bootstrapper downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle.
+The bootstrapper tries the latest portable ZIP from GitHub Releases first. If that asset is not published yet, it falls back to the GitHub source archive on `main`, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle.
 
 The launcher:
 

@@ -119,7 +119,10 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)(drafts|private)(\/|$)/i);
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)\.env$/i);
   assert.doesNotMatch(zipEntries.join("\n"), /\.(pem|key|secret)$/i);
-  assert.match(readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8"), /RELEASE_URL="https:\/\/github\.com\/\$\{REPO_SLUG\}\/releases\/latest\/download\/\$\{RELEASE_ASSET\}"/);
+  const bootstrap = readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8");
+  assert.match(bootstrap, /RELEASE_URL="https:\/\/github\.com\/\$\{REPO_SLUG\}\/releases\/latest\/download\/\$\{RELEASE_ASSET\}"/);
+  assert.match(bootstrap, /SOURCE_ARCHIVE_URL="https:\/\/github\.com\/\$\{REPO_SLUG\}\/archive\/refs\/heads\/\$\{SOURCE_BRANCH\}\.zip"/);
+  assert.match(bootstrap, /Release asset unavailable, falling back to the GitHub source archive/);
   assert.match(readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8"), /apt-get|dnf|pacman|zypper|apk|brew/);
 });
 

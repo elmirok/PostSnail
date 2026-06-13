@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 REPO_SLUG="${POSTSNAIL_GITHUB_REPO:-elmirok/PostSnail}"
 RELEASE_ASSET="${POSTSNAIL_PORTABLE_RELEASE_ASSET:-postsnail-portable.zip}"
+SOURCE_BRANCH="${POSTSNAIL_PORTABLE_SOURCE_BRANCH:-main}"
 TARGET_DIR="${POSTSNAIL_PORTABLE_DIR:-}"
 AUTO_INSTALL=0
 AUTO_LAUNCH=1
@@ -19,6 +20,7 @@ Optional flags:
   --dir <path>         Install the portable bundle into this directory
   --repo <owner/repo>  Override the GitHub repository slug
   --asset <name>       Override the GitHub release asset name
+  --branch <name>      Override the GitHub source archive branch
   --yes                Install missing tools without prompting
   --download-only      Download and unpack without launching the admin
   --quiet              Reduce banner output
@@ -37,6 +39,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --asset)
       RELEASE_ASSET="${2:-}"
+      shift 2
+      ;;
+    --branch)
+      SOURCE_BRANCH="${2:-}"
       shift 2
       ;;
     --yes|-y)
@@ -70,10 +76,12 @@ ZIP_PATH="$TMP_DIR/$RELEASE_ASSET"
 DEFAULT_DIR="${PWD%/}/postsnail-portable"
 INSTALL_DIR="${TARGET_DIR:-$DEFAULT_DIR}"
 RELEASE_URL="https://github.com/${REPO_SLUG}/releases/latest/download/${RELEASE_ASSET}"
+SOURCE_ARCHIVE_URL="https://github.com/${REPO_SLUG}/archive/refs/heads/${SOURCE_BRANCH}.zip"
 REQUIRED_TOOLS=(curl unzip)
 RECOMMENDED_TOOLS=(git python3)
 MISSING_REQUIRED=()
 MISSING_RECOMMENDED=()
+DOWNLOAD_KIND="release"
 
 cleanup() {
   rm -rf "$TMP_DIR"
@@ -279,7 +287,14 @@ download_release() {
   log "Repository: $REPO_SLUG"
   log "Asset: $RELEASE_ASSET"
   log "Release URL: $RELEASE_URL"
-  curl -fsSL --retry 3 --retry-delay 1 -o "$ZIP_PATH" "$RELEASE_URL"
+  if curl -fsSL --retry 2 --retry-delay 1 -o "$ZIP_PATH" "$RELEASE_URL"; then
+    DOWNLOAD_KIND="release"
+    return 0
+  fi
+  log "Release asset unavailable, falling back to the GitHub source archive."
+  log "Source archive URL: $SOURCE_ARCHIVE_URL"
+  curl -fsSL --retry 2 --retry-delay 1 -o "$ZIP_PATH" "$SOURCE_ARCHIVE_URL"
+  DOWNLOAD_KIND="source"
 }
 
 extract_release() {
@@ -294,8 +309,12 @@ launch_bundle() {
     log "Node.js is still missing, so PostSnail Portable cannot launch."
     exit 1
   fi
+  local launch_root="$INSTALL_DIR"
+  if [ "$DOWNLOAD_KIND" = "source" ]; then
+    launch_root="$(find_source_root "$INSTALL_DIR")"
+  fi
   (
-    cd "$INSTALL_DIR"
+    cd "$launch_root"
     exec "$NODE_BIN" bin/postsnail-portable.js
   )
 }
@@ -357,6 +376,21 @@ main() {
 
   log "PostSnail Portable has been unpacked to: $INSTALL_DIR"
   log "Run: cd \"$INSTALL_DIR\" && node bin/postsnail-portable.js"
+}
+
+find_source_root() {
+  local root="$1"
+  if [ -f "$root/bin/postsnail-portable.js" ]; then
+    printf '%s\n' "$root"
+    return 0
+  fi
+  local candidate=""
+  candidate="$(find "$root" -mindepth 1 -maxdepth 1 -type d | head -n 1 || true)"
+  if [ -n "$candidate" ] && [ -f "$candidate/bin/postsnail-portable.js" ]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  printf '%s\n' "$root"
 }
 
 main "$@"
