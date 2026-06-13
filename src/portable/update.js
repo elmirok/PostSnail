@@ -10,7 +10,7 @@ import { unzipSync } from "../../vendor/fflate/browser.js";
 
 const DEFAULT_PORTABLE_BUNDLE_INFO = {
   name: "PostSnail Portable",
-  version: "0.1.0",
+  version: "0.2.0",
   adminPath: "admin/",
   updateManifestUrl: "portable/update-manifest.json",
   releasePublicKey: "",

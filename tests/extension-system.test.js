@@ -225,11 +225,11 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   assert.equal(isPluginEnabled({ installed: [] }, "postsnail-snaillift"), false);
 
   const installed = enablePlugin(
-    installPlugin({ installed: [], lock: {}, state: { "postsnail-snaillift": { provider: "cloudflare-pages" } } }, manifest),
+    installPlugin({ installed: [], lock: {}, state: { "postsnail-snaillift": { provider: "surge" } } }, manifest),
     "postsnail-snaillift",
   );
   assert.equal(isPluginEnabled(installed, "postsnail-snaillift"), true);
-  assert.deepEqual(installed.state["postsnail-snaillift"], { provider: "cloudflare-pages" });
+  assert.deepEqual(installed.state["postsnail-snaillift"], { provider: "surge" });
 });
 
 test("official plugin catalog exposes PostSnail Pages as a bundled CMS extension", () => {

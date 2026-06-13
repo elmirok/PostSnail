@@ -23,7 +23,7 @@ PostSnail signs a public ShellName record locally and sends only that public rec
 
 ## Updating And Renewing
 
-The same signing key can update or renew the ShellName. Alpha 1 uses one active ShellName per public key and one-year expiry. Renew before expiry to keep the alias active in search.
+The same signing key can update or renew the ShellName. Alpha 2 uses one active ShellName per public key and one-year expiry. Renew before expiry to keep the alias active in search.
 
 ## Public Export
 

@@ -1,6 +1,6 @@
 # PostSnail Plugin System
 
-Plugins extend PostSnail without becoming part of Core. Alpha 1 defines validated manifests, permission review, deterministic registries, hook plans, route-scoped runtime declarations, and an admin Extensions screen for official bundled plugins.
+Plugins extend PostSnail without becoming part of Core. Alpha 2 defines validated manifests, permission review, deterministic registries, hook plans, route-scoped runtime declarations, and an admin Extensions screen for official bundled plugins.
 
 The rule is:
 
@@ -62,6 +62,6 @@ The admin Extensions tab can install, enable, and disable official plugin manife
 
 `postsnail-snaillift` exposes the existing SnailLift deployment assistant when enabled, but its provider logic still lives under `src/snaillift/` and stays out of PostSnail Core.
 
-`postsnail-pages` is the official bundled CMS plugin for Alpha 1A. It adds a Pages tab for pages, docs, navigation, and homepage override. Its editable state stays in encrypted plugin state and only published routes enter the Website ZIP.
+`postsnail-pages` is the official bundled CMS plugin for Alpha 2. It adds a Pages tab for pages, docs, navigation, and homepage override. Its editable state stays in encrypted plugin state and only published routes enter the Website ZIP.
 
 Third-party plugin loading, plugin ZIP packages, marketplaces, and dynamic imports are future work.

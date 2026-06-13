@@ -220,7 +220,6 @@ test("workspace preserves SnailLift settings and deployment logs without secrets
       snailLiftSurgeProjectDir: "postsnail-public",
       snailLiftSurgeLogin: "boaz@example.com",
       snailLiftSurgeToken: "must-not-survive",
-      publishRemember: true,
     },
     exportHistory: [
       {
@@ -239,7 +238,6 @@ test("workspace preserves SnailLift settings and deployment logs without secrets
   assert.equal(workspace.settings.snailLiftSurgeDomain, "creator.surge.sh");
   assert.equal(workspace.settings.snailLiftSurgeProjectDir, "postsnail-public");
   assert.equal(workspace.settings.snailLiftSurgeLogin, "boaz@example.com");
-  assert.equal(workspace.settings.publishRemember, true);
   assert.equal(workspace.settings.snailLiftSurgeToken, "must-not-survive");
   assert.equal(workspace.exportHistory[0].surgeToken, undefined);
   assert.equal(workspace.exportHistory[0].surgeLogin, "boaz@example.com");

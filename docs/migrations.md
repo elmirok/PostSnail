@@ -2,7 +2,7 @@
 
 PostSnail workspace data is versioned so encrypted `.postsnail` files can evolve without abandoning older creators.
 
-Alpha 1 uses:
+Alpha 2 uses:
 
 - `schema: "postsnail-workspace-data"`
 - `version: 1`

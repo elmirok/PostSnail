@@ -4,7 +4,7 @@ PostSnail uses a stable core plus optional extensions. The public website ZIP is
 
 ## Protocol Constants
 
-Alpha 1 uses:
+Alpha 2 uses:
 
 ```js
 POSTSNAIL_PROTOCOL = "postsnail"
@@ -73,7 +73,7 @@ ShellName metadata may appear in `postsnail.manifest.json` and `.well-known/post
 
 ## Plugin, Theme, And Route Asset Extensions
 
-Alpha 1 public manifests may include optional `themes`, `plugins`, and `route-assets` features. Their data lives under `extensions`.
+Alpha 2 public manifests may include optional `themes`, `plugins`, and `route-assets` features. Their data lives under `extensions`.
 
 These fields describe active frontend theme metadata, enabled plugin public output metadata, and per-route public asset declarations. They are optional compatibility metadata. Older verifiers ignore them safely, and unknown required plugin/theme features still fail clearly when a tool is asked to interpret those manifests.
 

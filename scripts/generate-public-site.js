@@ -25,24 +25,24 @@ const defaultNav = [
 const pages = [
   {
     path: "index.html",
-    title: "PostSnail Alpha 1 - Creator-Owned Microblogs",
+    title: "PostSnail Alpha 2 - Creator-Owned Microblogs",
     description:
-      "PostSnail Alpha 1 helps creators publish static microblogs they own, sign, verify, host for free, and index through PostSnail Forest.",
+      "PostSnail Alpha 2 helps creators publish static microblogs they own, sign, verify, host for free, and index through PostSnail Forest.",
     canonical: "https://postsnail.org/",
-    ogTitle: "PostSnail Alpha 1",
+    ogTitle: "PostSnail Alpha 2",
     ogDescription: "Creator-owned static microblogs with post-quantum signed fingerprints and open Forest discovery.",
     ogType: "website",
     ogUrl: "https://postsnail.org/",
     ogImage: "https://postsnail.org/assets/brand/postsnail-logo.png",
     twitterCard: "summary_large_image",
-    twitterTitle: "PostSnail Alpha 1",
+    twitterTitle: "PostSnail Alpha 2",
     twitterDescription: "Write locally, publish statically, prove what changed, and register in Forest search.",
     appleTouchIcon: true,
     script: `<script type="module" src="/site.js"></script>`,
     body: `
       <section class="hero">
         <img class="hero-art" src="/assets/brand/postsnail-logo.png" alt="PostSnail pixel-art logo" decoding="async" fetchpriority="high">
-        <p class="eyebrow">Alpha 1 / static publishing / signed accountability</p>
+        <p class="eyebrow">Alpha 2 / static publishing / signed accountability</p>
         <h1>PostSnail</h1>
         <p class="lede">
           A browser-only admin and open discovery ecosystem for creator-owned microblogs.
@@ -88,12 +88,12 @@ const pages = [
         </div>
         <div class="copy-block">
           <p>A microblog should not disappear because a platform changes rules, pricing, ranking, or ownership. PostSnail makes the blog portable and the proof portable: the creator owns the files, the domain, and the signature trail.</p>
-          <p>Alpha 1 is intentionally small. It does not solve identity, moderation, federation, or truth. It gives creators a working path to publish, verify, and be discovered without giving up control.</p>
+          <p>Alpha 2 is still intentionally small, but now has the practical loop creators need: encrypted Shells, portable local launch, official bundled extensions, Surge publishing through a local bridge, Forest discovery, ShellNames, Pages, and approved static comments. It still does not become a hosted account platform, legal identity system, moderation authority, federation layer, or truth engine.</p>
         </div>
       </section>
       <section class="link-grid" aria-label="Explore PostSnail">
         <a href="/manifesto/"><strong>Manifesto</strong><span>The plain-language why behind creator-owned signed microblogs.</span></a>
-        <a href="/media-kit/"><strong>Media Kit</strong><span>Logo files, colors, typography, pixel-art rules, and Alpha 1 usage notes.</span></a>
+        <a href="/media-kit/"><strong>Media Kit</strong><span>Logo files, colors, typography, pixel-art rules, and Alpha 2 usage notes.</span></a>
         <a href="/docs/publish-surge/"><strong>Publish Guide</strong><span>Export a signed ZIP and host it through the Surge bridge for free.</span></a>
         <a href="/docs/architecture/"><strong>Developer Architecture</strong><span>Admin, static bundle, proof files, Forest registry, and extension points.</span></a>
       </section>
@@ -101,11 +101,11 @@ const pages = [
   },
   {
     path: "features-qa.html",
-    title: "PostSnail Alpha 1 Features + Q&A",
+    title: "PostSnail Alpha 2 Features + Q&A",
     description:
-      "Features and answers for PostSnail Alpha 1: local-first static microblog admin, signed ZIP verification, and Forest discovery.",
+      "Features and answers for PostSnail Alpha 2: local-first static microblog admin, signed ZIP verification, and Forest discovery.",
     canonical: "https://postsnail.org/features-qa.html",
-    ogTitle: "PostSnail Alpha 1 Features + Q&A",
+    ogTitle: "PostSnail Alpha 2 Features + Q&A",
     ogDescription: "Local-first static microblog publishing with signed manifests, ZIP verification, and Forest discovery.",
     ogType: "article",
     ogImage: "https://postsnail.org/assets/brand/postsnail-logo.png",
@@ -113,7 +113,7 @@ const pages = [
     body: `
       <section class="page-hero">
         <p class="eyebrow">Features + Q&A</p>
-        <h1>PostSnail Alpha 1</h1>
+        <h1>PostSnail Alpha 2</h1>
         <p class="lede">Write a static microblog, create a post-quantum signed fingerprint locally, verify the ZIP locally, publish on a free static host, and register public summaries in Forest.</p>
       </section>
       <section class="feature-row" aria-label="Feature summary">
@@ -126,36 +126,36 @@ const pages = [
         <section><h2>Does PostSnail Upload My Writing?</h2><p>No. The admin is browser-only and does not automatically register or upload anything. Forest registration is a separate action after your public site is live.</p></section>
         <section><h2>Does The Fingerprint Prove Identity?</h2><p>It proves the bundle matches the manifest and publisher public key. It does not prove legal identity, factual accuracy, or that the JavaScript runtime is FIPS-validated.</p></section>
         <section><h2>Can Forest Index My Site?</h2><p>Yes, if your deployed site exposes <code>.well-known/postsnail.json</code> and <code>postsnail.manifest.json</code>. Forest verifies those public proof files before indexing summaries.</p></section>
-        <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Surge, GitHub Pages, Netlify, and similar static hosts.</p></section>
+        <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Surge or any plain static host.</p></section>
         <section><h2>Does My Generated Blog Show PostSnail Branding?</h2><p>Generated blogs can show a small Powered by PostSnail footer and tracker credit by default. The creator can disable those Generate settings before export.</p></section>
       </section>
     `,
   },
   {
     path: "manifesto/index.html",
-    title: "PostSnail Manifesto - Alpha 1",
-    description: "The Alpha 1 manifesto for creator-owned, static, signed microblogs.",
+    title: "PostSnail Manifesto - Alpha 2",
+    description: "The Alpha 2 manifesto for creator-owned, static, signed microblogs.",
     canonical: "https://postsnail.org/manifesto/",
     body: `
       <section class="page-hero">
-        <p class="eyebrow">Alpha 1 draft</p>
+        <p class="eyebrow">Alpha 2 draft</p>
         <h1>PostSnail Manifesto</h1>
         <p class="lede">Small publishing should be cheap to host, easy to move, and accountable without asking creators to surrender control.</p>
       </section>
       <section class="doc-layout">
         <nav class="doc-nav" aria-label="Manifesto sections"><a href="#ownership">Ownership</a><a href="#proof">Proof</a><a href="#discovery">Discovery</a><a href="#limits">Limits</a></nav>
         <article class="doc-content">
-          <section id="ownership"><h2>Creators Should Own The Files</h2><p>A microblog can be a folder of static pages. It does not need a platform database to exist, load, or survive. PostSnail starts from that premise: the creator writes locally, exports files, and chooses where those files live.</p><p>Free static hosting is enough for Alpha 1. A creator can publish on Surge or a similar host and still keep the whole bundle as a backup.</p></section>
+          <section id="ownership"><h2>Creators Should Own The Files</h2><p>A microblog can be a folder of static pages. It does not need a platform database to exist, load, or survive. PostSnail starts from that premise: the creator writes locally, exports files, and chooses where those files live.</p><p>Free static hosting is enough for Alpha 2. A creator can publish on Surge or a similar host and still keep the whole bundle as a backup.</p></section>
           <section id="proof"><h2>Accountability Should Travel With The Content</h2><p>PostSnail exports signed proof files with SHA3-512 digests, ML-DSA-65 signatures, and a bundle fingerprint. This lets readers, registries, and future tools verify that public summaries match the creator's signed manifest.</p><p>The phrase post-quantum signed fingerprint means the content proof uses a post-quantum signature algorithm. It does not claim the browser runtime is FIPS-validated, and it does not prove truth, legal identity, or moral authority.</p></section>
-          <section id="discovery"><h2>Discovery Should Not Become Ownership</h2><p>Forest is a tracker, not the source of truth. It indexes verified public summaries so people can find microblogs, but the creator's site and manifest remain authoritative.</p><p>Anyone should be able to run a compatible tracker later. Alpha 1 begins with one central Forest server because simple working paths matter.</p></section>
-          <section id="limits"><h2>Alpha 1 Is Honest About Its Edges</h2><p>PostSnail does not provide accounts, ownership claims, automatic deployment, moderation, federation, semantic search, or legal identity. Those are real problems, but they should not block a first usable path for creator-owned publishing.</p><p>The first promise is narrow: write locally, publish statically, verify proofs, register summaries, and keep control.</p></section>
+          <section id="discovery"><h2>Discovery Should Not Become Ownership</h2><p>Forest is a tracker, not the source of truth. It indexes verified public summaries so people can find microblogs, but the creator's site and manifest remain authoritative.</p><p>Anyone should be able to run a compatible tracker later. Alpha 2 begins with one central Forest server because simple working paths matter.</p></section>
+          <section id="limits"><h2>Alpha 2 Is Honest About Its Edges</h2><p>PostSnail now supports a local portable launcher, official bundled plugins, Surge-assisted publishing, Forest announce, ShellNames, Pages, and approved static comments. It still does not provide accounts, legal ownership claims, moderation authority, federation, semantic search, or legal identity.</p><p>The promise stays narrow: write locally, publish statically, verify proofs, register summaries, and keep control.</p></section>
         </article>
       </section>
     `,
   },
   {
     path: "media-kit/index.html",
-    title: "PostSnail Media Kit - Alpha 1",
+    title: "PostSnail Media Kit - Alpha 2",
     description: "PostSnail logos, colors, pixel-art rules, UI tone, and downloadable brand assets.",
     canonical: "https://postsnail.org/media-kit/",
     body: `
@@ -189,8 +189,8 @@ const pages = [
   },
   {
     path: "docs/index.html",
-    title: "PostSnail Documentation - Alpha 1",
-    description: "PostSnail Alpha 1 docs for creators, publishing, concepts, and developer architecture.",
+    title: "PostSnail Documentation - Alpha 2",
+    description: "PostSnail Alpha 2 docs for creators, publishing, concepts, and developer architecture.",
     canonical: "https://postsnail.org/docs/",
     body: `
       <section class="page-hero">
@@ -199,6 +199,7 @@ const pages = [
         <p class="lede">Everything needed to write a microblog, publish it as static files, register it in Forest, and understand the proof architecture.</p>
       </section>
       <section class="docs-grid link-grid" aria-label="Documentation links">
+        <a href="/docs/alpha-2/"><strong>Alpha 2 Release</strong><span>What changed, what stayed stable, and which prototype paths were removed for the lean release.</span></a>
         <a href="/docs/how-to-use/"><strong>How To Use PostSnail</strong><span>Create identity, write posts, attach images, export encrypted workspaces, and download a public Website ZIP.</span></a>
         <a href="/docs/cli/"><strong>PostSnail CLI</strong><span>Open encrypted Shells, import Markdown drafts, build public files, verify output, and create ZIPs from a terminal.</span></a>
         <a href="/docs/headless-publishing/"><strong>Headless Publishing</strong><span>Use trusted local automation without turning the browser admin into a backend dependency.</span></a>
@@ -234,8 +235,20 @@ const pages = [
     `,
   },
   {
+    path: "docs/alpha-2/index.html",
+    title: "PostSnail Alpha 2",
+    description: "PostSnail Alpha 2 release notes, cleanup boundaries, and stable compatibility promises.",
+    canonical: "https://postsnail.org/docs/alpha-2/",
+    body: docPage("Alpha 2 sections", "PostSnail Alpha 2", "A lean release focused on portable local use, Surge publishing, official bundled extensions, Forest discovery, and prototype cleanup.", [
+      ["changed", "What Changed", "The portable launcher now asks whether to run Admin only, Forest only, or Admin + Forest. SnailLift is Surge-only for hosted publishing. Public proof metadata uses generator version 0.2.0. Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code."],
+      ["stable", "What Stayed Stable", ".postsnail remains the private encrypted editable Shell. .zip remains the public static signed website artifact. Forest remains a tracker and search surface, not the source of truth. Protocol version remains postsnail version 1."],
+      ["boundaries", "Alpha 2 Boundaries", "Alpha 2 does not add accounts, a plugin marketplace, third-party plugin loading, legal identity, moderation authority, federation, semantic search, or required backend publishing."],
+      ["compatibility", "Compatibility Promise", "Old valid Shells and old valid public ZIP exports should keep opening and verifying. New protocol-risk changes still need a PSEP."],
+    ]),
+  },
+  {
     path: "docs/how-to-use/index.html",
-    title: "How To Use PostSnail - Alpha 1",
+    title: "How To Use PostSnail - Alpha 2",
     description: "Create a profile, write posts, export an encrypted workspace, and generate a signed PostSnail Website ZIP.",
     canonical: "https://postsnail.org/docs/how-to-use/",
     body: docPage("How to use sections", "How To Use PostSnail", "Use the admin as a local writing desk, proof generator, backup tool, and verifier.", [
@@ -249,7 +262,7 @@ const pages = [
   },
   {
     path: "docs/cli/index.html",
-    title: "PostSnail CLI - Alpha 1",
+    title: "PostSnail CLI - Alpha 2",
     description: "Use the PostSnail CLI to open Shells, import drafts, build public files, verify output, and create Website ZIPs.",
     canonical: "https://postsnail.org/docs/cli/",
     body: docPage("CLI sections", "PostSnail CLI", "A trusted local automation interface for Shell-aware publishing workflows.", [
@@ -263,7 +276,7 @@ const pages = [
   },
   {
     path: "docs/headless-publishing/index.html",
-    title: "Headless Publishing - PostSnail Alpha 1",
+    title: "Headless Publishing - PostSnail Alpha 2",
     description: "Use trusted local automation to publish PostSnail sites without changing the Shell, proof, or ZIP trust model.",
     canonical: "https://postsnail.org/docs/headless-publishing/",
     body: docPage("Headless publishing sections", "Headless Publishing", "Local automation should use the same Shell, signing, export, and verification rules as the browser admin.", [
@@ -277,7 +290,7 @@ const pages = [
   },
   {
     path: "docs/workspace-vault/index.html",
-    title: "Workspace Vault - PostSnail Alpha 1",
+    title: "Workspace Vault - PostSnail Alpha 2",
     description: "PostSnail encrypted .postsnail workspace vaults are the private editable source format for creators.",
     canonical: "https://postsnail.org/docs/workspace-vault/",
     body: docPage("Workspace vault sections", "Workspace Vault", "PostSnail has two exports: encrypted Shell (.postsnail) for the creator and public Website ZIP (.zip) for publishing.", [
@@ -292,7 +305,7 @@ const pages = [
   },
   {
     path: "docs/publishing/index.html",
-    title: "Publishing PostSnail - Alpha 1",
+    title: "Publishing PostSnail - Alpha 2",
     description: "PostSnail publishing paths: Surge publish, Download ZIP fallback, and SnailLift assistance.",
     canonical: "https://postsnail.org/docs/publishing/",
     body: docPage("Publishing sections", "Publishing PostSnail", "PostSnail can publish through a manual ZIP upload or through the optional SnailLift deployment assistant.", [
@@ -304,7 +317,7 @@ const pages = [
   },
   {
     path: "docs/publish-surge/index.html",
-    title: "Publish On Surge - PostSnail Alpha 1",
+    title: "Publish On Surge - PostSnail Alpha 2",
     description: "Publish a signed PostSnail static microblog through the Surge bridge.",
     canonical: "https://postsnail.org/docs/publish-surge/",
     body: docPage("Surge tutorial sections", "Publish On Surge", "PostSnail exports plain static files, so Surge can host the microblog without a server bill.", [
@@ -319,7 +332,7 @@ const pages = [
   },
   {
     path: "docs/snaillift/index.html",
-    title: "SnailLift - PostSnail Alpha 1",
+    title: "SnailLift - PostSnail Alpha 2",
     description: "SnailLift is the optional PostSnail deployment assistant.",
     canonical: "https://postsnail.org/docs/snaillift/",
     body: docPage("SnailLift sections", "SnailLift", "Your shell stays private. Your trail goes live.", [
@@ -333,10 +346,10 @@ const pages = [
   },
   {
     path: "docs/snaillift-surge/index.html",
-    title: "SnailLift Surge - Alpha 1",
+    title: "SnailLift Surge - Alpha 2",
     description: "Use SnailLift with the local Surge bridge and encrypted Shell credentials.",
     canonical: "https://postsnail.org/docs/snaillift-surge/",
-    body: docPage("SnailLift Surge sections", "SnailLift Surge", "SnailLift Alpha 1B supports a Surge publish flow inside the admin.", [
+    body: docPage("SnailLift Surge sections", "SnailLift Surge", "SnailLift Alpha 2 supports a Surge publish flow inside the admin.", [
       ["setup", "Setup", "Enter the Surge site URL, domain, project folder, login, and token. The login and token stay inside the encrypted Shell."],
       ["bridge", "Local Bridge", "The one-click publish flow hands off to a local bridge at 127.0.0.1. Start it with npm run surge:bridge before publishing."],
       ["publish", "Publish", "Click Publish to Surge. PostSnail builds the public files, runs the local safety checks, uploads through the bridge, verifies the live proof files, and notifies Forest only after verification passes."],
@@ -347,32 +360,32 @@ const pages = [
   },
   {
     path: "docs/snaillift-security/index.html",
-    title: "SnailLift Security - Alpha 1",
+    title: "SnailLift Security - Alpha 2",
     description: "SnailLift token, Shell privacy, safety scan, live verification, and Forest notify boundaries.",
     canonical: "https://postsnail.org/docs/snaillift-security/",
     body: docPage("SnailLift security sections", "SnailLift Security", "Surge credentials are stored only in the encrypted Shell.", [
       ["private", "Private Data", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
-      ["isolation", "Core Isolation", "SnailLift is an official built-in Alpha 1 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward."],
+      ["isolation", "Core Isolation", "SnailLift is an official built-in Alpha 2 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward."],
       ["gate", "Verification Gate", "Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification."],
       ["limits", "Limits", "SnailLift does not prove legal identity, truth, device integrity, provider account ownership, or long-term availability."],
     ]),
   },
   {
     path: "docs/postsnail-pages/index.html",
-    title: "PostSnail Pages - Alpha 1A",
+    title: "PostSnail Pages - Alpha 2",
     description: "PostSnail Pages is the official bundled CMS plugin for static pages and docs.",
     canonical: "https://postsnail.org/docs/postsnail-pages/",
     body: docPage("PostSnail Pages sections", "PostSnail Pages", "A tiny CMS plugin without turning PostSnail Core into WordPress.", [
       ["role", "Official Bundled Plugin", "PostSnail Pages uses the official plugin lifecycle. Enable postsnail-pages in Extensions to reveal the Pages tab."],
       ["state", "Encrypted CMS State", "Pages, docs, navigation, settings, drafts, archived content, and unknown future fields live inside plugins.state[\"postsnail-pages\"] in the encrypted .postsnail Shell."],
       ["export", "Public Export", "Only published pages and docs enter the Website ZIP. A published page at / can replace the homepage and move the microblog feed to /blog/."],
-      ["limits", "Alpha 1A Limits", "This sprint includes Pages, Docs, Navigation, Settings, and basic SEO. Tutorials, FAQ, roadmap, changelog, redirects, Markdown import, and visual building are later Pages sprints."],
+      ["limits", "Alpha 2 Limits", "This sprint includes Pages, Docs, Navigation, Settings, and basic SEO. Tutorials, FAQ, roadmap, changelog, redirects, Markdown import, and visual building are later Pages sprints."],
       ["core", "Core Boundary", "PostSnail Core keeps owning workspace, proof, signing, export safety, plugin manifests, and route assets. CMS behavior stays in the Pages plugin."],
     ]),
   },
   {
     path: "docs/comments/index.html",
-    title: "PostSnail Comments - Alpha 1",
+    title: "PostSnail Comments - Alpha 2",
     description: "PostSnail Comments is the official bundled plugin for approved static replies and private Shell moderation.",
     canonical: "https://postsnail.org/docs/comments/",
     body: docPage("PostSnail Comments sections", "PostSnail Comments", "Comments keep the site static while creators review signed replies inside the encrypted Shell.", [
@@ -385,19 +398,19 @@ const pages = [
   },
   {
     path: "docs/shellnames/index.html",
-    title: "ShellNames - PostSnail Alpha 1",
+    title: "ShellNames - PostSnail Alpha 2",
     description: "ShellNames are Forest-scoped readable aliases for signed PostSnail Shell identities.",
     canonical: "https://postsnail.org/docs/shellnames/",
     body: docPage("ShellNames sections", "ShellNames", "Readable Forest aliases for signed Shell identities. They are not accounts, DNS, legal identity, or ownership claims.", [
       ["meaning", "What A ShellName Means", "A ShellName like @creator@forest.postsnail.org points to a public PostSnail signing key and public microblog URL. The public key remains the real identity; the alias is only a readable discovery name."],
       ["claim", "Claim In Identity", "Unlock the publisher key, enter a Forest URL and desired lowercase name, then claim the ShellName. PostSnail signs the public record locally and sends only that public record to Forest."],
-      ["renew", "Update And Renew", "The same signing key can update or renew the ShellName. Alpha 1 uses one active ShellName per public key and one-year expiry."],
+      ["renew", "Update And Renew", "The same signing key can update or renew the ShellName. Alpha 2 uses one active ShellName per public key and one-year expiry."],
       ["export", "Public Proof Metadata", "Accepted ShellName records are stored in the encrypted Shell and may appear as optional public metadata in the manifest and well-known identity document."],
     ]),
   },
   {
     path: "docs/shellnames-protocol/index.html",
-    title: "ShellNames Protocol - PostSnail Alpha 1",
+    title: "ShellNames Protocol - PostSnail Alpha 2",
     description: "Signed ShellName record format and Forest endpoint reference.",
     canonical: "https://postsnail.org/docs/shellnames-protocol/",
     body: docPage("ShellNames protocol sections", "ShellNames Protocol", "ShellNames use signed public records with protocol postsnail-shellname version 1.", [
@@ -409,19 +422,19 @@ const pages = [
   },
   {
     path: "docs/shellnames-security/index.html",
-    title: "ShellNames Security - PostSnail Alpha 1",
+    title: "ShellNames Security - PostSnail Alpha 2",
     description: "Security boundaries and abuse controls for ShellNames.",
     canonical: "https://postsnail.org/docs/shellnames-security/",
     body: docPage("ShellNames security sections", "ShellNames Security", "ShellNames improve readability, not authority.", [
       ["prove", "What They Prove", "A valid ShellName proves the named public key signed the alias record. Forest checks name availability, reserved names, status, expiry, and moderation state before search display."],
       ["not-prove", "What They Do Not Prove", "ShellNames do not prove legal identity, DNS ownership, factual truth, platform endorsement, account ownership, or control of external services."],
       ["private-key", "Private Key Safety", "The admin signs locally and sends only public metadata plus a signature. It never sends raw private keys, encrypted Shell vaults, drafts, private plugin state, rejected comments, or passphrases."],
-      ["abuse", "Abuse Controls", "Alpha 1 uses reserved names, duplicate checks, one active name per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation."],
+      ["abuse", "Abuse Controls", "Alpha 2 uses reserved names, duplicate checks, one active name per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation."],
     ]),
   },
   {
     path: "docs/concept/index.html",
-    title: "PostSnail Concept - Alpha 1",
+    title: "PostSnail Concept - Alpha 2",
     description: "The PostSnail concept: local admin, static microblog, signed proof files, and Forest discovery.",
     canonical: "https://postsnail.org/docs/concept/",
     body: docPage("Concept sections", "PostSnail Concept", "PostSnail separates publishing, proof, hosting, and discovery so each part can stay simple.", [
@@ -434,7 +447,7 @@ const pages = [
   },
   {
     path: "docs/compatibility/index.html",
-    title: "PostSnail Compatibility Contract - Alpha 1",
+    title: "PostSnail Compatibility Contract - Alpha 2",
     description: "PostSnail compatibility rules for old Shells, old ZIP exports, optional extensions, required features, and migrations.",
     canonical: "https://postsnail.org/docs/compatibility/",
     body: docPage("Compatibility sections", "Compatibility Contract", "PostSnail evolves with a stable core, optional extensions, explicit required features, and deterministic workspace migrations.", [
@@ -448,11 +461,11 @@ const pages = [
   },
   {
     path: "docs/protocol/index.html",
-    title: "PostSnail Protocol Reference - Alpha 1",
+    title: "PostSnail Protocol Reference - Alpha 2",
     description: "PostSnail protocol records, feature declarations, public proof files, workspace vaults, and tracker announces.",
     canonical: "https://postsnail.org/docs/protocol/",
     body: docPage("Protocol sections", "Protocol Reference", "PostSnail uses public proof records for publishing and encrypted Shell vaults for editable source.", [
-      ["constants", "Protocol Constants", "Alpha 1 uses POSTSNAIL_PROTOCOL postsnail, POSTSNAIL_PROTOCOL_VERSION 1, and current manifest, identity, commit, and workspace versions of 1."],
+      ["constants", "Protocol Constants", "Alpha 2 uses POSTSNAIL_PROTOCOL postsnail, POSTSNAIL_PROTOCOL_VERSION 1, and current manifest, identity, commit, and workspace versions of 1."],
       ["features", "Feature Declarations", "Major records declare protocol, version, requiredFeatures, optionalFeatures, and extensions. Unknown optional fields are ignored; unknown required features fail."],
       ["manifest", "Public Manifest", "postsnail.manifest.json is the public proof root with file hashes, post proofs, bundle fingerprint, and manifest signature."],
       ["identity", "Well-Known Identity", ".well-known/postsnail.json points to the manifest, declares the current bundle fingerprint, and is used by trackers before deeper crawls."],
@@ -464,10 +477,10 @@ const pages = [
   },
   {
     path: "docs/architecture/index.html",
-    title: "PostSnail Architecture - Alpha 1",
+    title: "PostSnail Architecture - Alpha 2",
     description: "Developer architecture for the PostSnail browser admin, static proof bundle, and Forest registry Worker.",
     canonical: "https://postsnail.org/docs/architecture/",
-    body: docPage("Architecture sections", "PostSnail Architecture", "Alpha 1 is deliberately forkable: a browser admin, static files, signed proofs, and an optional registry Worker.", [
+    body: docPage("Architecture sections", "PostSnail Architecture", "Alpha 2 is deliberately forkable: a browser admin, static files, signed proofs, and an optional registry Worker.", [
       ["admin", "Admin Modules", "The browser admin uses small ES modules for encrypted local Shell storage, content normalization, Markdown sanitization, signing-key cryptography, encrypted workspace vaults, public ZIP export, legacy backup migration, and ZIP verification."],
       ["workspace", "Workspace Format", ".postsnail is a JSON envelope with non-secret metadata, AES-256-GCM ciphertext, PBKDF2-SHA-256 parameters, and a SHA3-512 workspace fingerprint. The decrypted payload is versioned workspace data."],
       ["export", "Public ZIP Format", "The generated ZIP contains HTML pages, assets, RSS, JSON feed, sitemap, .well-known/postsnail.json, post proof records, commit history, and postsnail.manifest.json. It excludes drafts and private workspace state."],
@@ -479,26 +492,26 @@ const pages = [
   },
   {
     path: "docs/core-foundation/index.html",
-    title: "PostSnail Core Foundation - Alpha 1",
+    title: "PostSnail Core Foundation - Alpha 2",
     description: "The PostSnail Core boundary: workspace, ZIP export, proofs, migrations, plugin/theme manifests, route assets, and export safety.",
     canonical: "https://postsnail.org/docs/core-foundation/",
     body: docPage("Core Foundation sections", "Core Foundation", "The Core Foundation documents what PostSnail Core owns and what stays out of Core.", [
       ["owns", "What PostSnail Core Owns", "PostSnail Core owns encrypted Shells, workspace schema and migrations, public Website ZIP export, proof files, identity signing boundaries, compatibility rules, plugin/theme manifest foundations, route-level asset declarations, and public export safety checks."],
       ["outside", "What Stays Out Of Core", "SnailLift, Forest product policy, ShellNames, Pages CMS, Comments, Reader, Canopy, ShellSeed, PostMail, plugin marketplaces, and arbitrary plugin execution stay outside Core unless they change the stable source/export/proof boundary."],
       ["extensions", "Extension Rule", "New features should be optional extensions first. Unknown optional fields are ignored safely. Unknown required features fail clearly before import, verification, or export could become misleading."],
-      ["apis", "Current APIs", "Alpha 1 exposes plugin registries, hook planning, plugin migration helpers, theme registries, Quiet Feed defaults, route asset resolution, and public export safety under src/core without moving stable modules yet."],
+      ["apis", "Current APIs", "Alpha 2 exposes plugin registries, hook planning, plugin migration helpers, theme registries, Quiet Feed defaults, route asset resolution, and public export safety under src/core without moving stable modules yet."],
     ]),
   },
   {
     path: "docs/plugin-system/index.html",
-    title: "PostSnail Plugin System - Alpha 1",
+    title: "PostSnail Plugin System - Alpha 2",
     description: "Plugin manifest foundations, permissions, capabilities, route-scoped runtime declarations, and private-state safety rules.",
     canonical: "https://postsnail.org/docs/plugin-system/",
     body: docPage("Plugin system sections", "Plugin System", "Plugins extend PostSnail without becoming part of Core. Install does not mean load, enable does not mean load everywhere, and routes decide what assets load.", [
       ["manifest", "Plugin Manifest", "Plugin manifests declare protocol postsnail-plugin-v1, id, name, version, requiredFeatures, optionalFeatures, extensions, capabilities, permissions, admin entries, export hooks, runtime assets, state versioning, and budgets."],
       ["official", "Official Bundled Plugins", "The admin Extensions tab can install, enable, and disable official plugin manifests shipped with PostSnail. postsnail-snaillift exposes deployment assistants, postsnail-pages exposes the Pages CMS tab, and postsnail-comments exposes signed comment moderation."],
       ["registry", "Plugin Registry", "createPluginRegistry, installPlugin, enablePlugin, and disablePlugin are pure state helpers for official validated manifests. They do not execute plugin code."],
-      ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 1 does not dynamically import or run arbitrary plugin JavaScript."],
+      ["hooks", "Hook Planning", "planPluginHooks returns deterministic structured plans for declared hooks. Alpha 2 does not dynamically import or run arbitrary plugin JavaScript."],
       ["route-runtime", "Route Runtime", "Public plugin runtime assets must use route-scoped runtime declarations through loadWhen. Plugins must not load globally by default."],
       ["private-state", "Private State", "Private plugin state remains inside the encrypted Shell. It may survive workspace migrations, but it must not be copied into the public Website ZIP."],
       ["required", "Feature Gates", "Unknown optional plugin features are ignored safely. Unknown required plugin features fail clearly."],
@@ -506,7 +519,7 @@ const pages = [
   },
   {
     path: "docs/plugin-migrations/index.html",
-    title: "PostSnail Plugin Migrations - Alpha 1",
+    title: "PostSnail Plugin Migrations - Alpha 2",
     description: "How PostSnail preserves private plugin state across Shell migrations and missing plugin code.",
     canonical: "https://postsnail.org/docs/plugin-migrations/",
     body: docPage("Plugin migration sections", "Plugin Migrations", "Plugin state is private Shell data: missing plugin state is preserved, not deleted.", [
@@ -518,7 +531,7 @@ const pages = [
   },
   {
     path: "docs/theme-system/index.html",
-    title: "PostSnail Theme System - Alpha 1",
+    title: "PostSnail Theme System - Alpha 2",
     description: "Frontend theme and admin theme manifest foundations for PostSnail.",
     canonical: "https://postsnail.org/docs/theme-system/",
     body: docPage("Theme system sections", "Theme System", "Themes change presentation while Core keeps proof, workspace, and export rules stable.", [
@@ -532,7 +545,7 @@ const pages = [
   },
   {
     path: "docs/theme-manifests/index.html",
-    title: "PostSnail Theme Manifests - Alpha 1",
+    title: "PostSnail Theme Manifests - Alpha 2",
     description: "Frontend and admin theme manifest shapes for PostSnail.",
     canonical: "https://postsnail.org/docs/theme-manifests/",
     body: docPage("Theme manifest sections", "Theme Manifests", "Theme manifests style PostSnail without becoming plugins.", [
@@ -543,19 +556,19 @@ const pages = [
   },
   {
     path: "docs/route-assets/index.html",
-    title: "PostSnail Route Assets - Alpha 1",
+    title: "PostSnail Route Assets - Alpha 2",
     description: "Route-level public asset declarations for PostSnail plugins and themes.",
     canonical: "https://postsnail.org/docs/route-assets/",
     body: docPage("Route asset sections", "Route Assets", "Public runtime assets are declared per route, not globally.", [
       ["why", "Why Route Assets", "A plugin or theme install should not make every generated page load extra JavaScript or CSS. Route maps keep asset loading explicit and inspectable."],
       ["shape", "Route Map Shape", "Each route declares route, type, template, theme, plugins, and assets. Duplicate assets are removed per route, and assets from one route do not leak into another route."],
-      ["pages", "Pages Routes", "PostSnail Pages adds page and docs routes to the route asset map, but Alpha 1A does not add public runtime JavaScript by default."],
+      ["pages", "Pages Routes", "PostSnail Pages adds page and docs routes to the route asset map, but Alpha 2 does not add public runtime JavaScript by default."],
       ["paths", "Safe Paths", "Public asset paths must start with a slash and must not contain protocols, backtracking, or unsafe path syntax."],
     ]),
   },
   {
     path: "docs/permissions/index.html",
-    title: "PostSnail Permission Model - Alpha 1",
+    title: "PostSnail Permission Model - Alpha 2",
     description: "PostSnail plugin permission allowlist and sensitive permission review notes.",
     canonical: "https://postsnail.org/docs/permissions/",
     body: docPage("Permission sections", "Permission Model", "Plugin permissions are explicit strings validated before a plugin can be treated as compatible.", [
@@ -566,19 +579,19 @@ const pages = [
   },
   {
     path: "docs/extension-security/index.html",
-    title: "PostSnail Extension Security - Alpha 1",
+    title: "PostSnail Extension Security - Alpha 2",
     description: "Security boundaries for PostSnail plugins, themes, hook planning, route assets, and export safety.",
     canonical: "https://postsnail.org/docs/extension-security/",
     body: docPage("Extension security sections", "Extension Security", "Install does not mean load. Enable does not mean load everywhere. Routes decide what assets load.", [
       ["validation", "Validated Manifests", "Plugins and themes must pass manifest validation before PostSnail treats them as compatible."],
-      ["execution", "No Arbitrary Execution", "Alpha 1 plans hooks and assets declaratively; the Extensions tab supports official bundled plugins only and does not load third-party packages or run arbitrary plugin code."],
+      ["execution", "No Arbitrary Execution", "Alpha 2 plans hooks and assets declaratively; the Extensions tab supports official bundled plugins only and does not load third-party packages or run arbitrary plugin code."],
       ["privacy", "Private Data", "Private plugin state and theme settings stay in the encrypted Shell and are blocked from public ZIP exports."],
       ["safety", "Public Export Safety", "Plugin and theme output still goes through public export safety checks before ZIP generation."],
     ]),
   },
   {
     path: "docs/security/index.html",
-    title: "PostSnail Security Notes - Alpha 1",
+    title: "PostSnail Security Notes - Alpha 2",
     description: "Security notes for PostSnail workspace encryption, public proof files, passphrases, and recovery limits.",
     canonical: "https://postsnail.org/docs/security/",
     body: docPage("Security sections", "Security Notes", "PostSnail protects editable source data with local encryption and public accountability with signed proof files, but those are different guarantees.", [
@@ -591,11 +604,11 @@ const pages = [
   },
   {
     path: "docs/migrations/index.html",
-    title: "PostSnail Workspace Migrations - Alpha 1",
+    title: "PostSnail Workspace Migrations - Alpha 2",
     description: "Versioned workspace migrations for encrypted PostSnail .postsnail files.",
     canonical: "https://postsnail.org/docs/migrations/",
     body: docPage("Migration sections", "Workspace Migrations", "PostSnail uses versioned workspace migrations so older editable projects can keep opening as the private source format evolves.", [
-      ["v1", "Version 1", "Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history."],
+      ["v1", "Version 1", "Alpha 2 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history."],
       ["chain", "Future Chains", "Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step."],
       ["future", "Future Version Failure", "If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version."],
       ["legacy", "Legacy JSON", "Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema."],
@@ -603,47 +616,48 @@ const pages = [
   },
   {
     path: "docs/portable-bundle/index.html",
-    title: "PostSnail Portable Bundle - Alpha 1",
-    description: "Run PostSnail from a flash drive or local folder with a self-updating local admin and bridge helper.",
+    title: "PostSnail Portable Bundle - Alpha 2",
+    description: "Run PostSnail from a flash drive or local folder with a self-updating local admin, optional local Forest, and bridge helper.",
     canonical: "https://postsnail.org/docs/portable-bundle/",
-    body: docPage("Portable bundle sections", "Portable Bundle", "A folder bundle that can launch the admin locally, start the bridge locally, and keep writable state on removable media.", [
-      ["launch", "First Launch", "Open the portable launcher script or run `node bin/postsnail-portable.js`. The launcher resolves the bundle root, checks a signed release manifest, and then opens the local admin in your browser."],
+    body: docPage("Portable bundle sections", "Portable Bundle", "A folder bundle that can launch the admin locally, run Forest locally, start the bridge when needed, and keep writable state on removable media.", [
+      ["launch", "First Launch", "Open the portable launcher script or run `node bin/postsnail-portable.js`. The launcher resolves the bundle root, checks a signed release manifest, asks whether to run Admin, Forest, or both, and then opens the selected local surface in your browser."],
       ["github", "GitHub Bootstrap", "For a one-command GitHub-hosted launch, run `curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash`. The bootstrapper tries the latest portable ZIP from GitHub Releases first. If that asset is not published yet, it falls back to the GitHub source archive on `main`, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle. It reads prompts from your terminal, so it can still ask before installing dependencies or launching the bundle even when invoked through `curl | bash`."],
-      ["update", "Update Behavior", "The launcher checks a signed release manifest on start. If a newer release is verified and the bundle fingerprint matches, it stages the new release into the bundle-local data cache and starts from that staged snapshot. If offline or verification fails, it keeps the bundled snapshot and still opens the admin."],
-      ["data", "Writable Data", "Portable state stays in the bundle-local data directory. The updater stores staged releases and logs there, and the Surge bridge uses that same area for temporary files so the portable bundle does not write outside its own folder."],
-      ["workflow", "Portable Workflow", "Use the portable admin to open a Shell, write posts, export the public ZIP, run the local verifier, start the local bridge, notify Forest, and publish without any hosted admin."],
+      ["modes", "Run Modes", "The startup menu is intentionally limited to creator tooling: Admin only, Forest only, or Admin + Forest. The public website and documentation are included for reference, but they are not startup choices."],
+      ["update", "Update Behavior", "The launcher checks a signed release manifest on start. If a newer release is verified and the bundle fingerprint matches, it stages the new release into the bundle-local data cache and starts from that staged snapshot. If offline or verification fails, it keeps the bundled snapshot and still starts the selected local tool."],
+      ["data", "Writable Data", "Portable state stays in the bundle-local data directory. The updater stores staged releases and logs there, Forest local persistence stays there, and the Surge bridge uses that same area for temporary files so the portable bundle does not write outside its own folder."],
+      ["workflow", "Portable Workflow", "Use the portable admin to open a Shell, write posts, export the public ZIP, run the local verifier, start the local bridge, notify Forest, and publish without any hosted admin. Use local Forest when you want to test tracker/search behavior from the bundle."],
       ["move", "Move To Another Computer", "Copy the portable folder or ZIP to another machine, run the launcher again, import the same `.postsnail` Shell if needed, and continue from the same local workspace."],
     ]),
   },
   {
     path: "docs/psep/index.html",
-    title: "PostSnail Enhancement Proposals - Alpha 1",
+    title: "PostSnail Enhancement Proposals - Alpha 2",
     description: "The PSEP process for PostSnail protocol-risk changes.",
     canonical: "https://postsnail.org/docs/psep/",
     body: docPage("PSEP sections", "PostSnail Enhancement Proposals", "PSEPs document protocol-risk changes before they affect creators, verifiers, trackers, or workspace migrations.", [
       ["meaning", "What PSEP Means", "PSEP means PostSnail Enhancement Proposal. It is required for changes that alter public proof semantics, workspace schema versions, tracker payloads, verifier behavior, or migration rules."],
       ["sections", "Required Sections", "A PSEP includes title, status, feature name, motivation, files changed, new fields, required versus optional features, migration rules, verifier behavior, compatibility impact, security impact, and tests required."],
       ["default", "Default To Optional", "New features should be optional extensions unless old software must reject them for safety. Unknown optional fields are ignored; unknown required features fail clearly."],
-      ["baseline", "PSEP-0001", "PSEP-0001 defines the Alpha 1 compatibility baseline: stable protocol core, optional extensions, deterministic workspace migrations, legacy warnings, and strict failures for broken proof data."],
+      ["baseline", "PSEP-0001", "PSEP-0001 defines the current compatibility baseline: stable protocol core, optional extensions, deterministic workspace migrations, legacy warnings, and strict failures for broken proof data."],
     ]),
   },
   {
     path: "docs/legal/index.html",
-    title: "PostSnail Legal - Alpha 1",
-    description: "PostSnail Alpha 1 license, attribution, third-party notices, logo provenance, and Forest cost notes.",
+    title: "PostSnail Legal - Alpha 2",
+    description: "PostSnail Alpha 2 license, attribution, third-party notices, logo provenance, and Forest cost notes.",
     canonical: "https://postsnail.org/docs/legal/",
     body: `
       <section class="page-hero">
         <p class="eyebrow">Compliance</p>
         <h1>PostSnail Legal</h1>
-        <p class="lede">Alpha 1 is open source under Apache-2.0 with NOTICE attribution to Boaz Alhadeff and the original PostSnail project.</p>
+        <p class="lede">Alpha 2 is open source under Apache-2.0 with NOTICE attribution to Boaz Alhadeff and the original PostSnail project.</p>
       </section>
       <article class="doc-layout">
         <nav class="doc-nav" aria-label="Legal sections"><a href="#project-license">Project License</a><a href="#third-party">Third Party</a><a href="#logo">Logo</a><a href="#forest-cost">Forest Cost</a></nav>
         <div class="doc-content">
           <section id="project-license"><h2>Project License</h2><p>PostSnail source code and project materials are licensed under <code>Apache-2.0</code>. Redistributed copies, forks, and derivative works must preserve the license and the <code>NOTICE</code> attribution to Boaz Alhadeff and the original PostSnail project.</p><p>This is legal attribution, not a requirement to display a PostSnail badge inside every derivative product UI.</p></section>
-          <section id="third-party"><h2>Third-Party Code</h2><p>No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 1 review. The browser libraries are open-source: noble packages, fflate, and marked are MIT; DOMPurify is available under Apache-2.0 or MPL-2.0.</p><p>See <code>THIRD_PARTY_NOTICES.md</code> in the repository for versions, licenses, copyright notices, and bundled license file paths.</p></section>
-          <section id="logo"><h2>Logo Provenance</h2><p>The PostSnail logo and icon are treated as PostSnail project assets. Alpha 1 assumes Boaz Alhadeff owns or has sufficient rights to use and license the supplied/generated logo assets in this repository.</p><p>Use the transparent PNG/SVG assets from the media kit and preserve the project attribution when redistributing.</p></section>
+          <section id="third-party"><h2>Third-Party Code</h2><p>No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 2 review. The browser libraries are open-source: noble packages, fflate, and marked are MIT; DOMPurify is available under Apache-2.0 or MPL-2.0.</p><p>See <code>THIRD_PARTY_NOTICES.md</code> in the repository for versions, licenses, copyright notices, and bundled license file paths.</p></section>
+          <section id="logo"><h2>Logo Provenance</h2><p>The PostSnail logo and icon are treated as PostSnail project assets. Alpha 2 assumes Boaz Alhadeff owns or has sufficient rights to use and license the supplied/generated logo assets in this repository.</p><p>Use the transparent PNG/SVG assets from the media kit and preserve the project attribution when redistributing.</p></section>
           <section id="forest-cost"><h2>Forest Cost Surface</h2><p>Forest JSON API calls can consume Cloudflare resources. Search and site endpoints use Worker requests and D1 reads. Submissions use Worker requests, D1 reads/writes, Queue operations, and crawler fetches.</p><p>On Free plans, Cloudflare caps generally fail closed once daily limits are exhausted, which can cause errors or downtime. On Paid plans, abuse can create overage billing for Worker requests/CPU, D1 rows read/written, and Queue operations.</p><p>Recommended production controls: keep submission rate limits, add Cloudflare dashboard/WAF rate rules for <code>/api/search</code> and <code>/api/submit</code>, monitor D1 row metrics, and cache public GET JSON where safe.</p></section>
         </div>
       </article>

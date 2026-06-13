@@ -28,7 +28,7 @@ SnailLift prepares a safe public bundle, helps deploy it, verifies the live proo
 
 SnailLift is optional. It is a deployment assistant, not hosting.
 
-Alpha 1B uses Surge as the publish path. The creator still controls the hosting account and runs the helper locally.
+Alpha 2 uses Surge as the publish path. The creator still controls the hosting account and runs the helper locally.
 
 ## Forest
 

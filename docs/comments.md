@@ -18,7 +18,7 @@ It follows the same boundary as the rest of PostSnail:
 
 ## Current Alpha Scope
 
-Alpha 1 Comments focuses on approved static replies and local moderation boundaries.
+Alpha 2 Comments focuses on approved static replies and local moderation boundaries.
 
 - Approved comments are exported publicly.
 - Rejected comments stay private.

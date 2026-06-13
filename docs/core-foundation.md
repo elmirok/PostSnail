@@ -28,7 +28,7 @@ New features should start as optional extensions. Unknown optional fields are ig
 
 ## Current Sprint Scope
 
-Alpha 1 Core Foundation adds lightweight APIs under `src/core/` without moving stable modules:
+Alpha 2 Core Foundation adds lightweight APIs under `src/core/` without moving stable modules:
 
 - `validatePluginManifest(manifest)`
 - `validatePluginPermissions(permissions)`

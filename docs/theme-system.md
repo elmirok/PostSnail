@@ -64,6 +64,6 @@ Theme manifests follow the same required/optional feature model as protocol file
 
 `resolveFrontendTheme(appearance, registry)` falls back to the built-in `quiet-feed` theme so old Shells keep exporting the current public style.
 
-`resolveAdminThemeTokens(appearance, registry)` returns CSS variables only. Alpha 1 admin themes do not run JavaScript.
+`resolveAdminThemeTokens(appearance, registry)` returns CSS variables only. Alpha 2 admin themes do not run JavaScript.
 
 Theme selection lives in the encrypted Shell under `appearance`, with `frontendTheme`, `adminTheme`, and `themeSettings`.

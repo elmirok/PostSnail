@@ -1,6 +1,9 @@
 .DS_Store
 node_modules/
 .superpowers/
+data/
+*.log
+.DS_Store
 postsnail-export-*.zip
 coverage/
 .wrangler/

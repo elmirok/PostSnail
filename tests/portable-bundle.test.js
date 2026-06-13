@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -107,6 +108,7 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
   assert.equal(existsSync(join(outDir, "portable", "launchers", "postsnail.command")), true);
   assert.equal(existsSync(join(outDir, "portable", "launchers", "postsnail.cmd")), true);
   assert.equal(existsSync(join(outDir, "docs", "portable-bundle", "index.html")), true);
+  assert.equal(existsSync(join(outDir, "registry", "wrangler.jsonc")), true);
   assert.equal(existsSync(join(outDir, "portable", "bundle.json")), true);
   assert.equal(existsSync(join(outDir, "portable", "update-manifest.json")), true);
   assert.equal(existsSync(zipPath), true);
@@ -116,6 +118,7 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
   assert.match(zipEntries.join("\n"), /portable\/bootstrap\.sh/);
   assert.match(zipEntries.join("\n"), /docs\/portable-bundle\/index\.html/);
   assert.match(zipEntries.join("\n"), /bin\/postsnail-portable\.js/);
+  assert.match(zipEntries.join("\n"), /registry\/wrangler\.jsonc/);
   assert.doesNotMatch(zipEntries.join("\n"), /\.postsnail\b/);
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)(drafts|private)(\/|$)/i);
   assert.doesNotMatch(zipEntries.join("\n"), /(^|\/)\.env$/i);
@@ -166,6 +169,89 @@ test("portable launcher resolves spaced bundle paths and starts the local admin 
     ]);
   }
   await launched.server.close();
+});
+
+test("portable launcher can start Forest only without admin or bridge", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail portable forest-"));
+  const outDir = join(fixtureDir, "bundle root");
+  const zipPath = join(fixtureDir, "bundle.zip");
+  await buildPortableBundle({
+    sourceRoot: root,
+    outDir,
+    zipPath,
+    skipAdminBuild: true,
+  });
+
+  const spawned = [];
+  const launched = await runPortableLauncher({
+    entryPoint: join(outDir, "bin", "postsnail-portable.js"),
+    runMode: "forest",
+    skipBrowser: true,
+    forestPort: 9876,
+    spawnImpl(command, args, options) {
+      const child = new EventEmitter();
+      child.kill = () => child.emit("exit", 0);
+      spawned.push({ command, args, options });
+      return child;
+    },
+    fetchImpl: async (url) => {
+      assert.equal(String(url), "http://127.0.0.1:9876/");
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launched.runMode, "forest");
+  assert.equal(launched.adminState, "skipped");
+  assert.equal(launched.bridgeState, "skipped");
+  assert.equal(launched.forestState, "ready");
+  assert.equal(launched.adminUrl, null);
+  assert.match(launched.forestUrl, /^http:\/\/127\.0\.0\.1:9876\/$/);
+  assert.equal(spawned.length, 1);
+  assert.match(spawned[0].args.join(" "), /wrangler@4\.98\.0 dev --local/);
+  assert.equal(spawned[0].options.cwd, join(outDir, "registry"));
+
+  launched.forest.child.kill("SIGTERM");
+  await rm(fixtureDir, { recursive: true, force: true });
+});
+
+test("portable launcher prompt can choose both Admin and Forest", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail portable both-"));
+  const outDir = join(fixtureDir, "bundle root");
+  const zipPath = join(fixtureDir, "bundle.zip");
+  await buildPortableBundle({
+    sourceRoot: root,
+    outDir,
+    zipPath,
+    skipAdminBuild: true,
+  });
+
+  const launched = await runPortableLauncher({
+    entryPoint: join(outDir, "bin", "postsnail-portable.js"),
+    promptRunMode: async () => "both",
+    skipBrowser: true,
+    forestPort: 9877,
+    spawnImpl(command, args) {
+      const child = new EventEmitter();
+      child.kill = () => child.emit("exit", 0);
+      return child;
+    },
+    fetchImpl: async (url) => {
+      if (String(url).includes(":9877")) return { ok: true };
+      return { ok: true };
+    },
+  });
+
+  assert.equal(launched.runMode, "both");
+  assert.equal(launched.adminState, "ready");
+  assert.equal(launched.bridgeState, "ready");
+  assert.equal(launched.forestState, "ready");
+  assert.match(launched.adminUrl, /^http:\/\/127\.0\.0\.1:\d+\/admin\/$/);
+  assert.match(launched.forestUrl, /^http:\/\/127\.0\.0\.1:9877\/$/);
+
+  launched.bridge.child.kill("SIGTERM");
+  launched.forest.child.kill("SIGTERM");
+  await launched.server.close();
+  await rm(fixtureDir, { recursive: true, force: true });
 });
 
 test("portable update check falls back offline when the manifest fetch is unavailable", async () => {

@@ -1,11 +1,11 @@
-# PostSnail Alpha 1
+# PostSnail Alpha 2
 
-PostSnail Alpha 1 has two public surfaces:
+PostSnail Alpha 2 has two public surfaces:
 
 - `https://postsnail.org/` is the project website, manifesto, media kit, docs, and entry point to the browser admin.
 - `https://forest.postsnail.org/` is PostSnail Forest, the searchable tracker where creators register published PostSnail sites.
 
-The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It keeps editable browser-local Shell data encrypted at rest, stores encrypted workspace vaults and encrypted publisher keys locally, then downloads a static ZIP that can be hosted on Surge, Netlify, GitHub Pages, or any plain static host.
+The admin lives at `/admin/`. It is browser-native software for publishing a creator-owned static microblog. It keeps editable browser-local Shell data encrypted at rest, stores encrypted workspace vaults and encrypted publisher keys locally, then downloads a static ZIP that can be published with Surge or uploaded to any plain static host.
 
 PostSnail has two exports:
 
@@ -20,6 +20,18 @@ The exported site includes:
 - `.well-known/postsnail/latest-commit.json` and `.well-known/postsnail/commits.json` with signed export history.
 
 PostSnail does not require a backend, submit automatically to a registry, upload files, or create accounts.
+
+## Alpha 2 Highlights
+
+Alpha 2 is the first lean release after the prototype cleanup pass. The repo now keeps the real deployable surfaces clear: the public website/admin, the browser-native Shell workflow, the portable launcher, the Surge bridge, and the Forest Worker in `registry/`.
+
+- Portable launch asks whether to run Admin only, Forest only, or Admin + Forest.
+- SnailLift is Surge-only for hosted publishing, with Download Website ZIP still available as the universal fallback.
+- Official bundled extensions remain declarative: install/enable changes state, but no third-party plugin code is loaded.
+- Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code.
+- Public docs, package metadata, portable bundle metadata, and generated proof metadata now identify the release as Alpha 2 / `0.2.0`.
+
+See [Alpha 2 release notes](docs/alpha-2.md).
 
 ## Run Locally
 
@@ -43,7 +55,7 @@ The bundle lands in `dist/postsnail-portable/` with a matching ZIP at `dist/post
 node bin/postsnail-portable.js
 ```
 
-The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then opens the local admin and starts the bridge helper. If the update check is offline or fails verification, it keeps the bundled snapshot and still opens the admin.
+The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then asks what to run: Admin only, Forest only, or Admin + Forest. The public website and documentation are included in the bundle for reference, but they are not part of the startup menu. If the update check is offline or fails verification, it keeps the bundled snapshot and still starts the selected local tool.
 
 If you want a GitHub-hosted one-command startup flow, use the bootstrapper in this repo. It downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers to install missing tools when a package manager is available, and then launches the bundle:
 
@@ -100,7 +112,7 @@ CLI 1A is local/headless only. It does not yet add deploy providers, automatic F
 
 SnailLift is PostSnail's optional deployment assistant. It prepares the public Website ZIP output for deployment, runs the public export safety check, prepares the Surge publish step through the local bridge, verifies the live proof files, and only then notifies Forest.
 
-SnailLift is built in for Alpha 1 but isolated from PostSnail Core. Provider-specific deployment code lives under `src/snaillift/`; exporter, workspace, identity, manifest, protocol, and signing modules stay provider-neutral so SnailLift can later move to `plugins/postsnail-snaillift`.
+SnailLift is built in for Alpha 2 but isolated from PostSnail Core. Provider-specific deployment code lives under `src/snaillift/`; exporter, workspace, identity, manifest, protocol, and signing modules stay provider-neutral so SnailLift can later move to `plugins/postsnail-snaillift`.
 
 SnailLift is not hosting. Download ZIP remains the fallback. See [SnailLift](docs/snaillift.md), [SnailLift Surge](docs/snaillift-surge.md), [SnailLift Security](docs/snaillift-security.md), and [Publishing](docs/publishing.md).
 
@@ -143,7 +155,7 @@ PostSnail Core owns the stable local Shell, public ZIP, proof, migration, plugin
 
 The Core Foundation APIs live under `src/core/` and cover plugin manifest validation, permission validation, plugin registry state, deterministic hook planning, plugin migrations, theme manifest validation, theme registries, route-scoped asset maps, and public export safety checks. See [Core Foundation](docs/core-foundation.md), [plugin system](docs/plugin-system.md), [plugin migrations](docs/plugin-migrations.md), [theme system](docs/theme-system.md), [theme manifests](docs/theme-manifests.md), [route assets](docs/route-assets.md), [permission model](docs/permissions.md), and [extension security](docs/extension-security.md).
 
-Alpha 1 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
+Alpha 2 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
 
 The admin Extensions tab currently supports official bundled plugins only. `postsnail-comments` adds signed comment moderation and approved static replies, `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback, and `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
 
@@ -165,7 +177,7 @@ More detail: [workspace vaults](docs/workspace-vault.md), [Surge publish guide](
 
 PostSnail is licensed under Apache-2.0. Redistributed copies, forks, and derivative works must preserve the Apache-2.0 license and the `NOTICE` attribution to Boaz Alhadeff and the original PostSnail project.
 
-The shipped browser dependencies are open-source and listed in [third-party notices](THIRD_PARTY_NOTICES.md). No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 1 review. The supplied/generated logo assets are assumed to be owned or cleared by Boaz Alhadeff.
+The shipped browser dependencies are open-source and listed in [third-party notices](THIRD_PARTY_NOTICES.md). No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 2 review. The supplied/generated logo assets are assumed to be owned or cleared by Boaz Alhadeff.
 
 ## Forest Cost Notes
 

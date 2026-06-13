@@ -1,11 +1,13 @@
-# PostSnail Portable Bundle - Alpha 1
+# PostSnail Portable Bundle - Alpha 2
 
-PostSnail Portable is the USB-friendly bundle form of PostSnail. It keeps the browser admin local, keeps the bridge local, and gives the creator a folder they can copy to another computer or removable drive.
+PostSnail Portable is the USB-friendly bundle form of PostSnail. It keeps the browser admin local, can run a local Forest tracker for testing, keeps the bridge local when the admin is selected, and gives the creator a folder they can copy to another computer or removable drive.
 
 ## What It Does
 
+- Asks whether to run Admin only, Forest only, or Admin + Forest.
 - Launches the PostSnail admin from a local folder instead of a hosted admin.
-- Starts the bridge helper locally so publish workflows still work.
+- Starts the bridge helper locally when Admin is selected so publish workflows still work.
+- Starts Forest locally when Forest is selected.
 - Checks a signed release manifest on launch and stages a newer bundle when one is available and verified.
 - Keeps writable runtime state inside the bundle-local `data/` directory.
 
@@ -33,9 +35,11 @@ The launcher:
 1. Resolves the bundle root.
 2. Checks the signed release manifest.
 3. Stages a newer verified release into the bundle cache when available.
-4. Starts the local admin server.
-5. Starts the local Surge bridge helper.
-6. Opens the browser to the local admin.
+4. Asks what to run: Admin only, Forest only, or Admin + Forest.
+5. Starts only the selected local tools.
+6. Opens the browser to the selected local surface.
+
+The public PostSnail website and documentation are included for reference, but the portable startup menu is intentionally limited to creator tooling: Admin, Forest, or both.
 
 ## Update Behavior
 

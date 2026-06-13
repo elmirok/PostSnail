@@ -28,6 +28,6 @@ Frontend themes declare templates, public assets, slots, settings, and budgets. 
 
 ## Admin Themes
 
-Admin themes are CSS-variable token sets only in Alpha 1. They must not declare JavaScript runtime assets.
+Admin themes are CSS-variable token sets only in Alpha 2. They must not declare JavaScript runtime assets.
 
 Theme settings are stored in the encrypted Shell under `appearance.themeSettings`.

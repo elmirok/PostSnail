@@ -42,10 +42,7 @@ import {
 import { createPagesItem, normalizePagesState } from "./src/pages/plugin.js";
 import {
   announceForestAfterLiveVerification,
-  buildCloudflarePagesCommand,
-  cloudflarePagesProvider,
   createDeploymentLogEntry,
-  githubPagesProvider,
   runSnailLiftSafety,
   verifySnailLiftLiveSite,
   buildSurgeBridgeCommand,
@@ -72,21 +69,12 @@ const defaultSettings = {
   indexingPolicy: "allow",
   showPoweredBy: true,
   showTrackerCredit: true,
-  snailLiftCloudflareAccountId: "",
-  snailLiftCloudflareProjectName: "",
-  snailLiftCloudflareBranch: "main",
   snailLiftSiteUrl: "",
   snailLiftSurgeSiteUrl: "",
   snailLiftSurgeDomain: "",
   snailLiftSurgeProjectDir: "postsnail-public",
   snailLiftSurgeLogin: "",
   snailLiftSurgeToken: "",
-  snailLiftGithubOwner: "",
-  snailLiftGithubRepo: "",
-  snailLiftGithubBranch: "gh-pages",
-  snailLiftGithubTargetDir: ".",
-  snailLiftGithubSiteUrl: "",
-  publishRemember: false,
   shellNameForestUrl: "https://forest.postsnail.org",
   shellNameDesiredName: "",
 };
@@ -98,8 +86,6 @@ const state = {
   pendingLegacyState: null,
   localShellEnvelope: null,
   shellPassphrase: "",
-  snailLiftCloudflareApiToken: "",
-  snailLiftCloudflareProgress: "",
   snailLiftSurgeProgress: "",
   shellSaveTimer: null,
   localShellNotice: false,
@@ -438,26 +424,6 @@ async function handleAction(button) {
   }
   if (action === "notify-forest") {
     await notifyForest();
-    return;
-  }
-  if (action === "prepare-snaillift-cloudflare") {
-    if (!snailLiftEnabled()) {
-      state.activeTab = "extensions";
-      setStatus("Enable SnailLift in Extensions before preparing deploy commands.");
-      render();
-      return;
-    }
-    await prepareSnailLiftCloudflare();
-    return;
-  }
-  if (action === "prepare-snaillift-github") {
-    if (!snailLiftEnabled()) {
-      state.activeTab = "extensions";
-      setStatus("Enable SnailLift in Extensions before preparing deploy commands.");
-      render();
-      return;
-    }
-    await prepareSnailLiftGithub();
     return;
   }
   if (action === "verify-snaillift-live") {
@@ -980,153 +946,6 @@ async function publishSnailLiftSurge() {
   }
 }
 
-async function publishSnailLiftCloudflare() {
-  const settings = snailLiftCloudflareSettings();
-  const token = snailLiftCloudflareToken();
-  const ready = snailLiftCloudflareCanPublish(settings, token);
-  if (!ready.ok) {
-    state.snailLiftCloudflareProgress = "not-configured";
-    state.lastSnailLiftCommand = "";
-    state.lastSnailLiftCommands = [];
-    setStatus(ready.message);
-    render();
-    return;
-  }
-
-  state.snailLiftCloudflareProgress = "publishing";
-  state.lastAnnounceStatus = null;
-  state.lastSnailLiftVerification = null;
-  setStatus("Building files, checking safety, and publishing to Cloudflare Pages...");
-  render();
-  const exportResult = await buildCurrentWebsiteExport();
-  if (!exportResult) {
-    state.snailLiftCloudflareProgress = "error";
-    render();
-    return;
-  }
-
-  const { result, verification } = exportResult;
-  state.lastManifest = result.manifest;
-  state.lastExportResult = result;
-  state.commitHistory = result.commitHistory;
-  state.lastExportVerification = verification;
-  if (!verification.ok) {
-    state.snailLiftCloudflareProgress = "error";
-    setStatus(`Cloudflare publish paused because local ZIP verification found ${verification.errors.length} issue(s).`);
-    render();
-    return;
-  }
-
-  try {
-    let deploy = await cloudflarePagesProvider.deploy({
-      files: result.files,
-      settings,
-      secrets: { apiToken: token },
-    });
-
-    if (deploy.code === "cloudflare-project-missing") {
-      const createPrompt = `${deploy.message}\n\nCreate the Cloudflare Pages project now?`;
-      if (!window.confirm(createPrompt)) {
-        state.snailLiftCloudflareProgress = "not-configured";
-        state.lastSnailLiftCommand = deploy.createProjectCommand || state.lastSnailLiftCommand;
-        state.lastSnailLiftCommands = [];
-        setStatus("Cloudflare publish cancelled until the Pages project exists.");
-        render();
-        return;
-      }
-
-      state.snailLiftCloudflareProgress = "setting-up";
-      setStatus(`Creating ${settings.projectName} on Cloudflare Pages, then publishing...`);
-      render();
-
-      deploy = await cloudflarePagesProvider.deploy({
-        files: result.files,
-        settings,
-        secrets: { apiToken: token },
-        createProjectIfMissing: true,
-      });
-    }
-
-    state.lastSnailLiftSafety = deploy.safety || null;
-    state.lastSnailLiftLog = createDeploymentLogEntry({
-      provider: "cloudflare-pages",
-      siteUrl: settings.siteUrl,
-      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
-      bundleFingerprint: result.bundleFingerprint,
-      status: deploy.ok ? "success" : "failed",
-      message: deploy.message,
-      startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
-    });
-    await rememberSnailLiftLog(state.lastSnailLiftLog);
-    state.lastSnailLiftCommand = deploy.fallbackCommand || "";
-    state.lastSnailLiftCommands = [];
-    if (!deploy.ok) {
-      state.snailLiftCloudflareProgress = "error";
-      setStatus(deploy.message || "Cloudflare publish failed.");
-      render();
-      return;
-    }
-
-    state.lastSnailLiftVerification = await verifySnailLiftLiveSite({
-      siteUrl: settings.siteUrl,
-      exportResult: result,
-    });
-    state.lastSnailLiftLog = createDeploymentLogEntry({
-      provider: "cloudflare-pages",
-      siteUrl: settings.siteUrl,
-      deploymentUrl: deploy.deploymentUrl || settings.siteUrl,
-      bundleFingerprint: result.bundleFingerprint,
-      status: state.lastSnailLiftVerification.ok ? "success" : "failed",
-      message: state.lastSnailLiftVerification.ok
-        ? "Cloudflare Pages publish completed and live proof verified."
-        : state.lastSnailLiftVerification.errors[0] || "Cloudflare Pages deployed, but live proof verification failed.",
-      startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
-    });
-    await rememberSnailLiftLog(state.lastSnailLiftLog);
-
-    if (state.lastSnailLiftVerification.ok) {
-      const announceResult = await announceForestAfterLiveVerification({
-        liveVerification: state.lastSnailLiftVerification,
-        announcePayload: result.announcePayload,
-      });
-      state.lastAnnounceStatus = {
-        ok: announceResult.ok,
-        status: announceResult.body?.status || "",
-        message: announceResult.message || "",
-        submissionId: announceResult.body?.submissionId || "",
-      };
-      state.notifyForestAttention = false;
-      state.snailLiftCloudflareProgress = "verified";
-      setStatus(
-        state.lastAnnounceStatus?.ok
-          ? "Cloudflare publish verified and Forest notified."
-          : "Cloudflare publish verified, but Forest notification needs attention.",
-      );
-    } else {
-      state.snailLiftCloudflareProgress = "error";
-      setStatus(state.lastSnailLiftVerification.errors[0] || "Cloudflare publish completed, but live proof verification failed.");
-    }
-    await persistLocalShellNow();
-    render();
-  } catch (error) {
-    state.snailLiftCloudflareProgress = "error";
-    state.lastSnailLiftLog = createDeploymentLogEntry({
-      provider: "cloudflare-pages",
-      siteUrl: settings.siteUrl,
-      bundleFingerprint: result.bundleFingerprint,
-      status: "failed",
-      message: error instanceof Error ? error.message : "Cloudflare publish failed.",
-      startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
-    });
-    await rememberSnailLiftLog(state.lastSnailLiftLog);
-    setStatus(error instanceof Error ? error.message : "Cloudflare publish failed.");
-    render();
-  }
-}
-
 async function notifyForest() {
   if (!state.lastAnnouncePayload) {
     setStatus("Export a Website ZIP first so PostSnail can send its signed public announce.");
@@ -1163,106 +982,6 @@ async function notifyForest() {
     setStatus("Forest could not be reached.");
   }
   state.notifyForestAttention = false;
-  render();
-}
-
-async function prepareSnailLiftCloudflare() {
-  if (!state.lastExportResult) {
-    setStatus("Export a Website ZIP first so SnailLift can prepare the public deployment bundle.");
-    return;
-  }
-  const settings = snailLiftCloudflareSettings();
-  const safety = runSnailLiftSafety(state.lastExportResult.files || {});
-  state.lastSnailLiftSafety = safety;
-  state.lastSnailLiftVerification = null;
-  if (!safety.ok) {
-    state.lastSnailLiftCommand = "";
-    state.lastSnailLiftCommands = [];
-    state.lastSnailLiftLog = createDeploymentLogEntry({
-      provider: "cloudflare-pages",
-      siteUrl: settings.siteUrl,
-      bundleFingerprint: state.lastExportResult.bundleFingerprint,
-      status: "failed",
-      message: safety.errors[0] || "SnailLift safety check failed.",
-    });
-    await rememberSnailLiftLog(state.lastSnailLiftLog);
-    setStatus(`SnailLift blocked deploy: ${safety.errors[0]}`);
-    render();
-    return;
-  }
-
-  const deploy = await cloudflarePagesProvider.deploy({
-    files: state.lastExportResult.files,
-    settings,
-    secrets: {},
-  });
-  state.lastSnailLiftCommand =
-    deploy.fallbackCommand ||
-    (deploy.code === "invalid-cloudflare-settings"
-      ? ""
-      : buildCloudflarePagesCommand({ ...settings, directory: "postsnail-public" }));
-  state.lastSnailLiftCommands = [];
-  state.lastSnailLiftLog = createDeploymentLogEntry({
-    provider: "cloudflare-pages",
-    siteUrl: settings.siteUrl,
-    bundleFingerprint: state.lastExportResult.bundleFingerprint,
-    status: deploy.code === "invalid-cloudflare-settings" ? "failed" : "prepared",
-    message: deploy.message,
-  });
-  await rememberSnailLiftLog(state.lastSnailLiftLog);
-  setStatus(
-    deploy.code === "invalid-cloudflare-settings"
-      ? deploy.message
-      : "SnailLift prepared a safe Cloudflare Pages deploy command. Extract the ZIP, deploy it, then verify live.",
-  );
-  render();
-}
-
-async function prepareSnailLiftGithub() {
-  if (!state.lastExportResult) {
-    setStatus("Export a Website ZIP first so SnailLift can prepare the public deployment bundle.");
-    return;
-  }
-  const settings = snailLiftGithubSettings();
-  const safety = runSnailLiftSafety(state.lastExportResult.files || {});
-  state.lastSnailLiftSafety = safety;
-  state.lastSnailLiftVerification = null;
-  if (!safety.ok) {
-    state.lastSnailLiftCommand = "";
-    state.lastSnailLiftCommands = [];
-    state.lastSnailLiftLog = createDeploymentLogEntry({
-      provider: "github-pages",
-      siteUrl: settings.siteUrl,
-      bundleFingerprint: state.lastExportResult.bundleFingerprint,
-      status: "failed",
-      message: safety.errors[0] || "SnailLift safety check failed.",
-    });
-    await rememberSnailLiftLog(state.lastSnailLiftLog);
-    setStatus(`SnailLift blocked deploy: ${safety.errors[0]}`);
-    render();
-    return;
-  }
-
-  const deploy = await githubPagesProvider.deploy({
-    files: state.lastExportResult.files,
-    settings,
-    secrets: {},
-  });
-  state.lastSnailLiftCommand = "";
-  state.lastSnailLiftCommands = deploy.commands || [];
-  state.lastSnailLiftLog = createDeploymentLogEntry({
-    provider: "github-pages",
-    siteUrl: settings.siteUrl,
-    bundleFingerprint: state.lastExportResult.bundleFingerprint,
-    status: deploy.code === "invalid-github-settings" ? "failed" : "prepared",
-    message: deploy.message,
-  });
-  await rememberSnailLiftLog(state.lastSnailLiftLog);
-  setStatus(
-    deploy.code === "invalid-github-settings"
-      ? deploy.message
-      : "SnailLift prepared safe GitHub Pages commands. Extract the ZIP, run the commands locally, then verify live.",
-  );
   render();
 }
 
@@ -1779,7 +1498,7 @@ function renderExtensions() {
         <div>
           <p class="kicker">Official bundled plugins</p>
           <h2 class="panel-title">Extensions</h2>
-          <p class="help">Install and enable official plugins shipped with PostSnail. No marketplace, upload, remote code, or third-party plugin execution exists in Alpha 1.</p>
+          <p class="help">Install and enable official plugins shipped with PostSnail. No marketplace, upload, remote code, or third-party plugin execution exists in Alpha 2.</p>
         </div>
         <div class="notice">
           <strong>Install does not mean load</strong>
@@ -2361,75 +2080,6 @@ function renderSnailLiftSurgePanel() {
   `;
 }
 
-function renderSnailLiftCloudflarePanel() {
-  const settings = snailLiftCloudflareSettings();
-  const token = snailLiftCloudflareToken();
-  const phase = snailLiftCloudflarePhase();
-  const canPublish = snailLiftCloudflareCanPublish(settings, token);
-  const phaseLabel = snailLiftCloudflarePhaseLabel(phase);
-  const phaseCopy = snailLiftCloudflarePhaseCopy(phase);
-  const phaseClass = phase === "verified" ? "good" : phase === "error" ? "warning" : phase === "publishing" ? "warning" : phase === "not-configured" ? "warning" : phase === "prepared" ? "good" : "good";
-  return `
-    <section class="cloudflare-publish-card">
-      <div class="snaillift-card-head">
-        <div>
-          <p class="kicker">Primary publish path</p>
-          <h3 class="panel-title">Cloudflare Pages setup</h3>
-          <p class="help">Set this up once. Publish to Cloudflare checks whether the Pages project exists, offers to create it if needed, then uploads the live site, checks the proof files, and notifies Forest only after verification passes.</p>
-        </div>
-        <span class="publish-state ${phaseClass}">${escapeHtml(phaseLabel)}</span>
-      </div>
-      <div class="notice ${phase === "error" ? "warning" : phase === "verified" ? "good" : ""}">
-        <strong>${escapeHtml(phaseLabel)}</strong>
-        <p>${escapeHtml(phaseCopy)}</p>
-      </div>
-      <div class="grid-2 snaillift-fields">
-        <label class="field">
-          <span class="field-label-row">Cloudflare Account ID <button class="field-help" type="button" title="Your Cloudflare account ID. Needed for the Pages project API." aria-label="Cloudflare account ID help">?</button></span>
-          <input data-settings-field="snailLiftCloudflareAccountId" value="${escapeAttr(settings.accountId || "")}" placeholder="account id">
-        </label>
-        <label class="field">
-          <span class="field-label-row">Project name <button class="field-help" type="button" title="The Cloudflare Pages project name that will receive the public site." aria-label="Cloudflare project name help">?</button></span>
-          <input data-settings-field="snailLiftCloudflareProjectName" value="${escapeAttr(settings.projectName || "")}" placeholder="my-postsnail">
-        </label>
-        <label class="field">
-          <span class="field-label-row">Branch <button class="field-help" type="button" title="The production branch that Cloudflare Pages should publish from." aria-label="Cloudflare branch help">?</button></span>
-          <input data-settings-field="snailLiftCloudflareBranch" value="${escapeAttr(state.settings.snailLiftCloudflareBranch || "main")}">
-        </label>
-        <label class="field">
-          <span class="field-label-row">Live site URL <button class="field-help" type="button" title="The public HTTPS URL where the site will live after publishing." aria-label="Cloudflare site URL help">?</button></span>
-          <input data-settings-field="snailLiftSiteUrl" value="${escapeAttr(settings.siteUrl || state.profile.siteUrl || "")}" placeholder="https://creator.example/">
-        </label>
-      </div>
-      <label class="field token-field">
-        <span class="field-label-row">Cloudflare API token <button class="field-help" type="button" title="Paste a limited Cloudflare Pages token. It stays in memory unless you choose to remember it in the encrypted Shell." aria-label="Cloudflare API token help">?</button></span>
-        <input data-runtime-field="snailLiftCloudflareApiToken" type="password" autocomplete="off" spellcheck="false" value="${escapeAttr(token)}" placeholder="Session-only until you choose to remember it">
-        <p class="help">Session-only token means the secret stays in memory for this browser session. Remember in Shell saves it in the encrypted workspace.</p>
-      </label>
-      <label class="field checkbox-field cloudflare-remember-token">
-        <input type="checkbox" data-settings-field="snailLiftCloudflareRememberToken" ${snailLiftCloudflareRememberToken() ? "checked" : ""}>
-        <span>Remember in Shell</span>
-      </label>
-      <div class="actions">
-        <button class="btn small primary" type="button" data-action="publish-snaillift-cloudflare">Publish to Cloudflare</button>
-      </div>
-      ${!canPublish.ok ? `<div class="notice warning"><strong>Setup needed</strong><p>${escapeHtml(canPublish.message)}</p></div>` : ""}
-      <details class="snaillift-advanced">
-        <summary>Advanced: command assistant</summary>
-        <p class="help">Keep this as a fallback if you prefer running deploy commands locally. It stays separate from the main one-button publish flow.</p>
-        <div class="actions">
-          <button class="btn small" type="button" data-action="prepare-snaillift-cloudflare" ${state.lastExportResult ? "" : "disabled"}>Prepare command assistant</button>
-        </div>
-        ${state.lastSnailLiftCommand ? `
-          <pre class="deploy-command"><code>${escapeHtml(state.lastSnailLiftCommand)}</code></pre>
-          <div class="actions"><button class="btn small" type="button" data-action="copy-snaillift-command">Copy command</button></div>
-        ` : ""}
-      </details>
-      ${renderSnailLiftStatus()}
-    </section>
-  `;
-}
-
 function renderSnailLiftStatus() {
   const safety = state.lastSnailLiftSafety;
   const verification = state.lastSnailLiftVerification;
@@ -2446,7 +2096,7 @@ function renderSnailLiftStatus() {
 
 function renderSnailLiftLog() {
   const logs = state.exportHistory
-    .filter((entry) => ["surge", "cloudflare-pages", "github-pages"].includes(entry?.provider))
+    .filter((entry) => entry?.provider === "surge")
     .slice(-5)
     .reverse();
   if (!logs.length) return "";
@@ -2516,7 +2166,7 @@ function renderInfo() {
       <section class="panel-box">
         <p class="kicker">Browser-native / Local processing / No login</p>
         <h1>PostSnail</h1>
-        <p>PostSnail writes a static microblog, signs posts and the site manifest with ML-DSA-65, and downloads a ZIP you can host on Cloudflare Pages, GitHub Pages, Netlify, or any static host.</p>
+        <p>PostSnail writes a static microblog, signs posts and the site manifest with ML-DSA-65, and downloads a ZIP you can publish with Surge or upload to any plain static host.</p>
         <div class="steps">
           <div class="step-box"><strong>Write locally.</strong><p>Create Markdown micro posts, add tags, and attach local images.</p></div>
           <div class="step-box"><strong>Unlock signature key.</strong><p>Create or unlock the encrypted publisher key in this browser.</p></div>
@@ -2671,18 +2321,22 @@ function applyLoadedState(loaded) {
   state.profile = { ...defaultProfile, ...(loaded.profile || {}) };
   state.identity = loaded.identity;
   const loadedSettings = loaded.settings || {};
-  const rememberToken =
-    loadedSettings.publishRemember ??
-    loadedSettings.cloudflareRememberToken ??
-    loadedSettings.snailLiftCloudflareRememberToken ??
-    defaultSettings.publishRemember;
   state.settings = {
     ...defaultSettings,
     ...loadedSettings,
-    publishRemember: rememberToken,
   };
+  // Drop settings from removed pre-Surge SnailLift providers when older Shells open.
   delete state.settings.cloudflareRememberToken;
   delete state.settings.snailLiftCloudflareRememberToken;
+  delete state.settings.snailLiftCloudflareApiToken;
+  delete state.settings.snailLiftCloudflareAccountId;
+  delete state.settings.snailLiftCloudflareProjectName;
+  delete state.settings.snailLiftCloudflareBranch;
+  delete state.settings.snailLiftGithubOwner;
+  delete state.settings.snailLiftGithubRepo;
+  delete state.settings.snailLiftGithubBranch;
+  delete state.settings.snailLiftGithubTargetDir;
+  delete state.settings.snailLiftGithubSiteUrl;
   state.commitHistory = loaded.commitHistory || [];
   state.plugins = loaded.plugins || { installed: [], lock: {}, state: {} };
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
@@ -2750,16 +2404,6 @@ function hasLegacyLocalData(loaded) {
 
 function updateSettingFromInput(input) {
   state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
-  if (input.dataset.settingsField === "snailLiftCloudflareRememberToken") {
-    state.settings.publishRemember = Boolean(input.checked);
-    delete state.settings.cloudflareRememberToken;
-    delete state.settings.snailLiftCloudflareRememberToken;
-    if (input.checked) {
-      state.settings.snailLiftCloudflareApiToken = snailLiftCloudflareToken();
-    } else {
-      delete state.settings.snailLiftCloudflareApiToken;
-    }
-  }
   scheduleLocalShellSave();
 }
 
@@ -3216,100 +2860,6 @@ function snailLiftSurgePhaseCopy(phase = snailLiftSurgePhase()) {
   }
 }
 
-function snailLiftCloudflareSettings() {
-  return {
-    accountId: state.settings.snailLiftCloudflareAccountId,
-    projectName: state.settings.snailLiftCloudflareProjectName,
-    branch: state.settings.snailLiftCloudflareBranch || "main",
-    siteUrl: state.settings.snailLiftSiteUrl || state.profile.siteUrl,
-  };
-}
-
-function snailLiftCloudflareToken() {
-  return String(state.snailLiftCloudflareApiToken || state.settings.snailLiftCloudflareApiToken || "").trim();
-}
-
-function snailLiftCloudflareRememberToken() {
-  const remembered =
-    state.settings.publishRemember ??
-    state.settings.cloudflareRememberToken ??
-    state.settings.snailLiftCloudflareRememberToken ??
-    false;
-  return remembered !== false && remembered !== "false";
-}
-
-function snailLiftCloudflareCanPublish(settings = snailLiftCloudflareSettings(), token = snailLiftCloudflareToken()) {
-  const errors = [];
-  if (!settings.accountId) errors.push("Account ID is required.");
-  if (!settings.projectName) errors.push("Project name is required.");
-  if (!settings.siteUrl) errors.push("Live site URL is required.");
-  if (!token) errors.push("Add a Cloudflare API token to publish directly, or use the advanced command assistant.");
-  return {
-    ok: errors.length === 0,
-    errors,
-    message: errors[0] || "",
-  };
-}
-
-function snailLiftCloudflarePhase() {
-  if (state.snailLiftCloudflareProgress) return state.snailLiftCloudflareProgress;
-  if (!snailLiftCloudflareToken()) return "not-configured";
-  if (state.lastSnailLiftVerification?.ok && state.lastSnailLiftLog?.provider === "cloudflare-pages") return "verified";
-  if (state.lastSnailLiftLog?.provider === "cloudflare-pages" && state.lastSnailLiftLog?.status === "failed") return "error";
-  return "connected";
-}
-
-function snailLiftCloudflarePhaseLabel(phase = snailLiftCloudflarePhase()) {
-  return {
-    "not-configured": "Not configured",
-    "setting-up": "Setting up",
-    connected: "Connected",
-    prepared: "Prepared",
-    publishing: "Publishing",
-    verified: "Verified",
-    error: "Error",
-  }[phase] || "Connected";
-}
-
-function snailLiftCloudflarePhaseCopy(phase = snailLiftCloudflarePhase()) {
-  const siteUrl = snailLiftCloudflareSettings().siteUrl || state.profile.siteUrl;
-  const lastError = String(state.lastSnailLiftLog?.message || "");
-  switch (phase) {
-    case "not-configured":
-      return "Add your Cloudflare account, project, site URL, and a token to unlock the one-button publish flow. If the Pages project does not exist yet, PostSnail will ask whether to create it.";
-    case "setting-up":
-      return "Cloudflare setup is in progress.";
-    case "prepared":
-      return "SnailLift prepared the command assistant fallback.";
-    case "publishing":
-      return `Publishing to ${siteUrl || "Cloudflare Pages"} now. We will verify the live manifest before notifying Forest.`;
-    case "verified":
-      return `Cloudflare Pages is connected and verified for ${siteUrl || "your site"}.`;
-    case "error":
-      if (isCloudflareTokenPermissionError(lastError)) {
-        return "Cloudflare rejected the token. Check Pages Write or Pages Edit permissions for this account. If Wrangler still needs account visibility, add Memberships Read. This is a Cloudflare setup issue, not a PostSnail failure.";
-      }
-      return "Cloudflare publish needs attention. Check the status and repair messages below.";
-    default:
-      return "Cloudflare Pages is connected. Publish to Cloudflare checks for the project, creates it if you approve, then deploys the live site and verifies the proof files.";
-  }
-}
-
-function isCloudflareTokenPermissionError(message = "") {
-  const text = String(message || "").toLowerCase();
-  return text.includes("authentication error") || text.includes("unauthorized") || text.includes("forbidden") || text.includes("code: 10000");
-}
-
-function snailLiftGithubSettings() {
-  return {
-    owner: state.settings.snailLiftGithubOwner,
-    repo: state.settings.snailLiftGithubRepo,
-    branch: state.settings.snailLiftGithubBranch || "gh-pages",
-    targetDir: state.settings.snailLiftGithubTargetDir || ".",
-    siteUrl: state.settings.snailLiftGithubSiteUrl || state.profile.siteUrl,
-  };
-}
-
 function snailLiftLiveSiteUrl() {
   return (
     state.lastSnailLiftLog?.siteUrl ||
@@ -3320,13 +2870,7 @@ function snailLiftLiveSiteUrl() {
 }
 
 function updateRuntimeFieldFromInput(input) {
-  if (input.dataset.runtimeField === "snailLiftCloudflareApiToken") {
-    state.snailLiftCloudflareApiToken = input.value;
-    if (snailLiftCloudflareRememberToken()) {
-      state.settings.snailLiftCloudflareApiToken = input.value;
-      scheduleLocalShellSave();
-    }
-  }
+  void input;
 }
 
 function normalizeForestUrl(value) {

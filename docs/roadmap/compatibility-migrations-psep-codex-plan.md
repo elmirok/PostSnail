@@ -2,7 +2,7 @@
 
 ## Status
 
-Mostly complete in the current Alpha 1 repository state.
+Mostly complete in the current repository state.
 
 ## Implemented References
 

@@ -4,9 +4,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SnailLift Security - Alpha 2</title>
-    <meta name="description" content="SnailLift token, Shell privacy, safety scan, live verification, and Forest notify boundaries.">
-    <link rel="canonical" href="https://postsnail.org/docs/snaillift-security/">
+    <title>PostSnail Alpha 2</title>
+    <meta name="description" content="PostSnail Alpha 2 release notes, cleanup boundaries, and stable compatibility promises.">
+    <link rel="canonical" href="https://postsnail.org/docs/alpha-2/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="/assets/brand/postsnail-icon.png">
@@ -38,16 +38,16 @@
     <main>
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
-            <h1>SnailLift Security</h1>
-            <p class="lede">Surge credentials are stored only in the encrypted Shell.</p>
+            <h1>PostSnail Alpha 2</h1>
+            <p class="lede">A lean release focused on portable local use, Surge publishing, official bundled extensions, Forest discovery, and prototype cleanup.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="SnailLift security sections"><a href="#private">Private Data</a><a href="#isolation">Core Isolation</a><a href="#gate">Verification Gate</a><a href="#limits">Limits</a></nav>
+            <nav class="doc-nav" aria-label="Alpha 2 sections"><a href="#changed">What Changed</a><a href="#stable">What Stayed Stable</a><a href="#boundaries">Alpha 2 Boundaries</a><a href="#compatibility">Compatibility Promise</a></nav>
             <div class="doc-content">
-              <section id="private"><h2>Private Data</h2><p>SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files.</p></section>
-              <section id="isolation"><h2>Core Isolation</h2><p>SnailLift is an official built-in Alpha 2 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward.</p></section>
-              <section id="gate"><h2>Verification Gate</h2><p>Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification.</p></section>
-              <section id="limits"><h2>Limits</h2><p>SnailLift does not prove legal identity, truth, device integrity, provider account ownership, or long-term availability.</p></section>
+              <section id="changed"><h2>What Changed</h2><p>The portable launcher now asks whether to run Admin only, Forest only, or Admin + Forest. SnailLift is Surge-only for hosted publishing. Public proof metadata uses generator version 0.2.0. Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code.</p></section>
+              <section id="stable"><h2>What Stayed Stable</h2><p>.postsnail remains the private encrypted editable Shell. .zip remains the public static signed website artifact. Forest remains a tracker and search surface, not the source of truth. Protocol version remains postsnail version 1.</p></section>
+              <section id="boundaries"><h2>Alpha 2 Boundaries</h2><p>Alpha 2 does not add accounts, a plugin marketplace, third-party plugin loading, legal identity, moderation authority, federation, semantic search, or required backend publishing.</p></section>
+              <section id="compatibility"><h2>Compatibility Promise</h2><p>Old valid Shells and old valid public ZIP exports should keep opening and verifying. New protocol-risk changes still need a PSEP.</p></section>
             </div>
           </article>
     </main>

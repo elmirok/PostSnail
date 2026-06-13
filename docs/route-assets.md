@@ -33,6 +33,6 @@ PostSnail generated sites should stay small, static, and easy to inspect. A plug
 
 `resolveRouteAssets(route, theme, enabledPlugins)` combines the active theme assets with enabled plugin runtime declarations only when the route matches `loadWhen`.
 
-PostSnail Pages adds page and docs routes to this map, but Alpha 1A does not add public runtime JavaScript by default.
+PostSnail Pages adds page and docs routes to this map, but Alpha 2 does not add public runtime JavaScript by default.
 
 This keeps plugin and theme runtime behavior inspectable before static export. The generated manifest may include optional `extensions.routeAssets` metadata so verifiers and future tools can see which routes planned which public assets.

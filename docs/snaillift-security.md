@@ -2,7 +2,7 @@
 
 Surge credentials stay inside the encrypted Shell.
 
-SnailLift is built in during Alpha 1, but it is not part of PostSnail Core. Provider-specific deployment logic belongs under `src/snaillift/` and must stay out of exporter, workspace, identity, manifest, protocol, and signing modules. This keeps the deployment assistant movable to `plugins/postsnail-snaillift` later.
+SnailLift is built in during Alpha 2, but it is not part of PostSnail Core. Provider-specific deployment logic belongs under `src/snaillift/` and must stay out of exporter, workspace, identity, manifest, protocol, and signing modules. This keeps the deployment assistant movable to `plugins/postsnail-snaillift` later.
 
 SnailLift must never upload:
 

@@ -23,6 +23,6 @@ The admin signs ShellName records locally with the unlocked publisher key. The r
 
 ## Abuse Controls
 
-Alpha 1 Forest uses reserved names, duplicate checks, one active ShellName per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation.
+Alpha 2 Forest uses reserved names, duplicate checks, one active ShellName per public key, IP and public-key rate limits, expiry, renewal, and admin hide/unhide moderation.
 
 These controls are intentionally simple. They reduce cost and obvious abuse but do not solve impersonation disputes or global naming governance.

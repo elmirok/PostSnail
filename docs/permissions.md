@@ -4,7 +4,7 @@ Plugin permissions are explicit strings validated before a plugin can be treated
 
 ## Plugin Permissions
 
-Alpha 1 recognizes:
+Alpha 2 recognizes:
 
 - `read:posts`
 - `write:posts`

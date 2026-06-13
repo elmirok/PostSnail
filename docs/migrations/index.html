@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Workspace Migrations - Alpha 1</title>
+    <title>PostSnail Workspace Migrations - Alpha 2</title>
     <meta name="description" content="Versioned workspace migrations for encrypted PostSnail .postsnail files.">
     <link rel="canonical" href="https://postsnail.org/docs/migrations/">
     <meta name="theme-color" content="#ef4056">
@@ -44,7 +44,7 @@
           <article class="doc-layout">
             <nav class="doc-nav" aria-label="Migration sections"><a href="#v1">Version 1</a><a href="#chain">Future Chains</a><a href="#future">Future Version Failure</a><a href="#legacy">Legacy JSON</a></nav>
             <div class="doc-content">
-              <section id="v1"><h2>Version 1</h2><p>Alpha 1 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history.</p></section>
+              <section id="v1"><h2>Version 1</h2><p>Alpha 2 workspace data is schema postsnail-workspace-data version 1. It stores profile, posts, assets, encrypted identity, settings, commit history, plugin state, moderation data, tracker URLs, ShellName records, and export history.</p></section>
               <section id="chain"><h2>Future Chains</h2><p>Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step.</p></section>
               <section id="future"><h2>Future Version Failure</h2><p>If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version.</p></section>
               <section id="legacy"><h2>Legacy JSON</h2><p>Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema.</p></section>

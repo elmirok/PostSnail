@@ -4,10 +4,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostSnail Alpha 1 Features + Q&A</title>
-    <meta name="description" content="Features and answers for PostSnail Alpha 1: local-first static microblog admin, signed ZIP verification, and Forest discovery.">
+    <title>PostSnail Alpha 2 Features + Q&A</title>
+    <meta name="description" content="Features and answers for PostSnail Alpha 2: local-first static microblog admin, signed ZIP verification, and Forest discovery.">
     <link rel="canonical" href="https://postsnail.org/features-qa.html">
-    <meta property="og:title" content="PostSnail Alpha 1 Features + Q&A">
+    <meta property="og:title" content="PostSnail Alpha 2 Features + Q&A">
     <meta property="og:description" content="Local-first static microblog publishing with signed manifests, ZIP verification, and Forest discovery.">
     <meta property="og:type" content="article">
     <meta property="og:image" content="https://postsnail.org/assets/brand/postsnail-logo.png">
@@ -43,7 +43,7 @@
     <main>
       <section class="page-hero">
               <p class="eyebrow">Features + Q&A</p>
-              <h1>PostSnail Alpha 1</h1>
+              <h1>PostSnail Alpha 2</h1>
               <p class="lede">Write a static microblog, create a post-quantum signed fingerprint locally, verify the ZIP locally, publish on a free static host, and register public summaries in Forest.</p>
             </section>
             <section class="feature-row" aria-label="Feature summary">
@@ -56,7 +56,7 @@
               <section><h2>Does PostSnail Upload My Writing?</h2><p>No. The admin is browser-only and does not automatically register or upload anything. Forest registration is a separate action after your public site is live.</p></section>
               <section><h2>Does The Fingerprint Prove Identity?</h2><p>It proves the bundle matches the manifest and publisher public key. It does not prove legal identity, factual accuracy, or that the JavaScript runtime is FIPS-validated.</p></section>
               <section><h2>Can Forest Index My Site?</h2><p>Yes, if your deployed site exposes <code>.well-known/postsnail.json</code> and <code>postsnail.manifest.json</code>. Forest verifies those public proof files before indexing summaries.</p></section>
-              <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Surge, GitHub Pages, Netlify, and similar static hosts.</p></section>
+              <section><h2>Can I Host It For Free?</h2><p>Yes. The generated files are static and work on Surge or any plain static host.</p></section>
               <section><h2>Does My Generated Blog Show PostSnail Branding?</h2><p>Generated blogs can show a small Powered by PostSnail footer and tracker credit by default. The creator can disable those Generate settings before export.</p></section>
             </section>
     </main>

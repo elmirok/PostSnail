@@ -127,7 +127,7 @@ import {
 } from "./comments/plugin.js";
 import { buildPagesPublicData, POSTSNAIL_PAGES_PLUGIN_ID, routeToFilePath } from "./pages/plugin.js";
 
-export const GENERATOR_VERSION = "0.1.0";
+export const GENERATOR_VERSION = "0.2.0";
 const POSTSNAIL_HOME_URL = "https://postsnail.org/";
 const BRAND_ASSET_FILES = {
   logo: "postsnail-logo.png",

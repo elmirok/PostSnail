@@ -52,6 +52,7 @@ export async function buildPortableBundle({
     "package.json",
     "portable",
     "README.md",
+    "registry",
     "scripts",
     "site.css",
     "site.js",
@@ -113,6 +114,7 @@ async function createPortableBundleInfo({ sourceRoot, outDir, updateManifestUrl,
     releasePublicKey: publicKeyToText(publicKey),
     defaultAdminPort: 4173,
     defaultBridgePort: 8788,
+    defaultForestPort: 8787,
   };
 }
 
@@ -128,7 +130,7 @@ async function createPortableReleaseManifest({ bundleVersion, bundleUrl, artifac
     publicKey: publicKey || publicKeyToText(releasePublicKey),
     publishedAt: new Date().toISOString(),
     requiredFeatures: ["portable-launcher", "local-admin", "bridge-helper"],
-    optionalFeatures: [],
+    optionalFeatures: ["local-forest"],
   };
   const signature = signBytes(encodeText(canonicalJson(manifest)), secretKey);
   return {
@@ -184,5 +186,10 @@ async function safeStat(path) {
 }
 
 function isIgnoredPortableFile(name) {
-  return name === ".DS_Store" || name === "Thumbs.db";
+  return name === ".DS_Store"
+    || name === "Thumbs.db"
+    || name === "node_modules"
+    || name === ".wrangler"
+    || name === "coverage"
+    || name === "dist";
 }

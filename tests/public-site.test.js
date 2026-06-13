@@ -14,6 +14,7 @@ const projectHtmlPages = [
   "manifesto/index.html",
   "media-kit/index.html",
   "docs/index.html",
+  "docs/alpha-2/index.html",
   "docs/how-to-use/index.html",
   "docs/cli/index.html",
   "docs/headless-publishing/index.html",
@@ -53,7 +54,7 @@ function read(path) {
 test("public landing page is separate from the browser admin", () => {
   const html = read("index.html");
 
-  assert.match(html, /PostSnail Alpha 1/);
+  assert.match(html, /PostSnail Alpha 2/);
   assert.match(html, /id="landing-search"/);
   assert.match(html, /data-forest-url="https:\/\/forest\.postsnail\.org\/"/);
   assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-XVB04MP13V/);

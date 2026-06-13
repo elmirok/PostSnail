@@ -303,7 +303,7 @@ extract_release() {
 }
 
 launch_bundle() {
-  step "3/4" "Launching the local admin"
+  step "3/4" "Launching PostSnail Portable"
   NODE_BIN="$(node_command)"
   if [ -z "$NODE_BIN" ]; then
     log "Node.js is still missing, so PostSnail Portable cannot launch."

@@ -267,7 +267,6 @@ export function commentsRuntimeScript() {
 const root = document.getElementById("postsnail-comments");
 if (root) bootComments(root).catch((error) => {
   root.innerHTML = '<div class="ps-comments-note">Comments could not load.</div>';
-  console.error(error);
 });
 
 async function bootComments(root) {

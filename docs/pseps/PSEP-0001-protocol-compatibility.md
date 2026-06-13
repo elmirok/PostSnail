@@ -38,7 +38,7 @@ Major protocol records support:
 
 ## Required Features
 
-Alpha 1 required core features:
+Protocol v1 required core features:
 
 - `signed-manifest`
 - `file-hashes`

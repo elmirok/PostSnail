@@ -5,7 +5,7 @@ PostSnail has two exports:
 1. Encrypted Workspace (`.postsnail`) for the creator.
 2. Public Website ZIP (`.zip`) for publishing.
 
-The `.postsnail` file is the private editable source for a microblog. It is encrypted with a Shell passphrase and should stay with the creator. The Website ZIP is public static output for Cloudflare Pages or another static host. It is not the full project source.
+The `.postsnail` file is the private editable source for a microblog. It is encrypted with a Shell passphrase and should stay with the creator. The Website ZIP is public static output for Surge or another static host. It is not the full project source.
 
 The admin also keeps the browser-local Shell cache encrypted at rest in IndexedDB. Use `Unlock Local Shell` with the Shell passphrase to reopen it. If PostSnail detects old plaintext browser-local data, use `Migrate Local Data` to encrypt it and then `Export Shell` as a portable `.postsnail` backup.
 
