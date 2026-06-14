@@ -214,6 +214,7 @@ const pages = [
         <a href="/docs/shellnames/"><strong>ShellNames</strong><span>Claim readable Forest aliases like <code>@creator@forest.postsnail.org</code> without creating an account.</span></a>
         <a href="/docs/shellnames-protocol/"><strong>ShellNames Protocol</strong><span>Signed alias record shape, Forest endpoints, search behavior, and compatibility rules.</span></a>
         <a href="/docs/shellnames-security/"><strong>ShellNames Security</strong><span>What aliases prove, what they do not prove, and how Forest limits abuse.</span></a>
+        <a href="/docs/site-moves/"><strong>Site Moves</strong><span>Change domains safely with a signed move or mirror record that Forest can verify.</span></a>
         <a href="/docs/concept/"><strong>PostSnail Concept</strong><span>The local-first publishing model, Forest tracker role, and trust boundaries.</span></a>
         <a href="/docs/architecture/"><strong>PostSnail Architecture</strong><span>Admin modules, static bundle shape, proof files, registry Worker, and extension points.</span></a>
         <a href="/docs/core-foundation/"><strong>Core Foundation</strong><span>What PostSnail Core owns, what stays out of Core, and the first extension boundaries.</span></a>
@@ -433,6 +434,21 @@ const pages = [
     ]),
   },
   {
+    path: "docs/site-moves/index.html",
+    title: "PostSnail Site Moves - Alpha 2",
+    description: "Signed domain move and mirror records for PostSnail Forest.",
+    canonical: "https://postsnail.org/docs/site-moves/",
+    body: docPage("Site move sections", "Site Moves", "Site Moves let a creator retire an old Forest-indexed domain after publishing the same signed Shell at a new domain.", [
+      ["why", "Why Site Moves Exist", "If a creator changes domains, old Forest results can point to dead images or dead pages. A signed site move lets Forest hide the old indexed site without guessing or deleting history blindly."],
+      ["record", "Signed Move Record", "The admin signs a postsnail-site-move record with mode move or mirror, fromUrl, toUrl, publicKey, bundleFingerprint, createdAt, feature declarations, extensions, and an ML-DSA-65 signature over canonical JSON."],
+      ["move", "Move Mode", "Move to new domain hides the old indexed site and old posts from Forest search after Forest verifies the old indexed public key and the new live proof files use the same key and fingerprint."],
+      ["mirror", "Mirror Mode", "Keep old domain as mirror stores the public relationship but leaves both domains searchable. Use this when both hosts should stay valid."],
+      ["admin", "Admin Flow", "Open Identity, unlock the publisher key, enter old domain and new live domain, choose move or mirror, then click Change Domain. The new Website ZIP must already be uploaded because PostSnail verifies the live proof before sending the move to Forest."],
+      ["privacy", "Public History", "Accepted move records are stored inside the encrypted Shell. They appear in generated public proof metadata only when the creator enables move-history publishing."],
+      ["limits", "Limits", "Site Moves are not DNS ownership, legal identity, or deletion. Forest hides moved old sites from search but keeps a safe public audit row."],
+    ]),
+  },
+  {
     path: "docs/concept/index.html",
     title: "PostSnail Concept - Alpha 2",
     description: "The PostSnail concept: local admin, static microblog, signed proof files, and Forest discovery.",
@@ -453,7 +469,7 @@ const pages = [
     body: docPage("Compatibility sections", "Compatibility Contract", "PostSnail evolves with a stable core, optional extensions, explicit required features, and deterministic workspace migrations.", [
       ["exports", "Two Artifacts", ".postsnail is the private editable Shell. .zip is the public signed Website artifact. Importing the Shell restores the real project; public ZIP recovery can only recover public content."],
       ["stable-core", "Stable Core", "Protocol records use protocol postsnail and version 1. The required core features are signed-manifest and file-hashes."],
-      ["optional", "Optional Extensions", "Unknown optional features and extension data are ignored safely. Current optional features include identity documents, commit history, sitemap, workspace vaults, tracker announce, Forest tracker, ShellNames, comments, deployment assistants, and plugins."],
+      ["optional", "Optional Extensions", "Unknown optional features and extension data are ignored safely. Current optional features include identity documents, commit history, sitemap, workspace vaults, tracker announce, Forest tracker, ShellNames, Site Moves, comments, deployment assistants, and plugins."],
       ["required", "Required Features", "Unknown required features fail clearly. A feature should become required only when ignoring it would make verification unsafe or misleading."],
       ["legacy", "Legacy Exports", "Old valid exports may miss feature declarations or optional files. PostSnail verifies them when signatures, hashes, and required proof data are valid, then shows legacy warnings."],
       ["migrations", "Workspace Migrations", "Old workspaces migrate step by step. Future unsupported versions fail with This workspace was created by a newer PostSnail version."],
@@ -473,6 +489,7 @@ const pages = [
       ["workspace", "Workspace Vault", ".postsnail is an encrypted JSON envelope with non-secret header metadata and versioned encrypted workspace payload."],
       ["announce", "Tracker Announce", "postsnail-announce is a signed public refresh signal. It never carries private keys and is not an account login."],
       ["shellnames", "ShellNames", "postsnail-shellname records are optional signed aliases like @creator@forest.postsnail.org. They point to a public key and URL, not a legal identity or account."],
+      ["site-moves", "Site Moves", "postsnail-site-move records are optional signed domain-change records. Forest verifies the old indexed public key and the new live proof before hiding an old moved domain from search."],
     ]),
   },
   {

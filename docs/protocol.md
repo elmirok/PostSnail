@@ -71,6 +71,12 @@ The workspace schema has its own version and migration path. A public ZIP must n
 
 ShellName metadata may appear in `postsnail.manifest.json` and `.well-known/postsnail.json` under the optional `shellnames` feature. Older tools ignore it safely.
 
+## Site Moves
+
+`postsnail-site-move` records are optional signed domain-change records. They let a creator tell Forest that a signed site moved from `fromUrl` to `toUrl`, or that the old domain should remain as a mirror.
+
+Forest accepts a move only after verifying the record signature, the old indexed public key, the new live proof files, the new live public key, and the signed bundle fingerprint. The optional `site-moves` feature may appear in public proof metadata only when a creator chooses to publish move history.
+
 ## Plugin, Theme, And Route Asset Extensions
 
 Alpha 2 public manifests may include optional `themes`, `plugins`, and `route-assets` features. Their data lives under `extensions`.

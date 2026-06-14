@@ -20,6 +20,7 @@ export const KNOWN_OPTIONAL_FEATURES = [
   "tracker-announce",
   "forest-tracker",
   "shellnames",
+  "site-moves",
   "comments",
   "deployment-assistant",
   "themes",
@@ -38,6 +39,7 @@ export const IDENTITY_TYPE = "postsnail-identity";
 export const COMMIT_TYPE = "postsnail-commit";
 export const COMMITS_TYPE = "postsnail-commits";
 export const ANNOUNCE_TYPE = "postsnail-announce";
+export const SITE_MOVE_TYPE = "postsnail-site-move";
 
 export const WELL_KNOWN_PATH = ".well-known/postsnail.json";
 export const MANIFEST_PATH = "postsnail.manifest.json";

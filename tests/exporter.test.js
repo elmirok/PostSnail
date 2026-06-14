@@ -237,6 +237,76 @@ test("buildStaticExport includes configured ShellName metadata as an optional pu
   assert.ok(wellKnown.optionalFeatures.includes("shellnames"));
 });
 
+test("buildStaticExport publishes site move history only when enabled", async () => {
+  const keys = generateSigningKeyPair();
+  const post = normalizePost({
+    id: "p1",
+    title: "Moved Site",
+    body: "The public site moved safely.",
+    status: "published",
+    createdAt: "2026-06-05T00:00:00.000Z",
+  });
+  const siteMoves = [
+    {
+      id: "move-1",
+      status: "moved",
+      mode: "move",
+      fromUrl: "https://old.example/",
+      toUrl: "https://new.example/",
+      record: {
+        protocol: "postsnail-site-move",
+        version: 1,
+        mode: "move",
+        fromUrl: "https://old.example/",
+        toUrl: "https://new.example/",
+        publicKey: publicKeyToText(keys.publicKey),
+        bundleFingerprint: `psn1-sha3-512-${"b".repeat(128)}`,
+        createdAt: "2026-06-05T00:00:00.000Z",
+        requiredFeatures: [],
+        optionalFeatures: ["forest-tracker"],
+        extensions: { note: "public history" },
+        signature: "base64:signature",
+      },
+    },
+  ];
+
+  const privateDefault = await buildStaticExport({
+    profile: { siteTitle: "Moved Site", handle: "moved", siteUrl: "https://new.example" },
+    posts: [post],
+    siteMoves,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const privateFiles = unzipSync(privateDefault.zipBytes);
+  const privateManifest = JSON.parse(decodeText(privateFiles["postsnail.manifest.json"]));
+  const privateWellKnown = JSON.parse(decodeText(privateFiles[".well-known/postsnail.json"]));
+  assert.equal(privateManifest.siteMoves, undefined);
+  assert.equal(privateWellKnown.siteMoves, undefined);
+  assert.equal(privateManifest.optionalFeatures.includes("site-moves"), false);
+
+  const publicHistory = await buildStaticExport({
+    profile: { siteTitle: "Moved Site", handle: "moved", siteUrl: "https://new.example" },
+    posts: [post],
+    settings: { siteMovePublishHistory: true },
+    siteMoves,
+    publicKey: keys.publicKey,
+    secretKey: keys.secretKey,
+    generatedAt: "2026-06-05T00:00:00.000Z",
+  });
+  const publicFiles = unzipSync(publicHistory.zipBytes);
+  const manifest = JSON.parse(decodeText(publicFiles["postsnail.manifest.json"]));
+  const wellKnown = JSON.parse(decodeText(publicFiles[".well-known/postsnail.json"]));
+  assert.equal(manifest.siteMoves[0].id, siteMoves[0].id);
+  assert.equal(manifest.siteMoves[0].mode, "move");
+  assert.equal(manifest.siteMoves[0].fromUrl, "https://old.example/");
+  assert.equal(manifest.siteMoves[0].toUrl, "https://new.example/");
+  assert.deepEqual(manifest.siteMoves[0].record, siteMoves[0].record);
+  assert.deepEqual(wellKnown.siteMoves, manifest.siteMoves);
+  assert.ok(manifest.optionalFeatures.includes("site-moves"));
+  assert.ok(wellKnown.optionalFeatures.includes("site-moves"));
+});
+
 test("buildStaticExport keeps workspace-only data out of the public ZIP", async () => {
   const keys = generateSigningKeyPair();
   const published = normalizePost({

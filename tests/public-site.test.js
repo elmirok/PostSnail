@@ -203,6 +203,11 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Finished:/);
   assert.match(appJs, /data-action="verify-snaillift-live"/);
   assert.match(appJs, /data-action="announce-snaillift-forest"/);
+  assert.match(appJs, /Change Domain/);
+  assert.match(appJs, /data-action="submit-site-move"/);
+  assert.match(appJs, /data-settings-field="siteMoveFromUrl"/);
+  assert.match(appJs, /data-settings-field="siteMoveToUrl"/);
+  assert.match(appJs, /buildSiteMovePayload/);
   assert.match(appJs, /Forest notify unlocks only after live verification passes/);
   assert.match(appJs, /Upload ZIP contents to your live host/);
   assert.match(appJs, /Forest is waiting for your live site to show the new fingerprint/);
@@ -251,6 +256,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.deploy-log-summary/);
   assert.match(css, /\.deploy-log-body/);
   assert.match(css, /\.shellname-panel/);
+  assert.match(css, /\.site-move-panel/);
+  assert.match(css, /\.site-move-modes/);
   assert.match(css, /\.shellname-record/);
   assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
@@ -296,6 +303,7 @@ test("alpha public pages and documentation are present", () => {
     ["docs/shellnames/index.html", /ShellNames/],
     ["docs/shellnames-protocol/index.html", /postsnail-shellname/],
     ["docs/shellnames-security/index.html", /not authority/],
+    ["docs/site-moves/index.html", /Site Moves/],
     ["docs/concept/index.html", /PostSnail Concept/],
     ["docs/architecture/index.html", /PostSnail Architecture/],
     ["docs/core-foundation/index.html", /Core Foundation/],

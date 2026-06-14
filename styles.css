@@ -520,6 +520,38 @@ textarea:disabled {
   margin: 0;
 }
 
+.site-move-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.site-move-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.site-move-modes label,
+.toggle-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.site-move-modes input,
+.toggle-line input {
+  accent-color: var(--accent);
+}
+
 .shellname-record {
   display: grid;
   gap: 5px;

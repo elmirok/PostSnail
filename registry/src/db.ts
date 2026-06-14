@@ -1,4 +1,4 @@
-import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SearchResultItem, ShellNameRecord, SubmissionRecord } from "./types";
+import type { RegistryPost, RegistrySite, RegistryStore, SearchParams, SearchResult, SearchResultItem, ShellNameRecord, SiteMoveRecord, SubmissionRecord } from "./types";
 import { tagsText } from "./ids";
 
 interface Row {
@@ -501,6 +501,61 @@ export class D1RegistryStore implements RegistryStore {
     ).bind(now).all<Row>();
     return (result.results || []).map(rowToShellName);
   }
+
+  async getSiteMove(id: string): Promise<SiteMoveRecord | null> {
+    const row = await this.db.prepare("SELECT * FROM site_moves WHERE id = ?").bind(id).first<Row>();
+    return row ? rowToSiteMove(row) : null;
+  }
+
+  async getSiteMoveBySignature(signature: string): Promise<SiteMoveRecord | null> {
+    const row = await this.db.prepare("SELECT * FROM site_moves WHERE signature = ?").bind(signature).first<Row>();
+    return row ? rowToSiteMove(row) : null;
+  }
+
+  async recordSiteMove(move: SiteMoveRecord, options: { hideOldSite?: boolean; now?: string } = {}): Promise<void> {
+    const now = options.now || move.appliedAt || new Date().toISOString();
+    const statements: D1PreparedStatement[] = [
+      this.db.prepare(
+        `INSERT INTO site_moves (
+          id, from_site_id, to_site_id, from_url, to_url, public_key, bundle_fingerprint,
+          mode, status, record_json, signature, created_at, applied_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          to_site_id = excluded.to_site_id,
+          to_url = excluded.to_url,
+          bundle_fingerprint = excluded.bundle_fingerprint,
+          mode = excluded.mode,
+          status = excluded.status,
+          record_json = excluded.record_json,
+          signature = excluded.signature,
+          applied_at = excluded.applied_at`,
+      ).bind(
+        move.id,
+        move.fromSiteId,
+        move.toSiteId,
+        move.fromUrl,
+        move.toUrl,
+        move.publicKey,
+        move.bundleFingerprint,
+        move.mode,
+        move.status,
+        JSON.stringify(move.record || {}),
+        move.signature,
+        move.createdAt,
+        move.appliedAt,
+      ),
+    ];
+    if (options.hideOldSite) {
+      statements.push(
+        this.db.prepare(
+          `UPDATE sites
+           SET hidden = 1, latest_crawl_status = 'moved', latest_crawl_message = ?, updated_at = ?
+           WHERE id = ?`,
+        ).bind(`Moved to ${move.toUrl}`, now, move.fromSiteId),
+      );
+    }
+    await this.db.batch(statements);
+  }
 }
 
 function addContentSearchConditions(conditions: string[], values: unknown[], params: SearchParams): void {
@@ -619,6 +674,24 @@ function rowToShellName(row: Row): ShellNameRecord {
     searchText: String(row.shell_name_search_text || row.search_text || ""),
     createdAt: String(row.shell_name_created_at || row.created_at || ""),
     updatedAt: String(row.shell_name_updated_at || row.updated_at || ""),
+  };
+}
+
+function rowToSiteMove(row: Row): SiteMoveRecord {
+  return {
+    id: String(row.id || ""),
+    fromSiteId: String(row.from_site_id || ""),
+    toSiteId: String(row.to_site_id || ""),
+    fromUrl: String(row.from_url || ""),
+    toUrl: String(row.to_url || ""),
+    publicKey: String(row.public_key || ""),
+    bundleFingerprint: String(row.bundle_fingerprint || ""),
+    mode: String(row.mode || "move") === "mirror" ? "mirror" : "move",
+    status: String(row.status || "moved") === "mirror" ? "mirror" : "moved",
+    record: parseDetails(row.record_json),
+    signature: String(row.signature || ""),
+    createdAt: String(row.created_at || ""),
+    appliedAt: String(row.applied_at || ""),
   };
 }
 

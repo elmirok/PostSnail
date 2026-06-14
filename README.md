@@ -136,6 +136,12 @@ ShellNames are readable Forest aliases like `@creator@forest.postsnail.org`. The
 
 Creators can claim, update, and renew ShellNames from the admin Identity tab after unlocking the publisher key. The admin signs the public ShellName record locally and sends only that public record to Forest. Accepted ShellNames are stored inside the encrypted `.postsnail` Shell and can appear as optional public metadata in generated proof files. See [ShellNames](docs/shellnames.md), [ShellNames Protocol](docs/shellnames-protocol.md), and [ShellNames Security](docs/shellnames-security.md).
 
+## Site Moves
+
+When a creator changes domains, Forest should not keep showing dead old post URLs forever, but it also should not guess. The admin Identity tab includes `Change Domain`, which signs a `postsnail-site-move` record after the new live site verifies with the same publisher key and bundle fingerprint.
+
+`Move to new domain` hides the old indexed domain from Forest search and stores a public audit row. `Keep old domain as mirror` stores the relationship while leaving both domains visible. Accepted move records stay in the encrypted Shell and are published in manifest/well-known metadata only if the creator enables move-history publishing. See [Site Moves](docs/site-moves.md).
+
 ## Compatibility Contract
 
 PostSnail uses a stable-core, optional-extension model so old valid Shells and old valid public ZIP exports keep working as the protocol grows.

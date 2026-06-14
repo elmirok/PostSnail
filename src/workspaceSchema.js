@@ -27,6 +27,7 @@ export function createWorkspaceData(source = {}, options = {}) {
     moderation: normalizeModeration(source.moderation),
     trackerUrls: normalizeTrackerUrls(source.trackerUrls, settings),
     shellNames: cleanArray(source.shellNames),
+    siteMoves: cleanArray(source.siteMoves),
     appearance: normalizeAppearance(source.appearance),
     exportHistory: normalizeExportHistory(source.exportHistory),
     extensions: cleanObject(source.extensions),

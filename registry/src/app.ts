@@ -2,11 +2,13 @@ import { encodeText } from "../../src/bytes.js";
 import { normalizeTags } from "../../src/content.js";
 import { sha3Hex } from "../../src/crypto.js";
 import { verifyAnnouncePayload } from "../../src/proof-documents.js";
+import { verifySiteMoveRecord } from "../../src/siteMoves.js";
 import { normalizeShellNameName, verifyShellNameRecord } from "../../src/shellnames.js";
 import { D1RegistryStore } from "./db";
 import { renderForestCss, renderForestScript, renderSearchPage, renderShellNameProfile } from "./html";
-import { normalizedSearchText, randomId } from "./ids";
-import { fetchJson } from "./remote";
+import { normalizedSearchText, randomId, stableId } from "./ids";
+import { fetchJson, fetchProofDocuments } from "./remote";
+import { verifyProofDocuments } from "./proof";
 import { addMinutes, createRefreshSubmission } from "./scheduler";
 import { normalizeSubmittedUrl, sameOriginUrl } from "./url";
 import type {
@@ -18,12 +20,14 @@ import type {
   RegistryStore,
   SearchParams,
   ShellNameRecord,
+  SiteMoveRecord,
   SubmissionRecord,
 } from "./types";
 
 const MAX_SUBMIT_BYTES = 8192;
 const MAX_ANNOUNCE_BYTES = 24 * 1024;
 const MAX_SHELLNAME_BYTES = 24 * 1024;
+const MAX_SITE_MOVE_BYTES = 24 * 1024;
 const MAX_SEARCH_QUERY_CHARS = 160;
 const MAX_SEARCH_TAG_CHARS = 48;
 const MAX_SEARCH_CURSOR_CHARS = 512;
@@ -101,6 +105,8 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
   try {
     if (request.method === "POST" && url.pathname === "/api/submit") return await handleSubmit(request, deps);
     if (request.method === "POST" && url.pathname === "/api/announce") return await handleAnnounce(request, deps);
+    if (request.method === "POST" && url.pathname === "/api/site-moves") return await handleSiteMove(request, deps);
+    if (request.method === "GET" && url.pathname.startsWith("/api/site-moves/") && url.pathname.endsWith(".json")) return await handleSiteMoveJson(url, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/submissions/")) return await handleSubmission(url, deps);
     if (request.method === "GET" && url.pathname === "/api/search") return await handleSearch(url, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/sites/")) return await handleSite(url, deps);
@@ -192,12 +198,72 @@ async function handleAnnounce(request: Request, deps: AppDeps): Promise<Response
   return json({ status: "queued", submissionId: submission.id, siteUrl: normalized.siteUrl }, 202);
 }
 
+async function handleSiteMove(request: Request, deps: AppDeps): Promise<Response> {
+  const body = await readJsonRequest(request, MAX_SITE_MOVE_BYTES);
+  const record = objectRecord(body.record).protocol ? objectRecord(body.record) : body;
+  const verified = await verifySiteMoveRecord(record);
+  if (!verified.ok) throw new PublicError(siteMoveErrorStatus(verified.errors), verified.errors.join(" "));
+  const fromUrl = normalizeForSubmit(verified.fromUrl).siteUrl;
+  const toUrl = normalizeForSubmit(verified.toUrl).siteUrl;
+  const now = deps.now?.() || new Date().toISOString();
+  const requesterHash = requesterHashFor(request, deps.rateLimitSecret || "postsnail-local-dev");
+  await enforceSiteMoveRateLimit(deps.store, requesterHash, verified.publicKey, now);
+
+  const signature = stringValue(verified.record.signature);
+  const existing = await deps.store.getSiteMoveBySignature(signature);
+  if (existing) return json(siteMoveResponse(existing), existing.mode === "move" ? 202 : 200);
+
+  const oldSite = await deps.store.getSiteByCanonicalUrl(fromUrl);
+  if (!oldSite) throw new PublicError(404, "Old indexed site was not found in Forest.");
+  if (oldSite.publicKey !== verified.publicKey) throw new PublicError(401, "Move public key does not match the old indexed site.");
+
+  let proof;
+  try {
+    const documents = await fetchProofDocuments(toUrl, deps.fetcher || fetch);
+    proof = verifyProofDocuments(toUrl, documents.wellKnown, documents.manifest, now);
+  } catch {
+    throw new PublicError(409, "New live site proof metadata could not be fetched.");
+  }
+  if (!proof.ok) throw new PublicError(409, "New live site proof did not verify.");
+  if (proof.site.publicKey !== verified.publicKey) throw new PublicError(401, "New live site public key does not match the move record.");
+  if (proof.site.bundleFingerprint !== verified.bundleFingerprint) throw new PublicError(409, "New live site fingerprint does not match the move record.");
+
+  const indexedNewSite = await deps.store.getSiteByCanonicalUrl(toUrl);
+  if (indexedNewSite && indexedNewSite.publicKey !== verified.publicKey) {
+    throw new PublicError(401, "New indexed site public key does not match the move record.");
+  }
+  const move: SiteMoveRecord = {
+    id: stableId("move", `${fromUrl}\n${toUrl}\n${verified.publicKey}\n${signature}`),
+    fromSiteId: oldSite.id,
+    toSiteId: indexedNewSite?.id || proof.site.id,
+    fromUrl,
+    toUrl,
+    publicKey: verified.publicKey,
+    bundleFingerprint: verified.bundleFingerprint,
+    mode: verified.mode === "mirror" ? "mirror" : "move",
+    status: verified.mode === "mirror" ? "mirror" : "moved",
+    record: verified.record,
+    signature,
+    createdAt: stringValue(verified.record.createdAt) || now,
+    appliedAt: now,
+  };
+  await deps.store.recordSiteMove(move, { hideOldSite: move.mode === "move", now });
+  return json(siteMoveResponse(move), move.mode === "move" ? 202 : 200);
+}
+
 function normalizeForSubmit(rawUrl: string): { siteUrl: string; hostname: string } {
   try {
     return normalizeSubmittedUrl(rawUrl);
   } catch (error) {
     throw new PublicError(400, error instanceof Error ? error.message : "Submit a public https URL.");
   }
+}
+
+async function handleSiteMoveJson(url: URL, deps: AppDeps): Promise<Response> {
+  const id = url.pathname.split("/").pop()?.replace(/\.json$/u, "") || "";
+  const move = await deps.store.getSiteMove(id);
+  if (!move) return json({ error: "Site move not found." }, 404, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+  return json({ siteMove: publicSiteMove(move) }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
 async function handleSubmission(url: URL, deps: AppDeps): Promise<Response> {
@@ -429,6 +495,23 @@ async function enforceShellNameRateLimit(store: RegistryStore, requesterHash: st
   }
 }
 
+async function enforceSiteMoveRateLimit(store: RegistryStore, requesterHash: string, publicKey: string, now: string): Promise<void> {
+  const hour = now.slice(0, 13);
+  const day = now.slice(0, 10);
+  const ipHourCount = await store.incrementRateLimit(`site-move:${requesterHash}:hour:${hour}`, `${hour}:00:00Z`, now);
+  const ipDayCount = await store.incrementRateLimit(`site-move:${requesterHash}:day:${day}`, `${day}T00:00:00Z`, now);
+  const keyHash = sha3Hex(encodeText(publicKey));
+  const keyHourCount = await store.incrementRateLimit(`site-move-key:${keyHash}:hour:${hour}`, `${hour}:00:00Z`, now);
+  const keyDayCount = await store.incrementRateLimit(`site-move-key:${keyHash}:day:${day}`, `${day}T00:00:00Z`, now);
+  if (ipHourCount > 6 || ipDayCount > 24 || keyHourCount > 4 || keyDayCount > 12) {
+    throw new PublicError(429, "Site move rate limit reached.");
+  }
+}
+
+function siteMoveErrorStatus(errors: string[]): number {
+  return errors.some((error) => /signature|public key/i.test(error)) ? 401 : 400;
+}
+
 function requesterHashFor(request: Request, secret: string): string {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   return sha3Hex(encodeText(`${secret}:${ip}`));
@@ -578,6 +661,33 @@ function publicShellName(record: ShellNameRecord, now: string) {
     expiresAt: record.expiresAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+  };
+}
+
+function publicSiteMove(record: SiteMoveRecord) {
+  return {
+    id: record.id,
+    fromSiteId: record.fromSiteId,
+    toSiteId: record.toSiteId,
+    fromUrl: record.fromUrl,
+    toUrl: record.toUrl,
+    publicKey: record.publicKey,
+    bundleFingerprint: record.bundleFingerprint,
+    mode: record.mode,
+    status: record.status,
+    record: record.record,
+    signature: record.signature,
+    createdAt: record.createdAt,
+    appliedAt: record.appliedAt,
+  };
+}
+
+function siteMoveResponse(record: SiteMoveRecord) {
+  return {
+    status: record.status,
+    moveId: record.id,
+    fromUrl: record.fromUrl,
+    toUrl: record.toUrl,
   };
 }
 

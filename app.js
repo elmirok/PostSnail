@@ -20,6 +20,7 @@ import { verifyPostSnailZip } from "./src/verifier.js";
 import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell.js";
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
+import { buildSiteMovePayload, signSiteMoveRecord } from "./src/siteMoves.js";
 import {
   commentSummary,
   createApprovedCommentRecord,
@@ -77,6 +78,11 @@ const defaultSettings = {
   snailLiftSurgeToken: "",
   shellNameForestUrl: "https://forest.postsnail.org",
   shellNameDesiredName: "",
+  siteMoveForestUrl: "https://forest.postsnail.org",
+  siteMoveFromUrl: "",
+  siteMoveToUrl: "",
+  siteMoveMode: "move",
+  siteMovePublishHistory: false,
 };
 
 const state = {
@@ -105,6 +111,7 @@ const state = {
   moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
   trackerUrls: [],
   shellNames: [],
+  siteMoves: [],
   appearance: { frontendTheme: "quiet-feed", adminTheme: "default", themeSettings: {} },
   exportHistory: [],
   form: emptyPostForm(),
@@ -401,6 +408,15 @@ async function handleAction(button) {
   if (action === "copy-shellname") {
     await copyText(state.shellNames[0]?.fullName || "");
     setStatus("ShellName copied.");
+    return;
+  }
+  if (action === "submit-site-move") {
+    await submitSiteMove();
+    return;
+  }
+  if (action === "copy-site-move") {
+    await copyText(state.siteMoves[0]?.record ? JSON.stringify(state.siteMoves[0].record, null, 2) : "");
+    setStatus("Site move record copied.");
     return;
   }
   if (action === "generate-site") {
@@ -763,6 +779,106 @@ async function submitShellName(action) {
   }
 }
 
+async function submitSiteMove() {
+  if (!state.identity?.publicKey || !state.secretKey) {
+    setStatus("Unlock the publisher key before signing a domain move.");
+    return;
+  }
+  const forestUrl = normalizeForestUrl(state.settings.siteMoveForestUrl || state.settings.shellNameForestUrl || "https://forest.postsnail.org");
+  const fromUrl = String(state.settings.siteMoveFromUrl || "").trim();
+  const toUrl = String(state.settings.siteMoveToUrl || state.profile.siteUrl || "").trim();
+  const mode = state.settings.siteMoveMode === "mirror" ? "mirror" : "move";
+  if (!forestUrl || !fromUrl || !toUrl) {
+    setStatus("Enter Forest URL, old domain, and new domain before changing domains.");
+    return;
+  }
+  if (!state.posts.some((post) => post.status === "published") && !publishedPagesCount()) {
+    setStatus("Publish at least one post, page, or doc before verifying the new domain.");
+    return;
+  }
+  setStatus("Building the current public site and verifying the new live domain...");
+  await nextFrame();
+  const exportResult = await buildCurrentWebsiteExport();
+  if (!exportResult) return;
+  const { result, verification } = exportResult;
+  if (!verification.ok) {
+    setStatus(`Domain move paused because local ZIP verification found ${verification.errors.length} issue(s).`);
+    render();
+    return;
+  }
+  const liveVerification = await verifySnailLiftLiveSite({
+    siteUrl: toUrl,
+    exportResult: result,
+  });
+  if (!liveVerification.ok) {
+    setStatus(`Upload the new Website ZIP to ${toUrl} first. Live verification failed: ${liveVerification.errors[0] || "proof files did not match"}`);
+    state.lastSnailLiftVerification = liveVerification;
+    render();
+    return;
+  }
+
+  let record;
+  try {
+    const payload = buildSiteMovePayload({
+      mode,
+      fromUrl,
+      toUrl,
+      publicKey: state.identity.publicKey,
+      bundleFingerprint: result.bundleFingerprint,
+      createdAt: new Date().toISOString(),
+    });
+    record = signSiteMoveRecord(payload, state.secretKey);
+  } catch (error) {
+    setStatus(error.message || "Site move record could not be created.");
+    return;
+  }
+
+  setStatus(mode === "move" ? "Sending signed domain move to Forest..." : "Sending signed mirror relationship to Forest...");
+  await nextFrame();
+  try {
+    const endpoint = new URL("/api/site-moves", forestUrl);
+    const response = await fetch(endpoint.toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(record),
+    });
+    const responseBody = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setStatus(responseBody.error || "Forest could not apply this domain move.");
+      render();
+      return;
+    }
+    const move = {
+      id: responseBody.moveId || "",
+      status: responseBody.status || (mode === "mirror" ? "mirror" : "moved"),
+      mode,
+      fromUrl: responseBody.fromUrl || record.fromUrl,
+      toUrl: responseBody.toUrl || record.toUrl,
+      publicKey: state.identity.publicKey,
+      bundleFingerprint: record.bundleFingerprint,
+      record,
+      createdAt: record.createdAt,
+      appliedAt: new Date().toISOString(),
+    };
+    const previousMoves = move.id ? state.siteMoves.filter((item) => item.id !== move.id) : state.siteMoves;
+    state.siteMoves = [move, ...previousMoves];
+    state.lastManifest = result.manifest;
+    state.lastExportResult = result;
+    state.commitHistory = result.commitHistory;
+    state.lastExportVerification = verification;
+    await persistLocalShellNow();
+    setStatus(
+      mode === "mirror"
+        ? "Forest saved the mirror relationship. Both domains can remain searchable."
+        : "Forest moved the site. The old domain is hidden from search and points to the new domain in the audit record.",
+    );
+    render();
+  } catch {
+    setStatus("Forest could not be reached for the domain move.");
+    render();
+  }
+}
+
 async function generateSiteZip() {
   const exportResult = await buildCurrentWebsiteExport();
   if (!exportResult) return;
@@ -814,6 +930,7 @@ async function buildCurrentWebsiteExport() {
     moderation: state.moderation,
     appearance: state.appearance,
     shellNames: state.shellNames,
+    siteMoves: state.siteMoves,
     publicKey: textToBytes(state.identity.publicKey),
     secretKey: state.secretKey,
   });
@@ -1424,6 +1541,7 @@ function renderIdentity() {
   const hasIdentity = Boolean(state.identity?.publicKey);
   const unlocked = Boolean(state.secretKey);
   const shellName = state.shellNames[0] || null;
+  const lastMove = state.siteMoves[0] || null;
   return `
     <div class="grid-2 identity-grid">
       <section class="panel-box">
@@ -1485,6 +1603,59 @@ function renderIdentity() {
           <code>${escapeHtml(shellName.siteUrl || "")}</code>
         </div>
       ` : `<div class="empty-state"><span>No ShellName saved</span><p>Unlock the publisher key to sign a ShellName claim locally and send only the public signed record to Forest.</p></div>`}
+    </section>
+    <section class="panel-box site-move-panel">
+      <div>
+        <h2 class="panel-title">Change Domain</h2>
+        <p class="help">Tell Forest that this signed Shell moved from an old domain to a new live domain. Forest hides the old domain only when the same publisher key signs the move and the new public proof files verify.</p>
+      </div>
+      <div class="grid-2">
+        <label class="field">
+          <span>Forest URL</span>
+          <input data-settings-field="siteMoveForestUrl" value="${escapeAttr(state.settings.siteMoveForestUrl || "https://forest.postsnail.org")}" placeholder="https://forest.postsnail.org">
+        </label>
+        <label class="field">
+          <span>Current Shell site URL</span>
+          <input value="${escapeAttr(state.profile.siteUrl || "")}" readonly>
+        </label>
+        <label class="field">
+          <span>Old domain</span>
+          <input data-settings-field="siteMoveFromUrl" value="${escapeAttr(state.settings.siteMoveFromUrl || "")}" placeholder="https://old.example/">
+        </label>
+        <label class="field">
+          <span>New live domain</span>
+          <input data-settings-field="siteMoveToUrl" value="${escapeAttr(state.settings.siteMoveToUrl || state.profile.siteUrl || "")}" placeholder="https://new.example/">
+        </label>
+      </div>
+      <div class="segmented site-move-modes" role="radiogroup" aria-label="Domain move mode">
+        <label>
+          <input type="radio" data-settings-field="siteMoveMode" name="siteMoveMode" value="move" ${state.settings.siteMoveMode !== "mirror" ? "checked" : ""}>
+          <span>Move to new domain</span>
+        </label>
+        <label>
+          <input type="radio" data-settings-field="siteMoveMode" name="siteMoveMode" value="mirror" ${state.settings.siteMoveMode === "mirror" ? "checked" : ""}>
+          <span>Keep old domain as mirror</span>
+        </label>
+      </div>
+      <label class="toggle-line">
+        <input type="checkbox" data-settings-field="siteMovePublishHistory" ${state.settings.siteMovePublishHistory === true || state.settings.siteMovePublishHistory === "true" ? "checked" : ""}>
+        <span>Publish site move history in this site's public proof metadata</span>
+      </label>
+      <div class="notice">
+        <strong>Upload first, then change Forest</strong>
+        <p>PostSnail verifies the new live domain before sending the signed move. If the new Website ZIP is not live yet, Forest will reject the move.</p>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="button" data-action="submit-site-move" ${unlocked && hasIdentity ? "" : "disabled"}>Change Domain</button>
+        <button class="btn" type="button" data-action="copy-site-move" ${lastMove?.record ? "" : "disabled"}>Copy last move record</button>
+      </div>
+      ${lastMove ? `
+        <div class="shellname-record">
+          <strong>${escapeHtml(lastMove.status === "mirror" ? "Mirror saved" : "Move saved")}</strong>
+          <span>${escapeHtml(lastMove.fromUrl || "")} → ${escapeHtml(lastMove.toUrl || "")}</span>
+          <code>${escapeHtml(lastMove.id || lastMove.bundleFingerprint || "")}</code>
+        </div>
+      ` : `<div class="empty-state"><span>No domain moves saved</span><p>Signed move records are kept in the encrypted Shell. They are public only if you enable move-history publishing.</p></div>`}
     </section>
   `;
 }
@@ -2342,6 +2513,7 @@ function applyLoadedState(loaded) {
   state.moderation = loaded.moderation || { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = loaded.trackerUrls || [];
   state.shellNames = loaded.shellNames || [];
+  state.siteMoves = loaded.siteMoves || [];
   state.appearance = {
     frontendTheme: "quiet-feed",
     adminTheme: "default",
@@ -2363,6 +2535,7 @@ function resetEditableState() {
   state.moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] };
   state.trackerUrls = [];
   state.shellNames = [];
+  state.siteMoves = [];
   state.appearance = { frontendTheme: "quiet-feed", adminTheme: "default", themeSettings: {} };
   state.exportHistory = [];
   state.posts = [];
@@ -2397,6 +2570,7 @@ function hasLegacyLocalData(loaded) {
       (loaded?.moderation?.blockedPublicKeys || []).length ||
       (loaded?.trackerUrls || []).length ||
       (loaded?.shellNames || []).length ||
+      (loaded?.siteMoves || []).length ||
       Object.keys(loaded?.appearance?.themeSettings || {}).length ||
       (loaded?.exportHistory || []).length,
   );
@@ -2918,6 +3092,7 @@ function snapshotState() {
     moderation: state.moderation,
     trackerUrls: state.trackerUrls,
     shellNames: state.shellNames,
+    siteMoves: state.siteMoves,
     appearance: state.appearance,
     exportHistory: state.exportHistory,
   };

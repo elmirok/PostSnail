@@ -6,10 +6,11 @@ import { canonicalJson } from "../../src/canonical.js";
 import { encodeText } from "../../src/bytes.js";
 import { generateSigningKeyPair, publicKeyToText, signBytes, signatureToText } from "../../src/crypto.js";
 import { buildStaticExport } from "../../src/exporter.js";
+import { buildSiteMovePayload, signSiteMoveRecord } from "../../src/siteMoves.js";
 import { handleRequest } from "../src/app";
 import { processCrawlMessage } from "../src/crawler";
 import { processScheduledChecks } from "../src/scheduler";
-import type { CrawlMessage, RegistryQueue, RegistryStore, ShellNameRecord } from "../src/types";
+import type { CrawlMessage, RegistryQueue, RegistryStore, ShellNameRecord, SiteMoveRecord } from "../src/types";
 
 class MemoryQueue implements RegistryQueue {
   messages: CrawlMessage[] = [];
@@ -28,6 +29,7 @@ class MemoryStore implements RegistryStore {
   checked: string[] = [];
   shellNames = new Map<string, ShellNameRecord>();
   hiddenShellNames = new Set<string>();
+  siteMoves = new Map<string, SiteMoveRecord>();
 
   async incrementRateLimit(key: string): Promise<number> {
     const next = (this.rateCounts.get(key) || 0) + 1;
@@ -221,6 +223,31 @@ class MemoryStore implements RegistryStore {
     return Array.from(this.shellNames.values())
       .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now);
   }
+
+  async getSiteMove(id: string): Promise<SiteMoveRecord | null> {
+    return this.siteMoves.get(id) || null;
+  }
+
+  async getSiteMoveBySignature(signature: string): Promise<SiteMoveRecord | null> {
+    for (const move of this.siteMoves.values()) {
+      if (move.signature === signature) return move;
+    }
+    return null;
+  }
+
+  async recordSiteMove(move: SiteMoveRecord, options: { hideOldSite?: boolean; now?: string } = {}): Promise<void> {
+    this.siteMoves.set(move.id, move);
+    if (options.hideOldSite) {
+      const site = this.sites.get(move.fromSiteId);
+      if (site) Object.assign(site, {
+        hidden: 1,
+        latestCrawlStatus: "moved",
+        latestCrawlMessage: `Moved to ${move.toUrl}`,
+        updatedAt: options.now || move.appliedAt,
+      });
+      this.hidden.add(move.fromSiteId);
+    }
+  }
 }
 
 function compareTestItems(left: any, right: any, sort: string): number {
@@ -268,8 +295,9 @@ function normalizeTestUrl(value: string): string {
   }
 }
 
-async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSigningKeyPair>; title?: string; body?: string; generatedAt?: string; withImage?: boolean } = {}) {
+async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSigningKeyPair>; siteUrl?: string; title?: string; body?: string; generatedAt?: string; withImage?: boolean } = {}) {
   const keys = options.keys || generateSigningKeyPair();
+  const siteUrl = options.siteUrl || "https://creator.example";
   const post = normalizePost({
     id: "p1",
     title: options.title || "Searchable Proof",
@@ -292,7 +320,7 @@ async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSign
       siteTitle: "Search Feed",
       description: "Findable signed feed.",
       handle: "search-feed",
-      siteUrl: "https://creator.example",
+      siteUrl,
       about: ""
     },
     settings: { showPoweredBy: false },
@@ -307,18 +335,28 @@ async function fixtureDocuments(options: { keys?: ReturnType<typeof generateSign
     wellKnown: decodeText(files[".well-known/postsnail.json"]),
     manifest: decodeText(files["postsnail.manifest.json"]),
     announcePayload: result.announcePayload,
-    keys
+    keys,
+    bundleFingerprint: result.bundleFingerprint,
+    siteUrl: new URL(siteUrl).origin + "/"
   };
 }
 
-function mappedFetch(documents: { wellKnown: string; manifest: string }) {
+function mappedFetch(documents: { wellKnown: string; manifest: string; siteUrl?: string } | Array<{ wellKnown: string; manifest: string; siteUrl?: string }>) {
+  const list = Array.isArray(documents) ? documents : [documents];
+  const byUrl = new Map<string, { wellKnown: string; manifest: string }>();
+  for (const docs of list) {
+    const origin = new URL(docs.siteUrl || "https://creator.example/").origin;
+    byUrl.set(`${origin}/.well-known/postsnail.json`, docs);
+    byUrl.set(`${origin}/postsnail.manifest.json`, docs);
+  }
   return async (url: string | URL | Request): Promise<Response> => {
     const target = String(url);
-    if (target === "https://creator.example/.well-known/postsnail.json") {
-      return new Response(documents.wellKnown, { headers: { "content-type": "application/json" } });
+    const docs = byUrl.get(target);
+    if (docs && target.endsWith("/.well-known/postsnail.json")) {
+      return new Response(docs.wellKnown, { headers: { "content-type": "application/json" } });
     }
-    if (target === "https://creator.example/postsnail.manifest.json") {
-      return new Response(documents.manifest, { headers: { "content-type": "application/json" } });
+    if (docs && target.endsWith("/postsnail.manifest.json")) {
+      return new Response(docs.manifest, { headers: { "content-type": "application/json" } });
     }
     return new Response("missing", { status: 404 });
   };
@@ -361,6 +399,25 @@ function signedShellNameRecord(options: {
     publicKey: keys.publicKey,
     secretKey: keys.secretKey,
   };
+}
+
+async function signedSiteMoveRecord(options: {
+  keys: ReturnType<typeof generateSigningKeyPair>;
+  fromUrl: string;
+  toUrl: string;
+  bundleFingerprint: string;
+  mode?: "move" | "mirror";
+  createdAt?: string;
+}) {
+  const payload = buildSiteMovePayload({
+    mode: options.mode || "move",
+    fromUrl: options.fromUrl,
+    toUrl: options.toUrl,
+    publicKey: publicKeyToText(options.keys.publicKey),
+    bundleFingerprint: options.bundleFingerprint,
+    createdAt: options.createdAt || "2026-06-05T00:00:00.000Z",
+  });
+  return signSiteMoveRecord(payload, options.keys.secretKey);
 }
 
 describe("registry API and crawl flow", () => {
@@ -616,6 +673,191 @@ describe("registry API and crawl flow", () => {
     const all = await handleRequest(new Request("https://registry.example/api/search?q=search-feed&scope=all"), deps);
     const allResults = await all.json() as any;
     expect(allResults.items.map((item: any) => item.type)).toEqual(expect.arrayContaining(["shell", "content"]));
+  });
+
+  test("signed site move hides the old indexed domain after the new live proof verifies", async () => {
+    const keys = generateSigningKeyPair();
+    const oldDocs = await fixtureDocuments({
+      keys,
+      siteUrl: "https://old.example",
+      title: "Old Domain Post",
+      body: "Legacy old-domain content.",
+    });
+    const newDocs = await fixtureDocuments({
+      keys,
+      siteUrl: "https://new.example",
+      title: "New Domain Post",
+      body: "Fresh new-domain content.",
+      generatedAt: "2026-06-05T00:10:00.000Z",
+    });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:20:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch([oldDocs, newDocs])
+    };
+
+    await handleRequest(new Request("https://registry.example/api/submit", {
+      method: "POST",
+      body: JSON.stringify({ url: "https://old.example/" })
+    }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    await handleRequest(new Request("https://registry.example/api/submit", {
+      method: "POST",
+      body: JSON.stringify({ url: "https://new.example/" })
+    }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const oldSite = await store.getSiteByCanonicalUrl("https://old.example/");
+    expect(oldSite?.hidden).toBe(0);
+    const moveRecord = await signedSiteMoveRecord({
+      keys,
+      fromUrl: "https://old.example/",
+      toUrl: "https://new.example/",
+      bundleFingerprint: newDocs.bundleFingerprint,
+      mode: "move",
+    });
+
+    const moved = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(moveRecord),
+    }), deps);
+    expect(moved.status).toBe(202);
+    const movedJson = await moved.json() as any;
+    expect(movedJson).toMatchObject({ status: "moved", fromUrl: "https://old.example/", toUrl: "https://new.example/" });
+    expect((await store.getSiteByCanonicalUrl("https://old.example/"))?.hidden).toBe(1);
+    expect((await store.getSiteByCanonicalUrl("https://old.example/"))?.latestCrawlStatus).toBe("moved");
+
+    const oldSearch = await handleRequest(new Request("https://registry.example/api/search?q=old%20domain&scope=all"), deps);
+    expect((await oldSearch.json() as any).items).toHaveLength(0);
+    const newSearch = await handleRequest(new Request("https://registry.example/api/search?q=new%20domain&scope=all"), deps);
+    expect((await newSearch.json() as any).items.length).toBeGreaterThan(0);
+
+    const audit = await handleRequest(new Request(`https://registry.example/api/site-moves/${movedJson.moveId}.json`), deps);
+    expect(audit.status).toBe(200);
+    const auditJson = await audit.json() as any;
+    expect(auditJson.siteMove).toMatchObject({
+      id: movedJson.moveId,
+      status: "moved",
+      fromUrl: "https://old.example/",
+      toUrl: "https://new.example/",
+      publicKey: publicKeyToText(keys.publicKey),
+    });
+    expect(JSON.stringify(auditJson)).not.toMatch(/secretKey|privateKey/i);
+
+    const duplicate = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(moveRecord),
+    }), deps);
+    expect(duplicate.status).toBe(202);
+    expect(await duplicate.json()).toMatchObject({ moveId: movedJson.moveId, status: "moved" });
+  });
+
+  test("signed site mirror keeps both domains searchable", async () => {
+    const keys = generateSigningKeyPair();
+    const oldDocs = await fixtureDocuments({ keys, siteUrl: "https://mirror-old.example", title: "Mirror Old Post", body: "Mirror old." });
+    const newDocs = await fixtureDocuments({ keys, siteUrl: "https://mirror-new.example", title: "Mirror New Post", body: "Mirror new.", generatedAt: "2026-06-05T00:10:00.000Z" });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:20:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch([oldDocs, newDocs])
+    };
+
+    await handleRequest(new Request("https://registry.example/api/submit", { method: "POST", body: JSON.stringify({ url: "https://mirror-old.example/" }) }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    await handleRequest(new Request("https://registry.example/api/submit", { method: "POST", body: JSON.stringify({ url: "https://mirror-new.example/" }) }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const mirrorRecord = await signedSiteMoveRecord({
+      keys,
+      fromUrl: "https://mirror-old.example/",
+      toUrl: "https://mirror-new.example/",
+      bundleFingerprint: newDocs.bundleFingerprint,
+      mode: "mirror",
+    });
+    const response = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(mirrorRecord),
+    }), deps);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "mirror" });
+    expect((await store.getSiteByCanonicalUrl("https://mirror-old.example/"))?.hidden).toBe(0);
+
+    const oldSearch = await handleRequest(new Request("https://registry.example/api/search?q=mirror-old&scope=all"), deps);
+    expect((await oldSearch.json() as any).items.length).toBeGreaterThan(0);
+    const newSearch = await handleRequest(new Request("https://registry.example/api/search?q=mirror-new&scope=all"), deps);
+    expect((await newSearch.json() as any).items.length).toBeGreaterThan(0);
+  });
+
+  test("site move rejects wrong keys, wrong fingerprints, and missing old domains", async () => {
+    const oldKeys = generateSigningKeyPair();
+    const newKeys = generateSigningKeyPair();
+    const oldDocs = await fixtureDocuments({ keys: oldKeys, siteUrl: "https://wrong-old.example", title: "Wrong Old" });
+    const newDocs = await fixtureDocuments({ keys: newKeys, siteUrl: "https://wrong-new.example", title: "Wrong New" });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:20:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch([oldDocs, newDocs])
+    };
+
+    await handleRequest(new Request("https://registry.example/api/submit", { method: "POST", body: JSON.stringify({ url: "https://wrong-old.example/" }) }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const wrongKeyRecord = await signedSiteMoveRecord({
+      keys: oldKeys,
+      fromUrl: "https://wrong-old.example/",
+      toUrl: "https://wrong-new.example/",
+      bundleFingerprint: newDocs.bundleFingerprint,
+      mode: "move",
+    });
+    const wrongKey = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(wrongKeyRecord),
+    }), deps);
+    expect(wrongKey.status).toBe(401);
+
+    const missingOldRecord = await signedSiteMoveRecord({
+      keys: newKeys,
+      fromUrl: "https://missing-old.example/",
+      toUrl: "https://wrong-new.example/",
+      bundleFingerprint: newDocs.bundleFingerprint,
+      mode: "move",
+    });
+    const missingOld = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(missingOldRecord),
+    }), deps);
+    expect(missingOld.status).toBe(404);
+
+    const badFingerprintRecord = await signedSiteMoveRecord({
+      keys: oldKeys,
+      fromUrl: "https://wrong-old.example/",
+      toUrl: "https://wrong-new.example/",
+      bundleFingerprint: `psn1-sha3-512-${"0".repeat(128)}`,
+      mode: "move",
+    });
+    const badFingerprint = await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(badFingerprintRecord),
+    }), deps);
+    expect(badFingerprint.status).toBe(401);
   });
 
   test("search merges a ShellName alias into the matching indexed Shell result", async () => {

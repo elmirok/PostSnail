@@ -36,6 +36,7 @@ Examples include:
 - `tracker-announce`
 - `forest-tracker`
 - `shellnames`
+- `site-moves`
 - `comments`
 - `deployment-assistant`
 - `themes`

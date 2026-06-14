@@ -145,6 +145,7 @@ export async function buildStaticExport({
   moderation = { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
   appearance = {},
   shellNames = [],
+  siteMoves = [],
   publicKey,
   secretKey,
   generatedAt = new Date().toISOString(),
@@ -153,6 +154,7 @@ export async function buildStaticExport({
   const cleanSettings = normalizeDiscoverySettings(settings);
   const attribution = normalizeAttributionSettings(settings, cleanSettings);
   const publicShellNames = normalizeShellNames(shellNames);
+  const publicSiteMoves = shouldPublishSiteMoveHistory(settings) ? normalizeSiteMoves(siteMoves) : [];
   const extensionContext = buildExtensionContext({ plugins, appearance });
   const pagesOutput = buildEnabledPagesOutput(extensionContext.enabledPlugins, plugins);
   const siteNavigation = pagesOutput?.navigation || null;
@@ -274,6 +276,7 @@ export async function buildStaticExport({
       ...(commentsOutput ? ["comments"] : []),
       ...(extensionContext.enabledPlugins.length ? ["plugins"] : []),
       ...(publicShellNames.length ? ["shellnames"] : []),
+      ...(publicSiteMoves.length ? ["site-moves"] : []),
     ],
     extensions: manifestExtensions,
     generator: { name: "PostSnail", version: GENERATOR_VERSION },
@@ -287,6 +290,7 @@ export async function buildStaticExport({
     },
     publicKey: publicKeyText,
     ...(publicShellNames.length ? { shellNames: publicShellNames } : {}),
+    ...(publicSiteMoves.length ? { siteMoves: publicSiteMoves } : {}),
     posts: postProofs,
     files: fileDigests,
     bundleFingerprint,
@@ -301,6 +305,7 @@ export async function buildStaticExport({
     generatedAt,
     secretKey,
     shellNames: publicShellNames,
+    siteMoves: publicSiteMoves,
   });
   const latestCommit = buildCommitRecord({
     commitHistory,
@@ -450,6 +455,32 @@ function normalizeShellNames(value) {
       };
     })
     .filter((item) => item && item.name && item.forest && item.fullName && Object.keys(item.record).length);
+}
+
+function normalizeSiteMoves(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const record = item.record && typeof item.record === "object" && !Array.isArray(item.record)
+        ? JSON.parse(JSON.stringify(item.record))
+        : {};
+      return {
+        id: String(item.id || "").trim(),
+        status: String(item.status || record.mode || "").trim(),
+        fromUrl: String(item.fromUrl || record.fromUrl || "").trim(),
+        toUrl: String(item.toUrl || record.toUrl || "").trim(),
+        mode: String(item.mode || record.mode || "").trim(),
+        createdAt: String(item.createdAt || record.createdAt || "").trim(),
+        appliedAt: String(item.appliedAt || "").trim(),
+        record,
+      };
+    })
+    .filter((item) => item && item.fromUrl && item.toUrl && item.mode && Object.keys(item.record).length);
+}
+
+function shouldPublishSiteMoveHistory(settings = {}) {
+  return settings.siteMovePublishHistory === true || settings.siteMovePublishHistory === "true";
 }
 
 function normalizeProfile(profile = {}) {

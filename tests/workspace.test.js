@@ -92,6 +92,24 @@ function sampleState() {
         },
       },
     ],
+    siteMoves: [
+      {
+        id: "move-1",
+        status: "moved",
+        fromUrl: "https://old.example/",
+        toUrl: "https://new.example/",
+        record: {
+          protocol: "postsnail-site-move",
+          version: 1,
+          mode: "move",
+          fromUrl: "https://old.example/",
+          toUrl: "https://new.example/",
+          publicKey: "base64:cHVibGlj",
+          bundleFingerprint: "psn1-sha3-512-old",
+          extensions: { unknown: "preserved" },
+        },
+      },
+    ],
     appearance: {
       frontendTheme: "quiet-feed",
       adminTheme: "shell-night",
@@ -124,6 +142,7 @@ test("encrypted .postsnail workspace round trips editable state without plaintex
   assert.deepEqual(imported.state.commitHistory, sampleState().commitHistory);
   assert.deepEqual(imported.state.moderation, sampleState().moderation);
   assert.deepEqual(imported.state.shellNames, sampleState().shellNames);
+  assert.deepEqual(imported.state.siteMoves, sampleState().siteMoves);
   assert.deepEqual(imported.state.appearance, sampleState().appearance);
 });
 
@@ -199,6 +218,7 @@ test("workspace migration v1 defaults missing containers and rejects future vers
   assert.deepEqual(migrated.moderation, { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] });
   assert.deepEqual(migrated.trackerUrls, []);
   assert.deepEqual(migrated.shellNames, []);
+  assert.deepEqual(migrated.siteMoves, []);
   assert.deepEqual(migrated.appearance, {
     frontendTheme: "quiet-feed",
     adminTheme: "default",

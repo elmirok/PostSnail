@@ -42,7 +42,7 @@
             <p class="lede">PostSnail uses public proof records for publishing and encrypted Shell vaults for editable source.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Protocol sections"><a href="#constants">Protocol Constants</a><a href="#features">Feature Declarations</a><a href="#manifest">Public Manifest</a><a href="#identity">Well-Known Identity</a><a href="#commits">Commit Proofs</a><a href="#workspace">Workspace Vault</a><a href="#announce">Tracker Announce</a><a href="#shellnames">ShellNames</a></nav>
+            <nav class="doc-nav" aria-label="Protocol sections"><a href="#constants">Protocol Constants</a><a href="#features">Feature Declarations</a><a href="#manifest">Public Manifest</a><a href="#identity">Well-Known Identity</a><a href="#commits">Commit Proofs</a><a href="#workspace">Workspace Vault</a><a href="#announce">Tracker Announce</a><a href="#shellnames">ShellNames</a><a href="#site-moves">Site Moves</a></nav>
             <div class="doc-content">
               <section id="constants"><h2>Protocol Constants</h2><p>Alpha 2 uses POSTSNAIL_PROTOCOL postsnail, POSTSNAIL_PROTOCOL_VERSION 1, and current manifest, identity, commit, and workspace versions of 1.</p></section>
               <section id="features"><h2>Feature Declarations</h2><p>Major records declare protocol, version, requiredFeatures, optionalFeatures, and extensions. Unknown optional fields are ignored; unknown required features fail.</p></section>
@@ -52,6 +52,7 @@
               <section id="workspace"><h2>Workspace Vault</h2><p>.postsnail is an encrypted JSON envelope with non-secret header metadata and versioned encrypted workspace payload.</p></section>
               <section id="announce"><h2>Tracker Announce</h2><p>postsnail-announce is a signed public refresh signal. It never carries private keys and is not an account login.</p></section>
               <section id="shellnames"><h2>ShellNames</h2><p>postsnail-shellname records are optional signed aliases like @creator@forest.postsnail.org. They point to a public key and URL, not a legal identity or account.</p></section>
+              <section id="site-moves"><h2>Site Moves</h2><p>postsnail-site-move records are optional signed domain-change records. Forest verifies the old indexed public key and the new live proof before hiding an old moved domain from search.</p></section>
             </div>
           </article>
     </main>

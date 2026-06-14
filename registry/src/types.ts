@@ -1,4 +1,4 @@
-export type SubmissionStatus = "queued" | "crawling" | "indexed" | "failed";
+export type SubmissionStatus = "queued" | "crawling" | "indexed" | "failed" | "moved";
 
 export interface CrawlMessage {
   submissionId: string;
@@ -82,6 +82,22 @@ export interface ShellNameRecord {
   updatedAt: string;
 }
 
+export interface SiteMoveRecord {
+  id: string;
+  fromSiteId: string;
+  toSiteId: string;
+  fromUrl: string;
+  toUrl: string;
+  publicKey: string;
+  bundleFingerprint: string;
+  mode: "move" | "mirror";
+  status: "moved" | "mirror";
+  record: Record<string, unknown>;
+  signature: string;
+  createdAt: string;
+  appliedAt: string;
+}
+
 export interface SearchParams {
   q: string;
   tag: string;
@@ -126,6 +142,9 @@ export interface RegistryStore {
   searchShellNames(q: string, limit: number, now?: string): Promise<ShellNameRecord[]>;
   recentShellNames(limit: number, now?: string): Promise<ShellNameRecord[]>;
   exportShellNames(now?: string): Promise<ShellNameRecord[]>;
+  getSiteMove(id: string): Promise<SiteMoveRecord | null>;
+  getSiteMoveBySignature(signature: string): Promise<SiteMoveRecord | null>;
+  recordSiteMove(move: SiteMoveRecord, options?: { hideOldSite?: boolean; now?: string }): Promise<void>;
 }
 
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

@@ -24,6 +24,12 @@ Encryption does not prove legal identity, factual truth, authorship beyond posse
 
 The Website ZIP uses SHA3-512 digests and ML-DSA-65 signatures to prove that public files and post records match the signed manifest and publisher public key. Those proofs are public and meant for readers, verifiers, and Forest-style trackers.
 
+## Domain Moves
+
+Changing domains uses a signed `postsnail-site-move` public record. The admin signs it locally only after the new live site verifies. Forest then checks the old indexed key, the new live key, and the bundle fingerprint before hiding the old domain from search.
+
+This protects against accidental or malicious removal of unrelated old results. It does not prove legal domain ownership or delete the old site from the internet; Forest hides moved rows and keeps a public audit record.
+
 ## Metadata And Publishing
 
 Images are copied as selected. Strip EXIF/GPS metadata before importing images if that matters for your threat model.
