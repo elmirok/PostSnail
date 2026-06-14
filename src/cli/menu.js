@@ -5,6 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 
 import { groupedCliCommands } from "./catalog.js";
+import { openWorkspaceFile } from "./workspace-node.js";
 
 const MAIN_ITEMS = [
   "Start local Admin + Bridge",
@@ -266,6 +267,7 @@ export async function runMenu(options = {}) {
     secrets: {},
     runner: options.runner || defaultRunner,
     onStartAdmin: options.onStartAdmin || null,
+    unlockedShell: null,
   };
   state.selectedWorkspace = state.selectedWorkspace || state.preferences.selectedWorkspace || "";
 
@@ -356,11 +358,14 @@ async function runTuiAction(session, state, selected) {
       continue;
     }
     try {
-      const values = await collectInputs(session, state, selected.prompts);
+      const values = await collectInputs(session, state, selected.prompts, selected);
       const argv = selected.buildArgs(values);
       await session.write(`Running: ${selected.command}\n`);
       await state.runner(argv);
       await savePreferencesForValues(state, values);
+      if (!selected.requiresUnlockedShell && values.workspace && values.passphrase) {
+        await unlockShellForSession(session, state, values.workspace, values.passphrase);
+      }
       await session.write("Done.\n");
     } catch (error) {
       await session.write(`Action failed: ${safeErrorMessage(error)}\n`);
@@ -374,7 +379,7 @@ async function promptActionChoice(session, selected) {
   return String(await session.question("Choose [R/C/B]: ") ?? "").trim().toLowerCase();
 }
 
-async function collectInputs(session, state, prompts = []) {
+async function collectInputs(session, state, prompts = [], selected = {}) {
   const values = {};
   for (const prompt of prompts) {
     const defaultValue = defaultForPrompt(state, prompt);
@@ -387,7 +392,13 @@ async function collectInputs(session, state, prompts = []) {
     }
     values[prompt.name] = value;
     if (prompt.rememberWorkspace && value) {
+      if (state.selectedWorkspace && state.selectedWorkspace !== value) {
+        clearUnlockedShell(state);
+      }
       state.selectedWorkspace = value;
+    }
+    if (prompt.name === "passphrase" && selected.requiresUnlockedShell && values.workspace) {
+      await unlockShellForSession(session, state, values.workspace, value);
     }
   }
   return values;
@@ -454,11 +465,13 @@ async function runLearnMenu(session) {
 
 function renderMainMenu(state = {}) {
   const selectedShell = state.selectedWorkspace || "none";
+  const shellStatus = state.unlockedShell?.path === state.selectedWorkspace ? "unlocked" : "locked";
   return [
     "PostSnail TUI",
     "PostSnail Portable Command Center",
     "",
     `Selected Shell: ${selectedShell}`,
+    `Shell: ${shellStatus}`,
     "Admin: stopped",
     "Bridge: stopped",
     "",
@@ -525,7 +538,41 @@ function renderAction(selected) {
 }
 
 function action(group, title, command, summary, privateData, prompts, buildArgs) {
-  return { group, title, command, summary, privateData, prompts, buildArgs };
+  return {
+    group,
+    title,
+    command,
+    summary,
+    privateData,
+    prompts,
+    buildArgs,
+    requiresUnlockedShell: promptsRequireExistingShell(command, prompts),
+  };
+}
+
+function promptsRequireExistingShell(command, prompts = []) {
+  const hasWorkspace = prompts.some((prompt) => prompt.name === "workspace");
+  const hasPassphrase = prompts.some((prompt) => prompt.name === "passphrase");
+  return hasWorkspace && hasPassphrase && !String(command || "").startsWith("postsnail workspace create");
+}
+
+async function unlockShellForSession(session, state, workspacePath, passphrase) {
+  if (!workspacePath || !passphrase) return;
+  if (state.unlockedShell?.path === workspacePath && state.unlockedShell?.passphrase === passphrase) return;
+  try {
+    const imported = await openWorkspaceFile(workspacePath, passphrase);
+    const title = imported.state?.profile?.siteTitle || imported.workspace?.profile?.siteTitle || "PostSnail Shell";
+    state.unlockedShell = { path: workspacePath, passphrase, title };
+    await session.write(`Shell unlocked: ${title}\n`);
+  } catch {
+    clearUnlockedShell(state);
+    throw new Error("Could not unlock Shell. Check the Shell passphrase or file integrity.");
+  }
+}
+
+function clearUnlockedShell(state) {
+  state.unlockedShell = null;
+  delete state.secrets.workspacePassphrase;
 }
 
 function withFlags(baseArgs, values, keys) {

@@ -103,12 +103,23 @@ test("postsnail menu masked output handles Buffer chunks on Node 24", () => {
 });
 
 test("postsnail menu reports action failures and stays open", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-action-failure-"));
+  const workspacePath = join(fixtureDir, "failure.postsnail");
+  const exported = await exportWorkspaceVault({
+    profile: { siteTitle: "Failure Shell", handle: "failure-shell", siteUrl: "https://new.example/" },
+    posts: [],
+    assets: [],
+    identity: {},
+    settings: {},
+  }, "shell phrase");
+  writeFileSync(workspacePath, exported.text);
+
   const output = await captureCli(["menu"], {
     scriptedAnswers: [
       "9",
       "5",
       "r",
-      "/tmp/example.postsnail",
+      workspacePath,
       "shell phrase",
       "identity phrase",
       "https://old.example/",
@@ -125,6 +136,91 @@ test("postsnail menu reports action failures and stays open", async () => {
   assert.match(output, /Action failed: Simulated domain failure/);
   assert.match(output, /Forest, ShellNames, and Change Domain/);
   assert.match(output, /PostSnail Portable Command Center/);
+});
+
+test("postsnail menu unlocks the Shell before running Shell actions", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-unlock-"));
+  const workspacePath = join(fixtureDir, "unlock.postsnail");
+  const exported = await exportWorkspaceVault({
+    profile: { siteTitle: "Unlocked Shell", handle: "unlocked-shell", siteUrl: "https://new.example/" },
+    posts: [],
+    assets: [],
+    identity: {},
+    settings: {},
+  }, "right shell phrase");
+  writeFileSync(workspacePath, exported.text);
+  const runs = [];
+
+  const output = await captureCli(["menu"], {
+    scriptedAnswers: [
+      "9",
+      "5",
+      "r",
+      workspacePath,
+      "right shell phrase",
+      "identity phrase",
+      "https://old.example/",
+      "https://new.example/",
+      "https://forest.postsnail.org",
+      "0",
+      "0",
+    ],
+    runner: async (argv) => {
+      runs.push(argv);
+    },
+  });
+
+  assert.equal(runs.length, 1);
+  assert.deepEqual(runs[0], [
+    "domain",
+    "move",
+    "--workspace",
+    workspacePath,
+    "--passphrase",
+    "right shell phrase",
+    "--identity-passphrase",
+    "identity phrase",
+    "--from-url",
+    "https://old.example/",
+    "--to-url",
+    "https://new.example/",
+    "--forest-url",
+    "https://forest.postsnail.org",
+  ]);
+  assert.match(output, /Shell unlocked: Unlocked Shell/);
+});
+
+test("postsnail menu rejects a wrong Shell passphrase before running Shell actions", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-wrong-unlock-"));
+  const workspacePath = join(fixtureDir, "locked.postsnail");
+  const exported = await exportWorkspaceVault({
+    profile: { siteTitle: "Locked Shell", handle: "locked-shell", siteUrl: "https://new.example/" },
+    posts: [],
+    assets: [],
+    identity: {},
+    settings: {},
+  }, "right shell phrase");
+  writeFileSync(workspacePath, exported.text);
+  let runCount = 0;
+
+  const output = await captureCli(["menu"], {
+    scriptedAnswers: [
+      "9",
+      "5",
+      "r",
+      workspacePath,
+      "wrong shell phrase",
+      "0",
+      "0",
+    ],
+    runner: async () => {
+      runCount += 1;
+    },
+  });
+
+  assert.equal(runCount, 0);
+  assert.match(output, /Action failed: Could not unlock Shell/);
+  assert.doesNotMatch(output, /Running: postsnail domain move/);
 });
 
 test("postsnail menu does not exit on blank input from a terminal prompt", async () => {
