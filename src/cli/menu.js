@@ -355,12 +355,16 @@ async function runTuiAction(session, state, selected) {
       await session.write("Choose R, C, or B.\n");
       continue;
     }
-    const values = await collectInputs(session, state, selected.prompts);
-    const argv = selected.buildArgs(values);
-    await session.write(`Running: ${selected.command}\n`);
-    await state.runner(argv);
-    await savePreferencesForValues(state, values);
-    await session.write("Done.\n");
+    try {
+      const values = await collectInputs(session, state, selected.prompts);
+      const argv = selected.buildArgs(values);
+      await session.write(`Running: ${selected.command}\n`);
+      await state.runner(argv);
+      await savePreferencesForValues(state, values);
+      await session.write("Done.\n");
+    } catch (error) {
+      await session.write(`Action failed: ${safeErrorMessage(error)}\n`);
+    }
     return;
   }
 }
@@ -538,6 +542,11 @@ function isYes(value) {
   return ["y", "yes", "true", "1"].includes(String(value || "").trim().toLowerCase());
 }
 
+function safeErrorMessage(error) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message || "Unknown error.";
+}
+
 async function defaultRunner(argv) {
   const { runCli } = await import("./run.js");
   await runCli(argv);
@@ -594,7 +603,7 @@ function createMenuSession(options = {}) {
   };
 }
 
-class MutedOutput extends Writable {
+export class MutedOutput extends Writable {
   constructor(target) {
     super();
     this.target = target;
@@ -602,6 +611,10 @@ class MutedOutput extends Writable {
   }
 
   _write(chunk, encoding, callback) {
-    this.target.write(this.muted ? "*" : chunk, encoding, callback);
+    if (this.muted) {
+      this.target.write("*", callback);
+      return;
+    }
+    this.target.write(chunk, encoding, callback);
   }
 }

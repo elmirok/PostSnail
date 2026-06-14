@@ -7,6 +7,7 @@ import { join } from "node:path";
 
 import { encryptSecretKey, generateSigningKeyPair, publicKeyToText } from "../src/crypto.js";
 import { getCliCommandCatalog } from "../src/cli/catalog.js";
+import { MutedOutput } from "../src/cli/menu.js";
 import { runCli } from "../src/cli/run.js";
 import { exportWorkspaceVault, importWorkspaceVault } from "../src/workspace.js";
 
@@ -83,6 +84,47 @@ test("postsnail menu runs guided TUI workflows without requiring command typing"
 
   const preferences = JSON.parse(readFileSync(preferencesPath, "utf8"));
   assert.equal(preferences.selectedWorkspace, workspacePath);
+});
+
+test("postsnail menu masked output handles Buffer chunks on Node 24", () => {
+  let output = "";
+  const target = {
+    write(chunk, encoding, callback) {
+      output += String(chunk);
+      if (typeof callback === "function") callback();
+      return true;
+    },
+  };
+  const muted = new MutedOutput(target);
+  muted.muted = true;
+
+  assert.doesNotThrow(() => muted.write(Buffer.from("secret"), "buffer"));
+  assert.equal(output, "*");
+});
+
+test("postsnail menu reports action failures and stays open", async () => {
+  const output = await captureCli(["menu"], {
+    scriptedAnswers: [
+      "9",
+      "5",
+      "r",
+      "/tmp/example.postsnail",
+      "shell phrase",
+      "identity phrase",
+      "https://old.example/",
+      "https://new.example/",
+      "https://forest.postsnail.org",
+      "0",
+      "0",
+    ],
+    runner: async () => {
+      throw new Error("Simulated domain failure");
+    },
+  });
+
+  assert.match(output, /Action failed: Simulated domain failure/);
+  assert.match(output, /Forest, ShellNames, and Change Domain/);
+  assert.match(output, /PostSnail Portable Command Center/);
 });
 
 test("postsnail menu does not exit on blank input from a terminal prompt", async () => {
