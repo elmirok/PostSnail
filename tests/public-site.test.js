@@ -104,6 +104,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   const appJs = read("app.js");
   const css = read("styles.css");
   const headers = read("_headers");
+  const submitSiteMoveSource = appJs.slice(
+    appJs.indexOf("async function submitSiteMove()"),
+    appJs.indexOf("async function generateSiteZip()"),
+  );
 
   assert.match(appJs, /renderShellGate/);
   assert.match(appJs, /Open Shell/);
@@ -208,6 +212,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-settings-field="siteMoveFromUrl"/);
   assert.match(appJs, /data-settings-field="siteMoveToUrl"/);
   assert.match(appJs, /buildSiteMovePayload/);
+  assert.match(submitSiteMoveSource, /state\.lastExportResult/);
+  assert.match(submitSiteMoveSource, /Export Website ZIP first/);
+  assert.doesNotMatch(submitSiteMoveSource, /buildCurrentWebsiteExport\(/);
   assert.match(appJs, /Forest notify unlocks only after live verification passes/);
   assert.match(appJs, /Upload ZIP contents to your live host/);
   assert.match(appJs, /Forest is waiting for your live site to show the new fingerprint/);

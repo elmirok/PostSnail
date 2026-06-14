@@ -792,20 +792,19 @@ async function submitSiteMove() {
     setStatus("Enter Forest URL, old domain, and new domain before changing domains.");
     return;
   }
-  if (!state.posts.some((post) => post.status === "published") && !publishedPagesCount()) {
-    setStatus("Publish at least one post, page, or doc before verifying the new domain.");
+  const result = state.lastExportResult;
+  const verification = state.lastExportVerification;
+  if (!result) {
+    setStatus("Export Website ZIP first, upload that exact ZIP to the new domain, then click Change Domain.");
     return;
   }
-  setStatus("Building the current public site and verifying the new live domain...");
-  await nextFrame();
-  const exportResult = await buildCurrentWebsiteExport();
-  if (!exportResult) return;
-  const { result, verification } = exportResult;
-  if (!verification.ok) {
+  if (verification && !verification.ok) {
     setStatus(`Domain move paused because local ZIP verification found ${verification.errors.length} issue(s).`);
     render();
     return;
   }
+  setStatus("Verifying the new live domain against the last exported Website ZIP...");
+  await nextFrame();
   const liveVerification = await verifySnailLiftLiveSite({
     siteUrl: toUrl,
     exportResult: result,
@@ -862,10 +861,6 @@ async function submitSiteMove() {
     };
     const previousMoves = move.id ? state.siteMoves.filter((item) => item.id !== move.id) : state.siteMoves;
     state.siteMoves = [move, ...previousMoves];
-    state.lastManifest = result.manifest;
-    state.lastExportResult = result;
-    state.commitHistory = result.commitHistory;
-    state.lastExportVerification = verification;
     await persistLocalShellNow();
     setStatus(
       mode === "mirror"
@@ -1643,10 +1638,10 @@ function renderIdentity() {
       </label>
       <div class="notice">
         <strong>Upload first, then change Forest</strong>
-        <p>PostSnail verifies the new live domain before sending the signed move. If the new Website ZIP is not live yet, Forest will reject the move.</p>
+        <p>Export Website ZIP, upload that exact ZIP to the new domain, then click Change Domain. PostSnail verifies the live domain against the last exported fingerprint before sending the signed move.</p>
       </div>
       <div class="actions">
-        <button class="btn primary" type="button" data-action="submit-site-move" ${unlocked && hasIdentity ? "" : "disabled"}>Change Domain</button>
+        <button class="btn primary" type="button" data-action="submit-site-move" ${unlocked && hasIdentity && state.lastExportResult ? "" : "disabled"}>Change Domain</button>
         <button class="btn" type="button" data-action="copy-site-move" ${lastMove?.record ? "" : "disabled"}>Copy last move record</button>
       </div>
       ${lastMove ? `
