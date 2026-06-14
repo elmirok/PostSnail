@@ -273,7 +273,11 @@ export async function runMenu(options = {}) {
     while (true) {
       await session.write(renderMainMenu(state));
       const answer = await session.question("Choose an option [0]: ");
-      const choice = String(answer || "0").trim();
+      const choice = String(answer ?? "").trim();
+      if (!choice) {
+        await session.write("Press 0 to exit, or choose a numbered workflow.\n");
+        continue;
+      }
       if (choice === "0") break;
       if (choice === "1") {
         await runStartAdmin(session, state);
@@ -323,7 +327,12 @@ async function runActionMenu(session, state, groupName) {
   while (true) {
     await session.write(renderTuiGroup(groupName, actions));
     const answer = await session.question("Choose an action [0]: ");
-    const index = Number(String(answer || "0").trim());
+    const rawChoice = String(answer ?? "").trim();
+    if (!rawChoice) {
+      await session.write("Press 0 to go back, or choose a numbered action.\n");
+      continue;
+    }
+    const index = Number(rawChoice);
     if (!index) return;
     const selected = actions[index - 1];
     if (!selected) {
@@ -358,7 +367,7 @@ async function runTuiAction(session, state, selected) {
 
 async function promptActionChoice(session, selected) {
   await session.write(renderAction(selected));
-  return String(await session.question("Choose [R/C/B]: ") || "b").trim().toLowerCase();
+  return String(await session.question("Choose [R/C/B]: ") ?? "").trim().toLowerCase();
 }
 
 async function collectInputs(session, state, prompts = []) {
@@ -417,7 +426,12 @@ async function runLearnMenu(session) {
   const groups = groupedCliCommands();
   await session.write(renderLearnMenu(groups));
   const answer = await session.question("Choose a command group [0]: ");
-  const index = Number(String(answer || "0").trim());
+  const rawChoice = String(answer ?? "").trim();
+  if (!rawChoice) {
+    await session.write("Press 0 to go back, or choose a command group.\n");
+    return;
+  }
+  const index = Number(rawChoice);
   if (!index) return;
   const group = groups[index - 1];
   if (!group) {

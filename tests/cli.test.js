@@ -85,6 +85,15 @@ test("postsnail menu runs guided TUI workflows without requiring command typing"
   assert.equal(preferences.selectedWorkspace, workspacePath);
 });
 
+test("postsnail menu does not exit on blank input from a terminal prompt", async () => {
+  const output = await captureCli(["menu"], {
+    scriptedAnswers: ["", "0"],
+  });
+
+  assert.match(output, /Press 0 to exit/);
+  assert.equal((output.match(/PostSnail Portable Command Center/g) || []).length, 2);
+});
+
 test("postsnail workspace info opens an encrypted shell and prints summary", async () => {
   const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-"));
   const workspacePath = join(fixtureDir, "fixture.postsnail");

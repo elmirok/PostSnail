@@ -130,6 +130,7 @@ test("portable bundle build assembles launcher scripts, docs, and avoids private
   assert.match(bootstrap, /prune_source_fallback/);
   assert.match(bootstrap, /rm -rf "\$root\/registry"/);
   assert.match(bootstrap, /\/dev\/tty/);
+  assert.match(bootstrap, /exec "\$NODE_BIN" bin\/postsnail-portable\.js <\/dev\/tty/);
   assert.match(readFileSync(join(outDir, "portable", "bootstrap.sh"), "utf8"), /apt-get|dnf|pacman|zypper|apk|brew/);
 });
 

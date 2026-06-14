@@ -318,6 +318,9 @@ launch_bundle() {
   fi
   (
     cd "$launch_root"
+    if [ -r /dev/tty ]; then
+      exec "$NODE_BIN" bin/postsnail-portable.js </dev/tty
+    fi
     exec "$NODE_BIN" bin/postsnail-portable.js
   )
 }
