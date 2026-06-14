@@ -269,7 +269,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /animation:\s*notifyForestBlink[\s\S]*\s5;/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.notify-forest-attention/);
 
-  assert.match(headers, /connect-src 'self' https:\/\/forest\.postsnail\.org/);
+  assert.match(headers, /connect-src 'self' https:/);
+  assert.match(headers, /connect-src 'self' https:[^;]*https:\/\/forest\.postsnail\.org/);
   assert.match(headers, /www\.googletagmanager\.com/);
   assert.match(headers, /www\.google-analytics\.com/);
   assert.match(headers, /sha256-sIRPHA7SVkYAlsAr9nOEpJyk\+8KD8g8igOpfemf0u0o=/);
