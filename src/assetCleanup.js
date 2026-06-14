@@ -47,10 +47,10 @@ function isAssetReferenced(asset, references) {
 
 function assetReferenceTokens(asset) {
   const id = String(asset?.id || "").trim();
-  const name = String(asset?.name || "").trim();
+  const name = String(asset?.name || asset?.filename || "").trim();
   const extension = /\.[a-z0-9]{2,5}$/iu.exec(name)?.[0] || "";
   const base = extension ? name.slice(0, -extension.length) : name;
-  return [id, name, `${slugify(base)}${extension.toLowerCase()}`]
+  return [id, name, base ? `${slugify(base)}${extension.toLowerCase()}` : ""]
     .map((token) => token.toLowerCase())
     .filter((token) => token.length >= 3);
 }

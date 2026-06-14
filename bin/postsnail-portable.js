@@ -7,13 +7,13 @@ if (argv.includes("--help") || argv.includes("-h")) {
   process.stdout.write([
     "PostSnail Portable",
     "",
-    "Asks whether to run the local admin, local Forest, or both, then opens the selected browser view.",
+    "Opens the CLI-first Command Center, or starts the local Admin + Surge bridge when requested.",
     "",
     "Options:",
-    "  --no-open              Start the server without opening the browser",
-    "  --no-menu              Use the default Admin-only mode without asking",
-    "  --run <mode>           Choose admin, forest, or both without the menu",
-    "  --forest-port <port>   Override the local Forest port",
+    "  --no-open              Start without opening the browser",
+    "  --no-menu              Start Admin + Bridge without opening the CLI menu",
+    "  --menu                 Open the CLI Command Center",
+    "  --run <mode>           Choose cli or admin without the menu",
     "  --admin-port <port>    Override the local admin port",
     "  --bridge-port <port>   Override the local bridge port",
     "",
@@ -30,14 +30,13 @@ runPortableLauncher({
   runMode: options.runMode,
   adminPort: options.adminPort,
   bridgePort: options.bridgePort,
-  forestPort: options.forestPort,
 }).catch((error) => {
   console.error(error instanceof Error ? error.message : String(error || "Portable launch failed."));
   process.exitCode = 1;
 });
 
 function parsePortableArgs(args) {
-  const result = { noOpen: false, noMenu: false, runMode: null, adminPort: null, bridgePort: null, forestPort: null };
+  const result = { noOpen: false, noMenu: false, runMode: null, adminPort: null, bridgePort: null };
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--no-open") {
@@ -52,12 +51,8 @@ function parsePortableArgs(args) {
       result.runMode = "admin";
       continue;
     }
-    if (value === "--forest-only") {
-      result.runMode = "forest";
-      continue;
-    }
-    if (value === "--both") {
-      result.runMode = "both";
+    if (value === "--menu") {
+      result.runMode = "cli";
       continue;
     }
     if (value === "--run") {
@@ -74,10 +69,6 @@ function parsePortableArgs(args) {
       result.bridgePort = Number(args[index + 1]);
       index += 1;
       continue;
-    }
-    if (value === "--forest-port") {
-      result.forestPort = Number(args[index + 1]);
-      index += 1;
     }
   }
   return result;

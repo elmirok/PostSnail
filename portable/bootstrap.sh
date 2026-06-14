@@ -300,6 +300,9 @@ download_release() {
 extract_release() {
   step "2/4" "Unpacking the bundle"
   unzip -oq "$ZIP_PATH" -d "$INSTALL_DIR"
+  if [ "$DOWNLOAD_KIND" = "source" ]; then
+    prune_source_fallback
+  fi
 }
 
 launch_bundle() {
@@ -391,6 +394,13 @@ find_source_root() {
     return 0
   fi
   printf '%s\n' "$root"
+}
+
+prune_source_fallback() {
+  local root
+  root="$(find_source_root "$INSTALL_DIR")"
+  rm -rf "$root/registry"
+  rm -f "$root/registry/wrangler.jsonc" 2>/dev/null || true
 }
 
 main "$@"

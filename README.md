@@ -25,8 +25,9 @@ PostSnail does not require a backend, submit automatically to a registry, upload
 
 Alpha 2 is the first lean release after the prototype cleanup pass. The repo now keeps the real deployable surfaces clear: the public website/admin, the browser-native Shell workflow, the portable launcher, the Surge bridge, and the Forest Worker in `registry/`.
 
-- Portable launch asks whether to run Admin only, Forest only, or Admin + Forest.
+- Portable launch opens a CLI-first Command Center and can start local Admin + Bridge on demand.
 - SnailLift is Surge-only for hosted publishing, with Download Website ZIP still available as the universal fallback.
+- Local Forest runtime is not bundled in portable; remote Forest commands remain available through the CLI.
 - Official bundled extensions remain declarative: install/enable changes state, but no third-party plugin code is loaded.
 - Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code.
 - Public docs, package metadata, portable bundle metadata, and generated proof metadata now identify the release as Alpha 2 / `0.2.0`.
@@ -55,7 +56,7 @@ The bundle lands in `dist/postsnail-portable/` with a matching ZIP at `dist/post
 node bin/postsnail-portable.js
 ```
 
-The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then asks what to run: Admin only, Forest only, or Admin + Forest. The public website and documentation are included in the bundle for reference, but they are not part of the startup menu. If the update check is offline or fails verification, it keeps the bundled snapshot and still starts the selected local tool.
+The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then opens the PostSnail Portable Command Center. From there, creators can use a guided TUI to run CLI workflows without typing full commands, start local Admin + Bridge, build and verify ZIPs, publish through Surge, notify remote Forest, manage ShellNames, change domains, and moderate comments. If the update check is offline or fails verification, it keeps the bundled snapshot and still opens the command center.
 
 If you want a GitHub-hosted one-command startup flow, use the bootstrapper in this repo. It downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers to install missing tools when a package manager is available, and then launches the bundle:
 
@@ -63,7 +64,7 @@ If you want a GitHub-hosted one-command startup flow, use the bootstrapper in th
 curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
 ```
 
-The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail. If a GitHub Release asset is not published yet, it falls back to the GitHub source archive on `main` and still launches the portable admin.
+The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail. If a GitHub Release asset is not published yet, it falls back to the GitHub source archive on `main` and still launches the portable command center.
 Because it reads prompts from your terminal, it can still ask before installing dependencies or launching the bundle even when you run it through `curl | bash`.
 
 ## Deploy The Public Site And Admin
@@ -92,21 +93,29 @@ For Cloudflare connected deploys, set the deploy command to `npm run deploy`. Th
 
 PostSnail CLI is the trusted local automation interface for PostSnail. It reuses the same workspace, proof, export, and verification logic as the browser admin instead of inventing a second publishing model.
 
-CLI 1A supports:
+CLI commands include:
 
-- `postsnail workspace info`
-- `postsnail workspace migrate`
-- `postsnail post import`
-- `postsnail build`
-- `postsnail verify`
-- `postsnail zip`
+- `postsnail menu`
+- `postsnail workspace create|info|migrate`
+- `postsnail profile show|set`
+- `postsnail identity generate|show`
+- `postsnail plugin list|enable|disable`
+- `postsnail post list|new|import|status|delete`
+- `postsnail page list|import|status|delete|navigation`
+- `postsnail asset list|unused|delete-unused`
+- `postsnail comment verify|approve|reject|list|block-key`
+- `postsnail build`, `postsnail zip`, `postsnail verify`, and `postsnail live verify`
+- `postsnail publish surge`
+- `postsnail forest announce`
+- `postsnail shellname register|update|renew`
+- `postsnail domain move|mirror`
 
 Important boundary: the CLI uses two different passphrases when a signing identity exists.
 
 - The Shell passphrase opens the encrypted `.postsnail` file.
 - The identity passphrase unlocks the encrypted signing key for `build` and `zip`.
 
-CLI 1A is local/headless only. It does not yet add deploy providers, automatic Forest announce, or one-shot publish. See [CLI](docs/cli.md) and [Headless Publishing](docs/headless-publishing.md).
+CLI workflows stay local-first. Publish, Forest, ShellName, and domain-move commands send only public signed records or public generated files; they do not upload raw private keys, Shell passphrases, drafts, rejected comments, or private plugin state. See [CLI](docs/cli.md) and [Headless Publishing](docs/headless-publishing.md).
 
 ## SnailLift
 

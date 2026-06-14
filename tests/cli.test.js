@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { encryptSecretKey, generateSigningKeyPair, publicKeyToText } from "../src/crypto.js";
+import { getCliCommandCatalog } from "../src/cli/catalog.js";
+import { runCli } from "../src/cli/run.js";
 import { exportWorkspaceVault, importWorkspaceVault } from "../src/workspace.js";
 
 const cliPath = join(process.cwd(), "bin/postsnail.js");
@@ -13,11 +15,74 @@ const cliPath = join(process.cwd(), "bin/postsnail.js");
 test("postsnail --help prints top-level commands", () => {
   const output = execFileSync(process.execPath, [cliPath, "--help"], { encoding: "utf8" });
 
-  assert.match(output, /workspace info/);
-  assert.match(output, /post import/);
-  assert.match(output, /build/);
-  assert.match(output, /verify/);
-  assert.match(output, /zip/);
+  for (const command of getCliCommandCatalog()) {
+    assert.match(output, new RegExp(command.usage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(output, /postsnail menu/);
+  assert.match(output, /Command Center/);
+});
+
+test("postsnail menu renders the portable command center and teaches commands", async () => {
+  const output = await captureCli(["menu"], { scriptedAnswers: ["11", "7", "0"] });
+
+  assert.match(output, /PostSnail Portable Command Center/);
+  assert.match(output, /Selected Shell:/);
+  assert.match(output, /Start local Admin \+ Bridge/);
+  assert.match(output, /Build, ZIP, and verify/);
+  assert.match(output, /Export signed Website ZIP/);
+  assert.match(output, /Command:/);
+  assert.match(output, /postsnail zip --workspace/);
+});
+
+test("postsnail menu runs guided TUI workflows without requiring command typing", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-tui-"));
+  const workspacePath = join(fixtureDir, "guided.postsnail");
+  const preferencesPath = join(fixtureDir, "portable-preferences.json");
+
+  const output = await captureCli(["menu"], {
+    preferencesPath,
+    scriptedAnswers: [
+      "2",
+      "1",
+      "r",
+      workspacePath,
+      "shell phrase",
+      "Guided Shell",
+      "guided-shell",
+      "https://guided.example/",
+      "Created from the TUI",
+      "0",
+      "4",
+      "2",
+      "r",
+      "",
+      "",
+      "Guided Post",
+      "guided-post",
+      "Post body from the guided TUI.",
+      "published",
+      "tui,portable",
+      "0",
+      "0",
+    ],
+  });
+
+  assert.equal(existsSync(workspacePath), true);
+  assert.match(output, /PostSnail TUI/);
+  assert.match(output, /Running: postsnail workspace create/);
+  assert.match(output, /Running: postsnail post new/);
+  assert.match(output, /Created Shell:/);
+  assert.match(output, /Saved post:/);
+  assert.doesNotMatch(output, /shell phrase/);
+
+  const reopened = await importWorkspaceVault(readFileSync(workspacePath, "utf8"), "shell phrase");
+  assert.equal(reopened.state.profile.siteTitle, "Guided Shell");
+  assert.equal(reopened.state.profile.handle, "guided-shell");
+  assert.equal(reopened.state.posts[0].slug, "guided-post");
+  assert.equal(reopened.state.posts[0].status, "published");
+
+  const preferences = JSON.parse(readFileSync(preferencesPath, "utf8"));
+  assert.equal(preferences.selectedWorkspace, workspacePath);
 });
 
 test("postsnail workspace info opens an encrypted shell and prints summary", async () => {
@@ -59,6 +124,125 @@ test("postsnail workspace info opens an encrypted shell and prints summary", asy
 
   assert.match(output, /CLI Fixture/);
   assert.match(output, /Published posts: 1/);
+});
+
+test("postsnail workspace create, profile set, and identity generate manage an encrypted shell", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-full-"));
+  const workspacePath = join(fixtureDir, "created.postsnail");
+
+  await captureCli([
+    "workspace",
+    "create",
+    "--workspace",
+    workspacePath,
+    "--passphrase",
+    "shell phrase",
+    "--site-title",
+    "CLI Created",
+    "--handle",
+    "cli-created",
+    "--site-url",
+    "https://cli-created.example/",
+  ]);
+  assert.equal(existsSync(workspacePath), true);
+
+  await captureCli([
+    "profile",
+    "set",
+    "--workspace",
+    workspacePath,
+    "--passphrase",
+    "shell phrase",
+    "--description",
+    "A CLI managed Shell",
+  ]);
+
+  const identityOutput = await captureCli([
+    "identity",
+    "generate",
+    "--workspace",
+    workspacePath,
+    "--passphrase",
+    "shell phrase",
+    "--identity-passphrase",
+    "identity phrase",
+  ]);
+  assert.match(identityOutput, /Public key:/);
+
+  const reopened = await importWorkspaceVault(readFileSync(workspacePath, "utf8"), "shell phrase");
+  assert.equal(reopened.state.profile.siteTitle, "CLI Created");
+  assert.equal(reopened.state.profile.description, "A CLI managed Shell");
+  assert.equal(reopened.state.identity.algorithm, "ML-DSA-65");
+  assert.match(reopened.state.identity.publicKey, /^base64:/);
+});
+
+test("postsnail plugin, post, page, asset, and comment commands mutate shell state without leaking secrets", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-content-"));
+  const workspacePath = join(fixtureDir, "content.postsnail");
+  const pagePath = join(fixtureDir, "page.md");
+  const commentPath = join(fixtureDir, "comment.json");
+  const keys = generateSigningKeyPair();
+  const encryptedSecretKey = await encryptSecretKey(keys.secretKey, "identity phrase");
+  const exported = await exportWorkspaceVault({
+    profile: { siteTitle: "Content CLI", handle: "content-cli", siteUrl: "https://content.example/" },
+    posts: [],
+    assets: [{ id: "unused-image", filename: "unused.png", dataUrl: "data:image/png;base64,AAAA" }],
+    identity: {
+      algorithm: "ML-DSA-65",
+      publicKey: publicKeyToText(keys.publicKey),
+      encryptedSecretKey,
+      createdAt: "2026-06-14T00:00:00.000Z",
+    },
+    plugins: { installed: [], lock: {}, state: { unknownPlugin: { preserved: true } } },
+    moderation: { approvedComments: [], rejectedComments: [], blockedPublicKeys: [] },
+  }, "shell phrase");
+  writeFileSync(workspacePath, exported.text);
+  writeFileSync(pagePath, [
+    "---",
+    "title: CLI Page",
+    "path: /cli-page/",
+    "status: published",
+    "---",
+    "Page body from the CLI.",
+    "",
+  ].join("\n"));
+  writeFileSync(commentPath, JSON.stringify({
+    protocol: "postsnail-comment-v1",
+    version: 1,
+    type: "postsnail_comment",
+    requiredFeatures: ["signed-comment"],
+    optionalFeatures: [],
+    extensions: {},
+    target: {
+      sitePublicKey: publicKeyToText(keys.publicKey),
+      postSlug: "missing",
+      postDigest: "sha3-512:none",
+    },
+    author: { publicKey: publicKeyToText(keys.publicKey), displayName: "CLI Reader" },
+    content: { body: "Hello from comments." },
+    createdAt: "2026-06-14T00:00:00.000Z",
+    commentId: "bad",
+    signature: "base64:bad",
+  }, null, 2));
+
+  await captureCli(["plugin", "enable", "postsnail-pages", "--workspace", workspacePath, "--passphrase", "shell phrase"]);
+  await captureCli(["post", "new", "--workspace", workspacePath, "--passphrase", "shell phrase", "--title", "CLI Post", "--slug", "cli-post", "--body", "CLI body", "--status", "published", "--tags", "cli,test"]);
+  await captureCli(["post", "status", "--workspace", workspacePath, "--passphrase", "shell phrase", "--slug", "cli-post", "--status", "draft"]);
+  await captureCli(["page", "import", pagePath, "--workspace", workspacePath, "--passphrase", "shell phrase"]);
+  const unusedOutput = await captureCli(["asset", "delete-unused", "--workspace", workspacePath, "--passphrase", "shell phrase"]);
+  assert.match(unusedOutput, /Removed unused assets: 1/);
+  const commentOutput = await captureCli(["comment", "verify", commentPath]);
+  assert.match(commentOutput, /Comment verification failed/);
+  await captureCli(["comment", "block-key", "--workspace", workspacePath, "--passphrase", "shell phrase", "--public-key", publicKeyToText(keys.publicKey)]);
+
+  const reopened = await importWorkspaceVault(readFileSync(workspacePath, "utf8"), "shell phrase");
+  assert.deepEqual(reopened.state.plugins.state.unknownPlugin, { preserved: true });
+  assert.equal(reopened.state.plugins.installed.some((entry) => entry.id === "postsnail-pages" && entry.enabled), true);
+  assert.equal(reopened.state.posts[0].slug, "cli-post");
+  assert.equal(reopened.state.posts[0].status, "draft");
+  assert.equal(reopened.state.plugins.state["postsnail-pages"].pages[0].path, "/cli-page/");
+  assert.equal(reopened.state.assets.length, 0);
+  assert.deepEqual(reopened.state.moderation.blockedPublicKeys, [publicKeyToText(keys.publicKey)]);
 });
 
 test("postsnail rejects unknown commands", () => {
@@ -312,3 +496,111 @@ test("postsnail verify passes valid output and fails tampered output", async () 
     /Verification failed/i,
   );
 });
+
+test("postsnail network commands use public signed records and never send private key material", async () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "postsnail-cli-network-"));
+  const workspacePath = join(fixtureDir, "network.postsnail");
+  const outDir = join(fixtureDir, "public");
+  const zipPath = join(fixtureDir, "site.zip");
+  const keys = generateSigningKeyPair();
+  const encryptedSecretKey = await encryptSecretKey(keys.secretKey, "identity phrase");
+  const exported = await exportWorkspaceVault({
+    profile: { siteTitle: "Network CLI", handle: "network-cli", siteUrl: "https://network.example/" },
+    posts: [{
+      id: "p1",
+      title: "Network",
+      slug: "network",
+      body: "Network body",
+      tags: ["network"],
+      status: "published",
+      excerpt: "Network body",
+      imageIds: [],
+      createdAt: "2026-06-14T00:00:00.000Z",
+      updatedAt: "2026-06-14T00:00:00.000Z",
+      publishedAt: "2026-06-14T00:00:00.000Z",
+    }],
+    identity: {
+      algorithm: "ML-DSA-65",
+      publicKey: publicKeyToText(keys.publicKey),
+      encryptedSecretKey,
+      createdAt: "2026-06-14T00:00:00.000Z",
+    },
+    settings: {
+      snailLiftSurgeSiteUrl: "https://network.example/",
+      snailLiftSurgeDomain: "network.example",
+      snailLiftSurgeProjectDir: "postsnail-public",
+      snailLiftSurgeLogin: "boaz@example.com",
+      snailLiftSurgeToken: "secret-surge-token",
+    },
+  }, "shell phrase");
+  writeFileSync(workspacePath, exported.text);
+
+  await captureCli(["zip", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--out", zipPath]);
+  await captureCli(["build", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--out", outDir]);
+  const wellKnown = JSON.parse(readFileSync(join(outDir, ".well-known", "postsnail.json"), "utf8"));
+  const manifest = JSON.parse(readFileSync(join(outDir, "postsnail.manifest.json"), "utf8"));
+  const latestCommit = JSON.parse(readFileSync(join(outDir, ".well-known", "postsnail", "latest-commit.json"), "utf8"));
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : input.url;
+    const body = init.body ? String(init.body) : "";
+    requests.push({ url, method: init.method || "GET", body });
+    assert.doesNotMatch(body, /identity phrase|shell phrase|secretKey|privateKey/);
+    if (url === "https://network.example/.well-known/postsnail.json") return jsonResponse(wellKnown);
+    if (url === "https://network.example/postsnail.manifest.json") return jsonResponse(manifest);
+    if (url === "https://network.example/.well-known/postsnail/latest-commit.json") return jsonResponse(latestCommit);
+    if (url.endsWith("/api/announce")) return jsonResponse({ status: "queued", submissionId: "sub-1" }, 202);
+    if (url.endsWith("/shellnames/register")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
+    if (url.endsWith("/shellnames/update")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
+    if (url.endsWith("/shellnames/renew")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
+    if (url.endsWith("/api/site-moves")) return jsonResponse({ status: "moved", moveId: "move-1", fromUrl: "https://old.example/", toUrl: "https://network.example/" }, 202);
+    if (url === "http://127.0.0.1:8788/publish") return jsonResponse({ ok: true, message: "Surge published.", deploymentUrl: "https://network.example/" });
+    throw new Error(`Unexpected fetch ${url}`);
+  };
+
+  try {
+    await captureCli(["forest", "announce", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--forest-url", "https://forest.postsnail.org", "--skip-live-verify"]);
+    await captureCli(["shellname", "register", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--name", "network", "--forest-url", "https://forest.postsnail.org"]);
+    await captureCli(["domain", "move", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--from-url", "https://old.example/", "--to-url", "https://network.example/", "--forest-url", "https://forest.postsnail.org", "--skip-live-verify"]);
+    await captureCli(["publish", "surge", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--skip-live-verify"]);
+    await assert.rejects(
+      () => captureCli(["publish", "surge", "--workspace", workspacePath, "--passphrase", "shell phrase", "--identity-passphrase", "identity phrase", "--skip-live-verify", "--notify-forest"]),
+      /Forest notify requires live verification/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(requests.some((request) => request.url.endsWith("/api/announce")), true);
+  assert.equal(requests.some((request) => request.url.endsWith("/shellnames/register")), true);
+  assert.equal(requests.some((request) => request.url.endsWith("/api/site-moves")), true);
+  assert.equal(requests.some((request) => request.url === "http://127.0.0.1:8788/publish"), true);
+
+  const reopened = await importWorkspaceVault(readFileSync(workspacePath, "utf8"), "shell phrase");
+  assert.equal(reopened.state.shellNames[0].fullName, "@network@forest.postsnail.org");
+  assert.equal(reopened.state.siteMoves[0].id, "move-1");
+});
+
+async function captureCli(argv, options = {}) {
+  let output = "";
+  const originalWrite = process.stdout.write;
+  process.stdout.write = (chunk, encoding, callback) => {
+    output += String(chunk);
+    if (typeof callback === "function") callback();
+    return true;
+  };
+  try {
+    await runCli(argv, options);
+    return output;
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+}
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}

@@ -96,6 +96,15 @@ test("public pages are generated from the shared PostSnail layout", () => {
     if (path === "docs/portable-bundle/index.html") {
       assert.match(html, /raw\.githubusercontent\.com\/elmirok\/PostSnail\/main\/portable\/bootstrap\.sh/, path);
       assert.match(html, /falls back to the GitHub source archive on `main`/, path);
+      assert.match(html, /CLI Command Center/, path);
+      assert.match(html, /guided Command Center/, path);
+      assert.match(html, /There is no local Forest mode/, path);
+      assert.doesNotMatch(html, /Forest only/, path);
+      assert.doesNotMatch(html, /Admin \+ Forest/, path);
+    }
+    if (path === "docs/cli/index.html") {
+      assert.match(html, /guided terminal TUI/, path);
+      assert.match(html, /do not have to type flags by hand/, path);
     }
   }
 });

@@ -16,5 +16,11 @@ Guidelines:
 - Do not treat the public ZIP as the full private project source.
 - Do not move raw private keys or Shell passphrases into a required backend.
 
-Future CLI slices can add deployment helpers and Forest announce flows, but they must stay optional and preserve the current trust boundaries.
+The CLI includes optional local publish and tracker workflows:
 
+- `postsnail publish surge` builds the public files, runs safety checks, hands off to the local Surge bridge, verifies live proof files, and can notify Forest after verification.
+- `postsnail forest announce` sends a signed public announce for an already-live site.
+- `postsnail shellname register|update|renew` signs public ShellName records locally.
+- `postsnail domain move|mirror` signs public site-move records after checking the new live proof.
+
+These commands remain optional and preserve the current trust boundaries. They do not turn PostSnail into a hosted account system and they do not upload raw private keys, Shell passphrases, drafts, rejected comments, or private plugin state.

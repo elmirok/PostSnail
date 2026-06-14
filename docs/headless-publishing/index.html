@@ -42,14 +42,14 @@
             <p class="lede">Local automation should use the same Shell, signing, export, and verification rules as the browser admin.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Headless publishing sections"><a href="#two-secrets">Two Secrets</a><a href="#source">Editable Source</a><a href="#public-output">Public Output</a><a href="#trusted-local">Trusted Local Automation</a><a href="#verify-first">Verify First</a><a href="#future">What Comes Later</a></nav>
+            <nav class="doc-nav" aria-label="Headless publishing sections"><a href="#two-secrets">Two Secrets</a><a href="#source">Editable Source</a><a href="#public-output">Public Output</a><a href="#trusted-local">Trusted Local Automation</a><a href="#verify-first">Verify First</a><a href="#commands">Current Commands</a></nav>
             <div class="doc-content">
               <section id="two-secrets"><h2>Two Secrets</h2><p>Headless publishing still uses two passphrases: the Shell passphrase opens the encrypted .postsnail file, and the identity passphrase unlocks the encrypted signing key used for build and zip.</p></section>
               <section id="source"><h2>Editable Source</h2><p>The .postsnail Shell remains the private editable source. Scripts and agents should treat it like source code plus secrets, not like a public deploy artifact.</p></section>
               <section id="public-output"><h2>Public Output</h2><p>The public Website ZIP or extracted public directory is the hosting artifact. It can be uploaded, verified, mirrored, or deployed, but it is not the full private project.</p></section>
               <section id="trusted-local"><h2>Trusted Local Automation</h2><p>Use the CLI only in environments you trust locally. It should help humans or agents automate repetitive publish work without moving private key material into a backend or CI by default.</p></section>
               <section id="verify-first"><h2>Verify First</h2><p>Build, then verify the public directory or ZIP before any deploy step. If verification fails, fix the Shell or content source before publishing.</p></section>
-              <section id="future"><h2>What Comes Later</h2><p>Deploy providers, Forest announce flows, and one-shot publish shortcuts belong to later CLI slices once the local foundation is stable and proven.</p></section>
+              <section id="commands"><h2>Current Commands</h2><p>The CLI includes menu, workspace, profile, identity, plugin, post, page, asset, comment, build, zip, verify, live verify, publish surge, forest announce, shellname, and domain move/mirror commands.</p></section>
             </div>
           </article>
     </main>

@@ -1,15 +1,21 @@
+import { groupedCliCommands } from "../catalog.js";
+
 export function renderHelp() {
-  return [
+  const lines = [
     "PostSnail CLI",
     "",
-    "Commands:",
-    "  workspace info --workspace <file.postsnail>",
-    "  workspace migrate --workspace <file.postsnail> --out <new-file.postsnail>",
-    "  post import <draft.md> --workspace <file.postsnail>",
-    "  build --workspace <file.postsnail> --out <public-dir>",
-    "  verify <public-dir-or-zip>",
-    "  zip --workspace <file.postsnail> --out <site.zip>",
+    "Command Center:",
+    "  postsnail menu",
     "",
-  ].join("\n");
+    "Commands:",
+  ];
+  for (const group of groupedCliCommands()) {
+    lines.push(``, `${group.name}:`);
+    for (const command of group.commands) {
+      lines.push(`  ${command.usage}`);
+      lines.push(`    ${command.summary}`);
+    }
+  }
+  lines.push("");
+  return lines.join("\n");
 }
-

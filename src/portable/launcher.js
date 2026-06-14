@@ -1,13 +1,12 @@
 import { spawn } from "node:child_process";
-import { closeSync, createReadStream, createWriteStream, openSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer as createNetServer } from "node:net";
 import { resolve } from "node:path";
-import { createInterface } from "node:readline/promises";
 
 import { resolvePortableAdminUrl, resolvePortableBridgeUrl, resolvePortableBundleRoot, resolvePortableDataDir, resolvePortableStatusPath, resolvePortableTmpDir } from "./paths.js";
 import { loadPortableBundleInfo, selectPortableRuntimeRoot, writePortableStatus } from "./update.js";
 import { startPortableServer } from "./server.js";
+import { runMenu } from "../cli/menu.js";
 
 export async function runPortableLauncher({
   entryPoint = import.meta.url,
@@ -20,8 +19,8 @@ export async function runPortableLauncher({
   skipMenu = false,
   adminPort,
   bridgePort,
-  forestPort,
   skipBrowser = false,
+  promptMenu,
 } = {}) {
   const bundleRoot = resolvePortableBundleRoot(entryPoint);
   const bundleInfo = await loadPortableBundleInfo(bundleRoot);
@@ -37,14 +36,20 @@ export async function runPortableLauncher({
 
   const runtimeRoot = update.activeRoot || bundleRoot;
   const selectedRunMode = await resolvePortableRunMode({ runMode, promptRunMode, skipMenu });
-  const shouldRunAdmin = selectedRunMode === "admin" || selectedRunMode === "both";
-  const shouldRunForest = selectedRunMode === "forest" || selectedRunMode === "both";
+  const shouldRunAdmin = selectedRunMode === "admin";
+  const shouldRunMenu = selectedRunMode === "cli";
 
   let server = null;
-  let bridge = { child: null, port: null, state: "skipped" };
-  let forest = { child: null, port: null, state: "skipped" };
+  let bridge = { child: null, port: null, state: "stopped" };
+  let menuState = "skipped";
 
-  if (shouldRunAdmin) {
+  async function ensureAdminAndBridge({ openNow = false } = {}) {
+    if (server) {
+      return {
+        adminUrl: resolvePortableAdminUrl(server.port),
+        bridgeUrl: bridge.port ? resolvePortableBridgeUrl(bridge.port) : null,
+      };
+    }
     const adminListenPort = Number(adminPort || (await findFreePort(host)));
     const bridgeListenPort = Number(bridgePort || (await findFreePort(host)));
     server = await startPortableServer({
@@ -60,23 +65,32 @@ export async function runPortableLauncher({
       spawnImpl,
       fetchImpl,
     });
+    const started = {
+      adminUrl: resolvePortableAdminUrl(server.port),
+      bridgeUrl: bridge.port ? resolvePortableBridgeUrl(bridge.port) : null,
+    };
+    if (openNow && !skipBrowser && started.adminUrl) {
+      await openImpl(started.adminUrl);
+    }
+    return started;
   }
 
-  if (shouldRunForest) {
-    const forestListenPort = Number(forestPort || (await findFreePort(host)));
-    forest = await startPortableForest({
-      runtimeRoot,
-      bundleRoot,
-      host,
-      port: forestListenPort,
-      spawnImpl,
-      fetchImpl,
+  if (shouldRunAdmin) {
+    await ensureAdminAndBridge();
+  }
+
+  if (shouldRunMenu) {
+    menuState = "ready";
+    const scriptedAnswers = promptMenu ? [await promptMenu()] : null;
+    await runMenu({
+      scriptedAnswers,
+      preferencesPath: resolve(bundleRoot, "data", "portable-preferences.json"),
+      onStartAdmin: () => ensureAdminAndBridge({ openNow: true }),
     });
   }
 
   const adminUrl = server ? resolvePortableAdminUrl(server.port) : null;
   const bridgeUrl = bridge.port ? resolvePortableBridgeUrl(bridge.port) : null;
-  const forestUrl = forest.port ? `http://${host}:${forest.port}/` : null;
   const status = {
     bundleRoot,
     runtimeRoot,
@@ -85,12 +99,11 @@ export async function runPortableLauncher({
     updateState: update.updateState,
     updateMessage: update.message,
     updateVersion: update.manifest?.bundleVersion || null,
-    adminState: server ? "ready" : "skipped",
+    adminState: server ? "ready" : "stopped",
     adminUrl,
     bridgeUrl,
     bridgeState: bridge.state,
-    forestUrl,
-    forestState: forest.state,
+    menuState,
     writableDataPath: dataDir,
     startedAt: new Date().toISOString(),
   };
@@ -104,10 +117,10 @@ export async function runPortableLauncher({
     }
   }
 
-  process.once("SIGINT", () => shutdown(server, bridge, forest));
-  process.once("SIGTERM", () => shutdown(server, bridge, forest));
+  process.once("SIGINT", () => shutdown(server, bridge));
+  process.once("SIGTERM", () => shutdown(server, bridge));
 
-  return { ...status, server, bridge, forest };
+  return { ...status, server, bridge };
 }
 
 async function startPortableBridge({ runtimeRoot, bundleRoot, host, port, spawnImpl, fetchImpl }) {
@@ -140,54 +153,6 @@ async function startPortableBridge({ runtimeRoot, bundleRoot, host, port, spawnI
   }
 }
 
-async function startPortableForest({ runtimeRoot, bundleRoot, host, port, spawnImpl, fetchImpl }) {
-  const registryRoot = resolve(runtimeRoot, "registry");
-  const persistenceDir = resolve(bundleRoot, "data", "forest-wrangler");
-  await mkdir(persistenceDir, { recursive: true });
-  const env = {
-    ...process.env,
-    TMPDIR: resolve(bundleRoot, "data", "tmp"),
-    TMP: resolve(bundleRoot, "data", "tmp"),
-    TEMP: resolve(bundleRoot, "data", "tmp"),
-  };
-  const args = [
-    "--yes",
-    "wrangler@4.98.0",
-    "dev",
-    "--local",
-    "--ip",
-    host,
-    "--port",
-    String(port),
-    "--persist-to",
-    persistenceDir,
-    "--show-interactive-dev-session=false",
-  ];
-
-  try {
-    const child = spawnImpl(npxCommand(), args, {
-      cwd: registryRoot,
-      env,
-      stdio: "ignore",
-      detached: false,
-    });
-    const state = await waitForHttpHealth(`http://${host}:${port}/`, {
-      fetchImpl,
-      child,
-      attempts: 180,
-      delayMs: 500,
-    });
-    return { child, port, state };
-  } catch (error) {
-    return {
-      child: null,
-      port,
-      state: "unavailable",
-      error: error instanceof Error ? error.message : String(error || "Forest failed to start."),
-    };
-  }
-}
-
 async function waitForBridgeHealth(port, fetchImpl = globalThis.fetch) {
   const bridgeUrl = `http://127.0.0.1:${port}/health`;
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -202,25 +167,7 @@ async function waitForBridgeHealth(port, fetchImpl = globalThis.fetch) {
   return "unavailable";
 }
 
-async function waitForHttpHealth(url, { fetchImpl = globalThis.fetch, child = null, attempts = 20, delayMs = 100 } = {}) {
-  let exited = false;
-  child?.once?.("exit", () => {
-    exited = true;
-  });
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (exited) return "unavailable";
-    try {
-      const response = await fetchImpl(url);
-      if (response.ok) return "ready";
-    } catch {
-      // ignore and retry
-    }
-    await delay(delayMs);
-  }
-  return "unavailable";
-}
-
-async function shutdown(server, bridge, forest) {
+async function shutdown(server, bridge) {
   try {
     await server?.close?.();
   } catch {
@@ -228,11 +175,6 @@ async function shutdown(server, bridge, forest) {
   }
   try {
     bridge?.child?.kill?.("SIGTERM");
-  } catch {
-    // ignore
-  }
-  try {
-    forest?.child?.kill?.("SIGTERM");
   } catch {
     // ignore
   }
@@ -246,17 +188,13 @@ function renderPortableStatus(status) {
     `Mode: ${labelForRunMode(status.runMode)}`,
     `Admin: ${status.adminState}${status.adminUrl ? ` (${status.adminUrl})` : ""}`,
     `Bridge: ${status.bridgeState}${status.bridgeUrl ? ` (${status.bridgeUrl})` : ""}`,
-    `Forest: ${status.forestState}${status.forestUrl ? ` (${status.forestUrl})` : ""}`,
+    `Menu: ${status.menuState}`,
     `Data: ${status.writableDataPath}`,
     "",
   ].join("\n");
 }
 
 function openUrlsForStatus(status) {
-  if (status.runMode === "forest") return status.forestUrl ? [status.forestUrl] : [];
-  if (status.runMode === "both") {
-    return [status.adminUrl, status.forestUrl].filter(Boolean);
-  }
   return status.adminUrl ? [status.adminUrl] : [];
 }
 
@@ -264,77 +202,22 @@ async function resolvePortableRunMode({ runMode, promptRunMode, skipMenu }) {
   if (runMode) return normalizeRunMode(runMode);
   if (promptRunMode) return normalizeRunMode(await promptRunMode());
   if (skipMenu) return "admin";
-  try {
-    return normalizeRunMode(await promptPortableRunMode());
-  } catch {
-    return "admin";
-  }
-}
-
-async function promptPortableRunMode() {
-  const streams = openPromptStreams();
-  const rl = createInterface({
-    input: streams.input,
-    output: streams.output,
-  });
-  try {
-    streams.output.write([
-      "",
-      "What do you want to run?",
-      "  1) Admin only (local Shell editor + publishing bridge)",
-      "  2) Forest only (local tracker/search worker)",
-      "  3) Admin + Forest",
-      "",
-    ].join("\n"));
-    const answer = await rl.question("Choose 1, 2, or 3 [1]: ");
-    return normalizeRunMode(answer || "1");
-  } finally {
-    rl.close();
-    streams.close();
-  }
-}
-
-function openPromptStreams() {
-  if (process.stdin.isTTY && process.stdout.isTTY) {
-    return {
-      input: process.stdin,
-      output: process.stdout,
-      close() {},
-    };
-  }
-  if (process.platform !== "win32") {
-    const probe = openSync("/dev/tty", "r");
-    closeSync(probe);
-    const input = createReadStream("/dev/tty");
-    const output = createWriteStream("/dev/tty");
-    return {
-      input,
-      output,
-      close() {
-        input.destroy();
-        output.end();
-      },
-    };
-  }
-  throw new Error("Portable menu is unavailable without an interactive terminal.");
+  return "cli";
 }
 
 function normalizeRunMode(value) {
   const mode = String(value || "").trim().toLowerCase();
   if (mode === "1" || mode === "admin" || mode === "a") return "admin";
-  if (mode === "2" || mode === "forest" || mode === "f") return "forest";
-  if (mode === "3" || mode === "both" || mode === "all" || mode === "b") return "both";
-  throw new Error("Choose admin, forest, or both.");
+  if (mode === "0" || mode === "menu" || mode === "cli" || mode === "c") return "cli";
+  if (mode === "forest" || mode === "f" || mode === "both" || mode === "all" || mode === "b") {
+    throw new Error("Local Forest is not included in PostSnail Portable. Use remote Forest commands from the CLI menu.");
+  }
+  throw new Error("Choose cli or admin.");
 }
 
 function labelForRunMode(mode) {
-  if (mode === "forest") return "Forest only";
-  if (mode === "both") return "Admin + Forest";
+  if (mode === "cli") return "CLI Command Center";
   return "Admin only";
-}
-
-function npxCommand() {
-  return process.platform === "win32" ? "npx.cmd" : "npx";
 }
 
 async function openBrowser(url) {
