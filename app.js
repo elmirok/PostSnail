@@ -105,6 +105,7 @@ const state = {
   localShellEnvelope: null,
   shellPassphrase: "",
   snailLiftSurgeProgress: "",
+  siteMoveSubmitting: false,
   shellSaveTimer: null,
   localShellNotice: false,
   localShellSaveError: false,
@@ -829,21 +830,24 @@ async function submitSiteMove() {
     setStatus("Enter Forest URL, old domain, and new domain before changing domains.");
     return;
   }
-  setStatus("Verifying the new live domain proof files against this Shell publisher key...");
-  await nextFrame();
-  const liveVerification = await verifySnailLiftLiveSite({
-    siteUrl: toUrl,
-    expectedPublicKey: state.identity.publicKey,
-  });
-  if (!liveVerification.ok) {
-    setStatus(`The new domain is not ready for this Shell yet. Live verification failed: ${liveVerification.errors[0] || "proof files did not match"}`);
-    state.lastSnailLiftVerification = liveVerification;
-    render();
+  if (state.siteMoveSubmitting) {
+    setStatus("Domain move request is already running. Wait for Forest to answer.");
     return;
   }
-
-  let record;
+  state.siteMoveSubmitting = true;
+  setStatus("Verifying the new live domain proof files against this Shell publisher key...");
+  await nextFrame();
   try {
+    const liveVerification = await verifySnailLiftLiveSite({
+      siteUrl: toUrl,
+      expectedPublicKey: state.identity.publicKey,
+    });
+    if (!liveVerification.ok) {
+      setStatus(`The new domain is not ready for this Shell yet. Live verification failed: ${liveVerification.errors[0] || "proof files did not match"}`);
+      state.lastSnailLiftVerification = liveVerification;
+      return;
+    }
+
     const payload = buildSiteMovePayload({
       mode,
       fromUrl,
@@ -852,15 +856,10 @@ async function submitSiteMove() {
       bundleFingerprint: liveVerification.bundleFingerprint,
       createdAt: new Date().toISOString(),
     });
-    record = signSiteMoveRecord(payload, state.secretKey);
-  } catch (error) {
-    setStatus(error.message || "Site move record could not be created.");
-    return;
-  }
+    const record = signSiteMoveRecord(payload, state.secretKey);
 
-  setStatus(mode === "move" ? "Sending signed domain move to Forest..." : "Sending signed mirror relationship to Forest...");
-  await nextFrame();
-  try {
+    setStatus(mode === "move" ? "Sending signed domain move to Forest..." : "Sending signed mirror relationship to Forest...");
+    await nextFrame();
     const endpoint = new URL("/api/site-moves", forestUrl);
     const response = await fetch(endpoint.toString(), {
       method: "POST",
@@ -869,8 +868,7 @@ async function submitSiteMove() {
     });
     const responseBody = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setStatus(responseBody.error || "Forest could not apply this domain move.");
-      render();
+      setStatus(siteMoveErrorMessage(response.status, responseBody.error));
       return;
     }
     const move = {
@@ -894,9 +892,10 @@ async function submitSiteMove() {
         ? "Forest saved the mirror relationship. Both domains can remain searchable."
         : "Forest moved the site. The old domain is hidden from search and points to the new domain in the audit record.",
     );
-    render();
-  } catch {
-    setStatus("Forest could not be reached for the domain move.");
+  } catch (error) {
+    setStatus(error.message || "Forest could not be reached for the domain move.");
+  } finally {
+    state.siteMoveSubmitting = false;
     render();
   }
 }
@@ -1883,7 +1882,7 @@ function renderChangeDomainPanel(hasIdentity, unlocked) {
         <p>Make sure the new domain serves a valid PostSnail Website ZIP from this Shell. PostSnail verifies the live proof files against your publisher key and signs the move with the live fingerprint Forest sees.</p>
       </div>
       <div class="actions">
-        <button class="btn primary" type="button" data-action="submit-site-move">Check requirements and change domain</button>
+        <button class="btn primary" type="button" data-action="submit-site-move" ${state.siteMoveSubmitting ? "disabled" : ""}>${state.siteMoveSubmitting ? "Changing domain..." : "Check requirements and change domain"}</button>
         <button class="btn" type="button" data-action="copy-site-move" ${lastMove?.record ? "" : "disabled"}>Copy last move record</button>
       </div>
       ${lastMove ? `
@@ -3539,6 +3538,22 @@ function normalizeForestUrl(value) {
   } catch {
     return "";
   }
+}
+
+function siteMoveErrorMessage(status, fallback = "") {
+  if (status === 429) {
+    return "Forest is rate limiting domain moves right now. Wait a little, then retry once. If this exact move was already accepted, Forest should return the saved move after the registry update is deployed.";
+  }
+  if (status === 409) {
+    return fallback || "Forest could not verify the new live domain proof files yet. Check that the new domain is serving the latest PostSnail proof files.";
+  }
+  if (status === 404) {
+    return fallback || "Forest does not know the old domain yet. Register or crawl the old site before moving it.";
+  }
+  if (status === 401) {
+    return fallback || "Forest rejected the domain move because the signing key does not match the indexed site.";
+  }
+  return fallback || "Forest could not apply this domain move.";
 }
 
 function deriveDomainFromSiteUrl(siteUrl) {

@@ -206,12 +206,13 @@ async function handleSiteMove(request: Request, deps: AppDeps): Promise<Response
   const fromUrl = normalizeForSubmit(verified.fromUrl).siteUrl;
   const toUrl = normalizeForSubmit(verified.toUrl).siteUrl;
   const now = deps.now?.() || new Date().toISOString();
-  const requesterHash = requesterHashFor(request, deps.rateLimitSecret || "postsnail-local-dev");
-  await enforceSiteMoveRateLimit(deps.store, requesterHash, verified.publicKey, now);
 
   const signature = stringValue(verified.record.signature);
   const existing = await deps.store.getSiteMoveBySignature(signature);
   if (existing) return json(siteMoveResponse(existing), existing.mode === "move" ? 202 : 200);
+
+  const requesterHash = requesterHashFor(request, deps.rateLimitSecret || "postsnail-local-dev");
+  await enforceSiteMoveRateLimit(deps.store, requesterHash, verified.publicKey, now);
 
   const oldSite = await deps.store.getSiteByCanonicalUrl(fromUrl);
   if (!oldSite) throw new PublicError(404, "Old indexed site was not found in Forest.");

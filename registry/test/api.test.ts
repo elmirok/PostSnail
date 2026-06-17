@@ -756,6 +756,16 @@ describe("registry API and crawl flow", () => {
     }), deps);
     expect(duplicate.status).toBe(202);
     expect(await duplicate.json()).toMatchObject({ moveId: movedJson.moveId, status: "moved" });
+
+    for (let index = 0; index < 8; index += 1) {
+      const retry = await handleRequest(new Request("https://registry.example/api/site-moves", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(moveRecord),
+      }), deps);
+      expect(retry.status).toBe(202);
+      expect(await retry.json()).toMatchObject({ moveId: movedJson.moveId, status: "moved" });
+    }
   });
 
   test("signed site mirror keeps both domains searchable", async () => {

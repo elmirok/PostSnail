@@ -254,6 +254,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-settings-field="siteMoveFromUrl"/);
   assert.match(appJs, /data-settings-field="siteMoveToUrl"/);
   assert.match(appJs, /buildSiteMovePayload/);
+  assert.match(appJs, /siteMoveSubmitting/);
+  assert.match(appJs, /siteMoveErrorMessage/);
+  assert.match(appJs, /Forest is rate limiting domain moves right now/);
   assert.doesNotMatch(submitSiteMoveSource, /state\.lastExportResult/);
   assert.doesNotMatch(submitSiteMoveSource, /Export Website ZIP first/);
   assert.match(submitSiteMoveSource, /expectedPublicKey:\s*state\.identity\.publicKey/);
