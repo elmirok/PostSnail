@@ -348,6 +348,7 @@ async function handleShellNameRegister(request: Request, url: URL, deps: AppDeps
   const existingForKey = await deps.store.getShellNameByPublicKey(record.publicKey);
   if (existingForKey && existingForKey.name !== name) throw new PublicError(409, "This public key already has an active ShellName.");
   await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  await requireShellNameLiveProof(record, deps, now);
   const shellName = buildShellNameRecord(record, now);
   await deps.store.upsertShellName(shellName);
   return json(publicShellName(shellName, now), 201);
@@ -359,6 +360,7 @@ async function handleShellNameUpdate(request: Request, url: URL, deps: AppDeps):
   if (!existing) throw new PublicError(404, "ShellName not found.");
   if (existing.publicKey !== record.publicKey) throw new PublicError(401, "Only the ShellName signing key can update this record.");
   await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  await requireShellNameLiveProof(record, deps, now);
   const shellName = buildShellNameRecord(record, now, existing);
   await deps.store.upsertShellName(shellName);
   return json(publicShellName(shellName, now));
@@ -370,9 +372,25 @@ async function handleShellNameRenew(request: Request, url: URL, deps: AppDeps): 
   if (!existing) throw new PublicError(404, "ShellName not found.");
   if (existing.publicKey !== record.publicKey) throw new PublicError(401, "Only the ShellName signing key can renew this record.");
   await enforceShellNameRateLimit(deps.store, requesterHash, record.publicKey, now);
+  await requireShellNameLiveProof(record, deps, now);
   const shellName = buildShellNameRecord(record, now, existing);
   await deps.store.upsertShellName(shellName);
   return json(publicShellName(shellName, now));
+}
+
+async function requireShellNameLiveProof(record: ReturnType<typeof verifyShellNameRecord>, deps: AppDeps, now: string): Promise<void> {
+  let proof;
+  try {
+    const documents = await fetchProofDocuments(record.siteUrl, deps.fetcher || fetch);
+    proof = verifyProofDocuments(record.siteUrl, documents.wellKnown, documents.manifest, now);
+  } catch {
+    throw new PublicError(409, "ShellName live site proof metadata could not be fetched.");
+  }
+  if (!proof.ok) throw new PublicError(409, "ShellName live site proof did not verify.");
+  if (proof.site.publicKey !== record.publicKey) throw new PublicError(401, "ShellName public key does not match the live site proof.");
+  if (record.bundleFingerprint && record.bundleFingerprint !== proof.site.bundleFingerprint) {
+    throw new PublicError(409, "ShellName bundle fingerprint does not match the live site proof.");
+  }
 }
 
 async function readShellNameRequest(request: Request, url: URL, deps: AppDeps): Promise<{ record: ReturnType<typeof verifyShellNameRecord>; name: string; now: string; requesterHash: string }> {

@@ -363,7 +363,7 @@ export class D1RegistryStore implements RegistryStore {
          ON sn.hidden = 0
         AND sn.status = 'active'
         AND sn.expires_at > ?
-        AND (sn.public_key = s.public_key OR sn.site_url = s.canonical_url OR sn.site_url = s.site_url)
+        AND sn.public_key = s.public_key
        WHERE ${conditions.join(" AND ")}
        ORDER BY ${shellOrderBy(params.sort)}
        LIMIT ?`,
@@ -400,8 +400,14 @@ export class D1RegistryStore implements RegistryStore {
        FROM shell_names sn
        LEFT JOIN sites s
          ON s.hidden = 0
-        AND (sn.public_key = s.public_key OR sn.site_url = s.canonical_url OR sn.site_url = s.site_url)
+        AND sn.public_key = s.public_key
        WHERE ${conditions.join(" AND ")}
+        AND NOT EXISTS (
+          SELECT 1 FROM sites sx
+          WHERE sx.hidden = 0
+            AND (sx.canonical_url = sn.site_url OR sx.site_url = sn.site_url)
+            AND sx.public_key <> sn.public_key
+        )
        ORDER BY ${shellNameOrderBy(params.sort)}
        LIMIT ?`,
     ).bind(...values).all<Row>();
@@ -477,6 +483,12 @@ export class D1RegistryStore implements RegistryStore {
     const result = await this.db.prepare(
       `SELECT * FROM shell_names
        WHERE ${conditions.join(" AND ")}
+         AND NOT EXISTS (
+           SELECT 1 FROM sites sx
+           WHERE sx.hidden = 0
+             AND (sx.canonical_url = shell_names.site_url OR sx.site_url = shell_names.site_url)
+             AND sx.public_key <> shell_names.public_key
+         )
        ORDER BY updated_at DESC, name DESC
        LIMIT ?`,
     ).bind(...values).all<Row>();
@@ -487,6 +499,12 @@ export class D1RegistryStore implements RegistryStore {
     const result = await this.db.prepare(
       `SELECT * FROM shell_names
        WHERE hidden = 0 AND status = 'active' AND expires_at > ?
+         AND NOT EXISTS (
+           SELECT 1 FROM sites sx
+           WHERE sx.hidden = 0
+             AND (sx.canonical_url = shell_names.site_url OR sx.site_url = shell_names.site_url)
+             AND sx.public_key <> shell_names.public_key
+         )
        ORDER BY updated_at DESC, name DESC
        LIMIT ?`,
     ).bind(now, Math.min(Math.max(limit, 1), 100)).all<Row>();
@@ -497,6 +515,12 @@ export class D1RegistryStore implements RegistryStore {
     const result = await this.db.prepare(
       `SELECT * FROM shell_names
        WHERE hidden = 0 AND status = 'active' AND expires_at > ?
+         AND NOT EXISTS (
+           SELECT 1 FROM sites sx
+           WHERE sx.hidden = 0
+             AND (sx.canonical_url = shell_names.site_url OR sx.site_url = shell_names.site_url)
+             AND sx.public_key <> shell_names.public_key
+         )
        ORDER BY name ASC`,
     ).bind(now).all<Row>();
     return (result.results || []).map(rowToShellName);
@@ -738,11 +762,11 @@ function mergeSearchItems(items: SearchResultItem[], params: SearchParams): Sear
 }
 
 function shellMergeKey(item: Extract<SearchResultItem, { type: "shell" }>): string {
-  return mergeKey(item.shell.publicKey, item.shell.canonicalUrl || item.shell.siteUrl);
+  return mergeKey(item.shell.publicKey, "");
 }
 
 function shellNameMergeKey(shellName: ShellNameRecord): string {
-  return mergeKey(shellName.publicKey, shellName.siteUrl);
+  return mergeKey(shellName.publicKey, "");
 }
 
 function mergeKey(publicKey: string, siteUrl: string): string {

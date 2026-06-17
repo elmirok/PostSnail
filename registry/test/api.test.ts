@@ -152,7 +152,7 @@ class MemoryStore implements RegistryStore {
       const sitePosts = this.posts.get(site.id) || [];
       const shellName = Array.from(this.shellNames.values()).find((record) => {
         if (record.hidden || record.status !== "active" || record.expiresAt <= now) return false;
-        return record.publicKey === site.publicKey || normalizeTestUrl(record.siteUrl) === normalizeTestUrl(site.canonicalUrl) || normalizeTestUrl(record.siteUrl) === normalizeTestUrl(site.siteUrl);
+        return record.publicKey === site.publicKey;
       });
       const shellNameText = shellName ? `${shellName.name} ${shellName.fullName} ${shellName.siteUrl} ${shellName.searchText}`.toLowerCase() : "";
       const shellMatchesQ = !q || siteText.includes(q) || shellNameText.includes(q);
@@ -170,9 +170,10 @@ class MemoryStore implements RegistryStore {
     if (scope === "all" || scope === "shell") {
       for (const shellName of this.shellNames.values()) {
         if (shellName.hidden || shellName.status !== "active" || shellName.expiresAt <= now) continue;
+        if (this.shellNameConflictsWithIndexedSite(shellName)) continue;
         const indexedSite = Array.from(this.sites.values()).find((site) => {
           if (site.hidden) return false;
-          return shellName.publicKey === site.publicKey || normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.canonicalUrl) || normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.siteUrl);
+          return shellName.publicKey === site.publicKey;
         });
         if (indexedSite) continue;
         const matchesQ = !q || shellName.searchText.includes(q);
@@ -208,6 +209,7 @@ class MemoryStore implements RegistryStore {
   async searchShellNames(q: string, limit: number, now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
     return Array.from(this.shellNames.values())
       .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now)
+      .filter((record) => !this.shellNameConflictsWithIndexedSite(record))
       .filter((record) => !q || record.searchText.includes(q))
       .slice(0, limit);
   }
@@ -215,13 +217,23 @@ class MemoryStore implements RegistryStore {
   async recentShellNames(limit: number, now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
     return Array.from(this.shellNames.values())
       .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now)
+      .filter((record) => !this.shellNameConflictsWithIndexedSite(record))
       .slice(-limit)
       .reverse();
   }
 
   async exportShellNames(now = "2026-06-05T00:00:00.000Z"): Promise<ShellNameRecord[]> {
     return Array.from(this.shellNames.values())
-      .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now);
+      .filter((record) => !record.hidden && record.status === "active" && record.expiresAt > now)
+      .filter((record) => !this.shellNameConflictsWithIndexedSite(record));
+  }
+
+  shellNameConflictsWithIndexedSite(shellName: ShellNameRecord): boolean {
+    return Array.from(this.sites.values()).some((site) => {
+      if (site.hidden) return false;
+      if (site.publicKey === shellName.publicKey) return false;
+      return normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.canonicalUrl) || normalizeTestUrl(shellName.siteUrl) === normalizeTestUrl(site.siteUrl);
+    });
   }
 
   async getSiteMove(id: string): Promise<SiteMoveRecord | null> {
@@ -1008,10 +1020,15 @@ describe("registry API and crawl flow", () => {
   });
 
   test("ShellNames registration, resolution, search, export, update, and renewal use signed records", async () => {
+    const documents = await fixtureDocuments({ siteUrl: "https://creator.example/" });
     const store = new MemoryStore();
     const queue = new MemoryQueue();
-    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
-    const signed = signedShellNameRecord();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret", fetcher: mappedFetch(documents) };
+    const signed = signedShellNameRecord({
+      publicKey: publicKeyToText(documents.keys.publicKey),
+      secretKey: documents.keys.secretKey,
+      bundleFingerprint: documents.bundleFingerprint,
+    });
 
     const registered = await handleRequest(
       new Request("https://forest.postsnail.org/shellnames/register", {
@@ -1070,11 +1087,18 @@ describe("registry API and crawl flow", () => {
     );
     expect(duplicate.status).toBe(409);
 
+    const updatedDocuments = await fixtureDocuments({
+      keys: documents.keys,
+      siteUrl: "https://new-creator.example/",
+      generatedAt: "2026-06-05T01:00:00.000Z",
+    });
+    deps.fetcher = mappedFetch([documents, updatedDocuments]);
     const updated = signedShellNameRecord({
       name: "elmirok",
       publicKey: signed.publicKey,
       secretKey: signed.secretKey,
       siteUrl: "https://new-creator.example/",
+      bundleFingerprint: updatedDocuments.bundleFingerprint,
       createdAt: "2026-06-05T01:00:00.000Z",
     });
     const update = await handleRequest(
@@ -1104,11 +1128,64 @@ describe("registry API and crawl flow", () => {
     expect((await renewed.json() as any).expiresAt).toMatch(/^2027-/);
   });
 
-  test("ShellNames rejects invalid, reserved, tampered, wrong-owner, and rate-limited records", async () => {
+  test("ShellName registration cannot attach an attacker alias to a victim indexed site", async () => {
+    const victimDocuments = await fixtureDocuments({
+      siteUrl: "https://victim.example/",
+      title: "Victim Signed Shell",
+      body: "Victim searchable content.",
+    });
     const store = new MemoryStore();
     const queue = new MemoryQueue();
-    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
-    const signed = signedShellNameRecord({ name: "elmirok" });
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:00:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch(victimDocuments),
+    };
+
+    const submitted = await handleRequest(
+      new Request("https://forest.postsnail.org/api/submit", {
+        method: "POST",
+        body: JSON.stringify({ url: "https://victim.example/" }),
+      }),
+      deps,
+    );
+    expect(submitted.status).toBe(202);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const attacker = signedShellNameRecord({
+      name: "victim-alias",
+      siteUrl: "https://victim.example/",
+      bundleFingerprint: victimDocuments.bundleFingerprint,
+    });
+    const hijack = await handleRequest(
+      new Request("https://forest.postsnail.org/shellnames/register", {
+        method: "POST",
+        body: JSON.stringify({ name: "victim-alias", record: attacker.record }),
+      }),
+      deps,
+    );
+    expect(hijack.status).toBe(401);
+    expect(await hijack.json()).toMatchObject({ error: "ShellName public key does not match the live site proof." });
+
+    const search = await handleRequest(new Request("https://forest.postsnail.org/api/search?q=victim&scope=shell"), deps);
+    const searchJson = await search.json() as any;
+    expect(searchJson.items).toHaveLength(1);
+    expect(searchJson.items[0].shellName).toBeUndefined();
+  });
+
+  test("ShellNames rejects invalid, reserved, tampered, wrong-owner, and rate-limited records", async () => {
+    const documents = await fixtureDocuments({ siteUrl: "https://creator.example/" });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = { store, queue, now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret", fetcher: mappedFetch(documents) };
+    const signed = signedShellNameRecord({
+      name: "elmirok",
+      publicKey: publicKeyToText(documents.keys.publicKey),
+      secretKey: documents.keys.secretKey,
+      bundleFingerprint: documents.bundleFingerprint,
+    });
 
     const invalid = await handleRequest(
       new Request("https://forest.postsnail.org/shellnames/register", {
@@ -1166,7 +1243,7 @@ describe("registry API and crawl flow", () => {
         }),
         deps,
       );
-      expect([201, 409]).toContain(response.status);
+      expect([401, 409]).toContain(response.status);
     }
     const limited = await handleRequest(
       new Request("https://forest.postsnail.org/shellnames/register", {
@@ -1180,10 +1257,16 @@ describe("registry API and crawl flow", () => {
   });
 
   test("ShellNames admin moderation hides and unhides names from search", async () => {
+    const documents = await fixtureDocuments({ siteUrl: "https://creator.example/" });
     const store = new MemoryStore();
     const queue = new MemoryQueue();
-    const deps = { store, queue, adminToken: "top-secret", now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret" };
-    const signed = signedShellNameRecord({ name: "elmirok" });
+    const deps = { store, queue, adminToken: "top-secret", now: () => "2026-06-05T00:00:00.000Z", rateLimitSecret: "test-secret", fetcher: mappedFetch(documents) };
+    const signed = signedShellNameRecord({
+      name: "elmirok",
+      publicKey: publicKeyToText(documents.keys.publicKey),
+      secretKey: documents.keys.secretKey,
+      bundleFingerprint: documents.bundleFingerprint,
+    });
     await handleRequest(
       new Request("https://forest.postsnail.org/shellnames/register", {
         method: "POST",
