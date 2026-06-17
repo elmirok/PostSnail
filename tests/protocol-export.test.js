@@ -93,9 +93,14 @@ test("buildStaticExport emits signed identity, discovery metadata, sitemap, comm
 
   const files = unzipSync(result.zipBytes);
   assert.ok(files["sitemap.xml"]);
+  assert.ok(files[".surgeignore"]);
   assert.ok(files[".well-known/postsnail.json"]);
   assert.ok(files[".well-known/postsnail/latest-commit.json"]);
   assert.ok(files[".well-known/postsnail/commits.json"]);
+  const surgeIgnore = decodeText(files[".surgeignore"]);
+  assert.match(surgeIgnore, /\*\.postsnail/);
+  assert.match(surgeIgnore, /\*\.txt/);
+  assert.match(surgeIgnore, /!\.well-known\/\*\*/);
 
   const wellKnown = JSON.parse(decodeText(files[".well-known/postsnail.json"]));
   assert.equal(wellKnown.protocol, POSTSNAIL_PROTOCOL);
@@ -123,6 +128,7 @@ test("buildStaticExport emits signed identity, discovery metadata, sitemap, comm
   assert.equal(manifest.discovery.sitemapUrl, "https://creator.example/sitemap.xml");
   assert.deepEqual(manifest.discovery.topics, ["microblog", "protocol", "signed"]);
   assert.deepEqual(manifest.discovery.preferredTrackers, ["https://tracker.example/announce"]);
+  assert.equal(manifest.files[".surgeignore"], undefined);
 
   const sitemap = decodeText(files["sitemap.xml"]);
   assert.match(sitemap, /<loc>https:\/\/creator\.example\/<\/loc>/);

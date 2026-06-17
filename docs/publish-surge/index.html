@@ -42,7 +42,7 @@
             <p class="lede">PostSnail exports plain static files, so Surge can host the microblog without a server bill.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="Surge tutorial sections"><a href="#workspace">Save Your Shell</a><a href="#export">Export Website ZIP</a><a href="#bridge">Start Bridge</a><a href="#upload">Upload</a><a href="#check">Check Proof Files</a><a href="#register">Register In Forest</a><a href="#cors">Surge CORS</a></nav>
+            <nav class="doc-nav" aria-label="Surge tutorial sections"><a href="#workspace">Save Your Shell</a><a href="#export">Export Website ZIP</a><a href="#bridge">Start Bridge</a><a href="#upload">Upload</a><a href="#check">Check Proof Files</a><a href="#register">Register In Forest</a><a href="#cors">Surge CORS</a><a href="#ignore">Surge Ignore</a></nav>
             <div class="doc-content">
               <section id="workspace"><h2>0. Save Your Shell</h2><p>Before publishing, export an encrypted .postsnail Shell and keep it private. This is your editable source; do not upload it to Surge.</p></section>
               <section id="export"><h2>1. Export Website ZIP</h2><p>In the admin Generate tab, unlock your key and click Export Website ZIP. Use the Verify tab before uploading.</p></section>
@@ -51,6 +51,7 @@
               <section id="check"><h2>4. Check Proof Files</h2><p>Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them.</p></section>
               <section id="register"><h2>5. Register In Forest</h2><p>Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.</p></section>
               <section id="cors"><h2>6. Surge CORS</h2><p>Surge needs a CORS file at the published root so the PostSnail admin verifier can fetch public proof files cross-origin.</p></section>
+              <section id="ignore"><h2>7. Surge Ignore</h2><p>The Website ZIP includes a root .surgeignore. Keep it when deploying a folder directly so Surge skips .postsnail Shell files, passphrase text files, .env files, and similar secrets while still publishing .well-known proof files.</p></section>
             </div>
           </article>
     </main>

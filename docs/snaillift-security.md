@@ -7,12 +7,15 @@ SnailLift is built in during Alpha 2, but it is not part of PostSnail Core. Prov
 SnailLift must never upload:
 
 - `.postsnail` Shell vaults
+- passphrase text files
 - drafts
 - private keys
 - rejected comments
 - private plugin state
 - recovery data
 - environment files
+
+Generated Website ZIPs include a root `.surgeignore` for direct Surge uploads. It keeps `.postsnail`, `*.txt`, passphrase/password/secret-named files, `.env` files, and `node_modules/` out of Surge while still allowing `.well-known/postsnail.json` to publish.
 
 ## Verification Gate
 

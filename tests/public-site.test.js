@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -253,7 +253,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-action="submit-site-move"/);
   assert.match(appJs, /data-settings-field="siteMoveFromUrl"/);
   assert.match(appJs, /data-settings-field="siteMoveToUrl"/);
+  assert.match(appJs, /ShellName alias/);
   assert.match(appJs, /buildSiteMovePayload/);
+  assert.match(appJs, /buildMovedShellNameUpdate/);
   assert.match(appJs, /siteMoveSubmitting/);
   assert.match(appJs, /siteMoveErrorMessage/);
   assert.match(appJs, /Forest is rate limiting domain moves right now/);
@@ -261,6 +263,7 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.doesNotMatch(submitSiteMoveSource, /Export Website ZIP first/);
   assert.match(submitSiteMoveSource, /expectedPublicKey:\s*state\.identity\.publicKey/);
   assert.match(submitSiteMoveSource, /bundleFingerprint:\s*liveVerification\.bundleFingerprint/);
+  assert.match(submitSiteMoveSource, /\/shellnames\/update/);
   assert.doesNotMatch(submitSiteMoveSource, /buildCurrentWebsiteExport\(/);
   assert.match(appJs, /Forest notify unlocks only after live verification passes/);
   assert.match(appJs, /Upload ZIP contents to your live host/);
@@ -553,11 +556,21 @@ test("asset preparation publishes the public site and admin route", () => {
   assert.ok(existsSync(join(outDir, "assets/brand/postsnail-logo.webp")));
   assert.ok(existsSync(join(outDir, "assets/brand/postsnail-logo.png")));
   assert.ok(existsSync(join(outDir, "assets/brand/postsnail-icon.svg")));
+  assert.deepEqual(findPreparedAssets(".DS_Store", outDir), []);
 
   for (const path of projectHtmlPages) {
     assert.match(readFileSync(join(outDir, path), "utf8"), legalFooterPattern, path);
   }
 });
+
+function findPreparedAssets(name, directory, found = []) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.name === name) found.push(path);
+    if (entry.isDirectory()) findPreparedAssets(name, path, found);
+  }
+  return found;
+}
 
 function pngColorType(path) {
   const bytes = readFileSync(join(root, path));

@@ -17,4 +17,5 @@ Do not upload your encrypted `.postsnail` workspace to Surge. The workspace is y
 
 - The deployed root should contain `index.html`, `postsnail.manifest.json`, and `.well-known/postsnail.json`.
 - PostSnail also exports a Surge `CORS` file so the admin verifier can fetch the public proof files cross-origin.
+- PostSnail exports a root `.surgeignore` that keeps `.postsnail` Shell files, passphrase text files, `.env` files, and similar secrets out of direct Surge uploads. Keep it in the folder if you unzip the Website ZIP manually.
 - Forest indexes summaries only, not full post bodies.

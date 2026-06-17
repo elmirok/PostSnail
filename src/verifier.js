@@ -164,7 +164,12 @@ function verifyFiles(manifest, files, checks, errors) {
     addCheck(checks, errors, `File hash: ${name}`, digestOk, `File hash mismatch: ${name}`);
   }
   const proofFiles = new Set([MANIFEST_PATH, WELL_KNOWN_PATH, LATEST_COMMIT_PATH, COMMITS_PATH]);
-  const extraFiles = Object.keys(files).filter((name) => !Object.hasOwn(expected, name) && !proofFiles.has(name));
+  const deployHelperFiles = new Set([".surgeignore"]);
+  const extraFiles = Object.keys(files).filter((name) => (
+    !Object.hasOwn(expected, name)
+    && !proofFiles.has(name)
+    && !deployHelperFiles.has(name)
+  ));
   if (extraFiles.length) hashesValid = false;
   addCheck(
     checks,

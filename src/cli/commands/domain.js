@@ -1,4 +1,5 @@
 import { signSiteMoveRecord } from "../../siteMoves.js";
+import { buildMovedShellNameUpdate, findShellNameForMove, shellNameFromForestResponse } from "../../domainMoveShellName.js";
 import { verifySnailLiftLiveSite } from "../../snaillift/liveVerifier.js";
 import { buildExportFromCliWorkspace } from "./workflow.js";
 import { resolveIdentityPassphrase } from "../passphrase.js";
@@ -47,6 +48,46 @@ export async function runDomainCommand(positionals, flags) {
     appliedAt: new Date().toISOString(),
   };
   context.state.siteMoves = [move, ...(context.state.siteMoves || []).filter((item) => item.id !== move.id || !move.id)];
+  let shellNameMessage = "";
+  if (record.mode === "move") {
+    const shellName = findShellNameForMove(context.state.shellNames, {
+      forestUrl,
+      publicKey: context.state.identity.publicKey,
+      name: flags.shellname || flags.name,
+    });
+    const shellNameUpdate = shellName
+      ? buildMovedShellNameUpdate({
+        shellName,
+        forestUrl,
+        toUrl: move.toUrl,
+        publicKey: context.state.identity.publicKey,
+        bundleFingerprint: record.bundleFingerprint,
+        secretKey,
+      })
+      : null;
+    if (shellNameUpdate) {
+      const shellNameResponse = await fetch(`${forestUrl}/shellnames/update`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(shellNameUpdate),
+      });
+      const shellNameBody = await shellNameResponse.json().catch(() => ({}));
+      if (shellNameResponse.ok) {
+        const savedShellName = shellNameFromForestResponse({
+          result: shellNameBody,
+          record: shellNameUpdate.record,
+          shellName,
+          forestUrl,
+          publicKey: context.state.identity.publicKey,
+        });
+        context.state.shellNames = [savedShellName, ...(context.state.shellNames || []).filter((item) => item.name !== savedShellName.name || item.forest !== savedShellName.forest)];
+        shellNameMessage = `ShellName alias updated: ${savedShellName.fullName} -> ${savedShellName.siteUrl}\n`;
+      } else {
+        shellNameMessage = `ShellName alias update needs attention: ${shellNameBody.error || shellNameBody.message || "Forest could not update this ShellName."}\n`;
+      }
+    }
+  }
   await context.save();
   process.stdout.write(`Domain ${record.mode === "mirror" ? "mirror saved" : "move saved"}: ${move.fromUrl} -> ${move.toUrl}\n`);
+  if (shellNameMessage) process.stdout.write(shellNameMessage);
 }

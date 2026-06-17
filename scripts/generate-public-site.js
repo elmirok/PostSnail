@@ -329,6 +329,7 @@ const pages = [
       ["check", "4. Check Proof Files", "Open the deployed .well-known/postsnail.json and postsnail.manifest.json URLs in the browser. They must be public HTTPS URLs for Forest to verify them."],
       ["register", "5. Register In Forest", `Go to <a href="https://forest.postsnail.org/">PostSnail Forest</a>, paste your public homepage URL, and wait for the status to move from queued to indexed. Forest indexes summaries only, not full post bodies.`],
       ["cors", "6. Surge CORS", "Surge needs a CORS file at the published root so the PostSnail admin verifier can fetch public proof files cross-origin."],
+      ["ignore", "7. Surge Ignore", "The Website ZIP includes a root .surgeignore. Keep it when deploying a folder directly so Surge skips .postsnail Shell files, passphrase text files, .env files, and similar secrets while still publishing .well-known proof files."],
     ]),
   },
   {
@@ -365,7 +366,7 @@ const pages = [
     description: "SnailLift token, Shell privacy, safety scan, live verification, and Forest notify boundaries.",
     canonical: "https://postsnail.org/docs/snaillift-security/",
     body: docPage("SnailLift security sections", "SnailLift Security", "Surge credentials are stored only in the encrypted Shell.", [
-      ["private", "Private Data", "SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files."],
+      ["private", "Private Data", "SnailLift must never upload .postsnail Shell vaults, passphrase text files, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files. Generated ZIPs include a .surgeignore helper for direct Surge folder uploads."],
       ["isolation", "Core Isolation", "SnailLift is an official built-in Alpha 2 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward."],
       ["gate", "Verification Gate", "Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification."],
       ["limits", "Limits", "SnailLift does not prove legal identity, truth, device integrity, provider account ownership, or long-term availability."],

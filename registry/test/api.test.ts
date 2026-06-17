@@ -1074,7 +1074,7 @@ describe("registry API and crawl flow", () => {
       name: "elmirok",
       publicKey: signed.publicKey,
       secretKey: signed.secretKey,
-      siteUrl: "https://creator.example/new/",
+      siteUrl: "https://new-creator.example/",
       createdAt: "2026-06-05T01:00:00.000Z",
     });
     const update = await handleRequest(
@@ -1085,7 +1085,13 @@ describe("registry API and crawl flow", () => {
       deps,
     );
     expect(update.status).toBe(200);
-    expect(await update.json()).toMatchObject({ siteUrl: "https://creator.example/new/" });
+    expect(await update.json()).toMatchObject({ siteUrl: "https://new-creator.example/" });
+
+    const updatedProfile = await handleRequest(new Request("https://forest.postsnail.org/@elmirok"), deps);
+    expect(updatedProfile.status).toBe(200);
+    const updatedProfileHtml = await updatedProfile.text();
+    expect(updatedProfileHtml).toContain("https://new-creator.example/");
+    expect(updatedProfileHtml).not.toContain("https://creator.example/");
 
     const renewed = await handleRequest(
       new Request("https://forest.postsnail.org/shellnames/renew", {

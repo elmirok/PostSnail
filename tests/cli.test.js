@@ -468,6 +468,16 @@ test("postsnail network commands use public signed records and never send privat
       snailLiftSurgeLogin: "boaz@example.com",
       snailLiftSurgeToken: "secret-surge-token",
     },
+    shellNames: [{
+      forest: "forest.postsnail.org",
+      name: "network",
+      fullName: "@network@forest.postsnail.org",
+      siteUrl: "https://old.example/",
+      publicKey: publicKeyToText(keys.publicKey),
+      bundleFingerprint: "psn1-sha3-512-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      status: "active",
+      updatedAt: "2026-06-13T00:00:00.000Z",
+    }],
   }, "shell phrase");
   writeFileSync(workspacePath, exported.text);
 
@@ -488,7 +498,20 @@ test("postsnail network commands use public signed records and never send privat
     if (url === "https://network.example/.well-known/postsnail/latest-commit.json") return jsonResponse(latestCommit);
     if (url.endsWith("/api/announce")) return jsonResponse({ status: "queued", submissionId: "sub-1" }, 202);
     if (url.endsWith("/shellnames/register")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
-    if (url.endsWith("/shellnames/update")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
+    if (url.endsWith("/shellnames/update")) {
+      const parsed = JSON.parse(body);
+      return jsonResponse({
+        name: "network",
+        fullName: "@network@forest.postsnail.org",
+        forest: "forest.postsnail.org",
+        status: "active",
+        siteUrl: parsed.record.siteUrl,
+        bundleFingerprint: parsed.record.bundleFingerprint,
+        publicKey: parsed.record.publicKey,
+        record: parsed.record,
+        updatedAt: parsed.record.updatedAt,
+      });
+    }
     if (url.endsWith("/shellnames/renew")) return jsonResponse({ name: "network", fullName: "@network@forest.postsnail.org", forest: "forest.postsnail.org", status: "active" });
     if (url.endsWith("/api/site-moves")) return jsonResponse({ status: "moved", moveId: "move-1", fromUrl: "https://old.example/", toUrl: "https://network.example/" }, 202);
     if (url === "http://127.0.0.1:8788/publish") return jsonResponse({ ok: true, message: "Surge published.", deploymentUrl: "https://network.example/" });
@@ -510,11 +533,13 @@ test("postsnail network commands use public signed records and never send privat
 
   assert.equal(requests.some((request) => request.url.endsWith("/api/announce")), true);
   assert.equal(requests.some((request) => request.url.endsWith("/shellnames/register")), true);
+  assert.equal(requests.some((request) => request.url.endsWith("/shellnames/update")), true);
   assert.equal(requests.some((request) => request.url.endsWith("/api/site-moves")), true);
   assert.equal(requests.some((request) => request.url === "http://127.0.0.1:8788/publish"), true);
 
   const reopened = await importWorkspaceVault(readFileSync(workspacePath, "utf8"), "shell phrase");
   assert.equal(reopened.state.shellNames[0].fullName, "@network@forest.postsnail.org");
+  assert.equal(reopened.state.shellNames[0].siteUrl, "https://network.example/");
   assert.equal(reopened.state.siteMoves[0].id, "move-1");
 });
 

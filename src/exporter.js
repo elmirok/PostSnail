@@ -72,6 +72,21 @@ const CORS_HEADERS = `
 const SURGE_CORS = `*
 `;
 
+const SURGE_IGNORE = `
+!.well-known
+!.well-known/**
+*.postsnail
+*.postsnail.json
+*.txt
+!robots.txt
+*passphrase*
+*password*
+*secret*
+.env
+.env.*
+node_modules/
+`;
+
 const NETLIFY_TOML = `
 [[headers]]
   for = "/postsnail.manifest.json"
@@ -327,6 +342,7 @@ export async function buildStaticExport({
   files[WELL_KNOWN_PATH] = htmlBytes(JSON.stringify(identity, null, 2));
   files[LATEST_COMMIT_PATH] = htmlBytes(JSON.stringify(latestCommit, null, 2));
   files[COMMITS_PATH] = htmlBytes(JSON.stringify(commitLog, null, 2));
+  files[".surgeignore"] = htmlBytes(SURGE_IGNORE.trim());
   const exportSafety = validatePublicExportFiles(files);
   if (!exportSafety.ok) {
     throw new Error(`Public export safety check failed: ${exportSafety.errors.join("; ")}`);

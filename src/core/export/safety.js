@@ -7,6 +7,7 @@ const TEXT_EXTENSIONS = new Set([
   ".txt",
   ".xml",
   ".svg",
+  ".surgeignore",
 ]);
 
 const PUBLIC_EXTENSIONS = new Set([
@@ -135,6 +136,7 @@ function validateContent(path, bytes, errors) {
 
 export function isSafePublicPath(path) {
   const text = String(path || "");
+  if (text === ".surgeignore") return true;
   if (!text || text.startsWith("/") || text.includes("\\") || /[\u0000-\u001f]/u.test(text)) {
     return false;
   }

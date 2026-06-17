@@ -30,11 +30,11 @@ const entries = [
 ];
 
 generatePublicSite();
-rmSync(outDir, { recursive: true, force: true });
+rmSync(outDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 mkdirSync(outDir, { recursive: true });
 
 for (const entry of entries) {
-  cpSync(entry, join(outDir, entry), { recursive: true });
+  cpSync(entry, join(outDir, entry), { recursive: true, filter: shouldCopyAsset });
 }
 
 const oversized = findOversizedFiles(outDir, 25 * 1024 * 1024);
@@ -55,4 +55,8 @@ function findOversizedFiles(path, maxBytes, found = []) {
     findOversizedFiles(join(path, name), maxBytes, found);
   }
   return found;
+}
+
+function shouldCopyAsset(source) {
+  return !source.split(/[\\/]/u).includes(".DS_Store");
 }

@@ -44,7 +44,7 @@
           <article class="doc-layout">
             <nav class="doc-nav" aria-label="SnailLift security sections"><a href="#private">Private Data</a><a href="#isolation">Core Isolation</a><a href="#gate">Verification Gate</a><a href="#limits">Limits</a></nav>
             <div class="doc-content">
-              <section id="private"><h2>Private Data</h2><p>SnailLift must never upload .postsnail Shell vaults, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files.</p></section>
+              <section id="private"><h2>Private Data</h2><p>SnailLift must never upload .postsnail Shell vaults, passphrase text files, drafts, private keys, rejected comments, private plugin state, recovery data, or environment files. Generated ZIPs include a .surgeignore helper for direct Surge folder uploads.</p></section>
               <section id="isolation"><h2>Core Isolation</h2><p>SnailLift is an official built-in Alpha 2 module, but provider-specific deployment code belongs under src/snaillift and must stay out of Core modules. This keeps the future plugin move straightforward.</p></section>
               <section id="gate"><h2>Verification Gate</h2><p>Live verification checks public proof files after deployment. Forest notify is gated behind successful live verification.</p></section>
               <section id="limits"><h2>Limits</h2><p>SnailLift does not prove legal identity, truth, device integrity, provider account ownership, or long-term availability.</p></section>

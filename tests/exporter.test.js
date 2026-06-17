@@ -54,6 +54,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   const files = unzipSync(result.zipBytes);
   const names = Object.keys(files).sort();
   const expectedNames = [
+    ".surgeignore",
     ".well-known/postsnail.json",
     ".well-known/postsnail/commits.json",
     ".well-known/postsnail/latest-commit.json",
@@ -341,9 +342,12 @@ test("buildStaticExport keeps workspace-only data out of the public ZIP", async 
 
   const files = unzipSync(result.zipBytes);
   const combined = Object.entries(files)
+    .filter(([name]) => name !== ".surgeignore")
     .map(([name, bytes]) => `${name}\n${decodeText(bytes)}`)
     .join("\n");
 
+  assert.match(decodeText(files[".surgeignore"]), /\*\.postsnail/);
+  assert.match(decodeText(files[".surgeignore"]), /\*\.txt/);
   assert.doesNotMatch(combined, /Private draft body must not ship/);
   assert.doesNotMatch(combined, /plugin-private-token/);
   assert.doesNotMatch(combined, /Rejected private moderation note/);

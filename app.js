@@ -29,6 +29,7 @@ import {
 } from "./src/onboarding.js";
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import { buildSiteMovePayload, signSiteMoveRecord } from "./src/siteMoves.js";
+import { buildMovedShellNameUpdate, findShellNameForMove, shellNameFromForestResponse } from "./src/domainMoveShellName.js";
 import {
   commentSummary,
   createApprovedCommentRecord,
@@ -885,12 +886,19 @@ async function submitSiteMove() {
     };
     const previousMoves = move.id ? state.siteMoves.filter((item) => item.id !== move.id) : state.siteMoves;
     state.siteMoves = [move, ...previousMoves];
+    const aliasResult = mode === "move"
+      ? await updateShellNameAliasAfterMove({
+        forestUrl,
+        toUrl: move.toUrl,
+        bundleFingerprint: record.bundleFingerprint,
+      })
+      : null;
     markShellBackupStale();
     await persistLocalShellNow();
     setStatus(
       mode === "mirror"
         ? "Forest saved the mirror relationship. Both domains can remain searchable."
-        : "Forest moved the site. The old domain is hidden from search and points to the new domain in the audit record.",
+        : `Forest moved the site. The old domain is hidden from search and points to the new domain in the audit record.${aliasResult?.message ? ` ${aliasResult.message}` : ""}`,
     );
   } catch (error) {
     setStatus(error.message || "Forest could not be reached for the domain move.");
@@ -898,6 +906,45 @@ async function submitSiteMove() {
     state.siteMoveSubmitting = false;
     render();
   }
+}
+
+async function updateShellNameAliasAfterMove({ forestUrl, toUrl, bundleFingerprint }) {
+  const shellName = findShellNameForMove(state.shellNames, {
+    forestUrl,
+    publicKey: state.identity.publicKey,
+    name: state.settings.shellNameDesiredName,
+  });
+  if (!shellName) {
+    return { ok: true, skipped: true, message: "No ShellName alias is saved in this Shell, so no alias was updated." };
+  }
+  const shellNameUpdate = buildMovedShellNameUpdate({
+    shellName,
+    forestUrl,
+    toUrl,
+    publicKey: state.identity.publicKey,
+    bundleFingerprint,
+    secretKey: state.secretKey,
+  });
+  if (!shellNameUpdate) return { ok: true, skipped: true, message: "No ShellName alias is saved in this Shell, so no alias was updated." };
+  const endpoint = new URL("/shellnames/update", forestUrl);
+  const response = await fetch(endpoint.toString(), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(shellNameUpdate),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return { ok: false, message: `ShellName alias update needs attention: ${result.error || result.message || "Forest could not update this ShellName."}` };
+  }
+  const savedShellName = shellNameFromForestResponse({
+    result,
+    record: shellNameUpdate.record,
+    shellName,
+    forestUrl,
+    publicKey: state.identity.publicKey,
+  });
+  state.shellNames = [savedShellName, ...state.shellNames.filter((item) => item.name !== savedShellName.name || item.forest !== savedShellName.forest)];
+  return { ok: true, shellName: savedShellName, message: `ShellName alias updated: ${savedShellName.fullName} now points to ${savedShellName.siteUrl}.` };
 }
 
 async function generateSiteZip() {
@@ -1836,7 +1883,7 @@ function renderChangeDomainPanel(hasIdentity, unlocked) {
     <section class="panel-box site-move-panel">
       <div>
         <h2 class="panel-title">Change Domain</h2>
-        <p class="help">Tell Forest that this signed Shell moved from an old domain to a new live domain. Forest hides the old domain only when the same publisher key signs the move and the new public proof files verify.</p>
+        <p class="help">Tell Forest that this signed Shell moved from an old domain to a new live domain. Forest hides the old domain only when the same publisher key signs the move and the new public proof files verify. If this Shell has a saved ShellName alias, PostSnail also signs an alias update to point it at the new domain.</p>
       </div>
       <div class="site-move-checklist" aria-label="Change Domain checklist">
         <div class="${hasIdentity ? "good" : "warning"}"><strong>Signature key</strong><span>${hasIdentity ? "Created" : "Create first"}</span></div>
