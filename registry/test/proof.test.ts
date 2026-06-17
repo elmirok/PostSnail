@@ -135,6 +135,15 @@ describe("remote PostSnail proof verification", () => {
     expect(verification.errors.join("\n")).toMatch(/post registry-proof signature failed/i);
   });
 
+  test("rejects copied proof files served from a different domain", async () => {
+    const { wellKnown, manifest } = await proofFixture();
+
+    const verification = verifyProofDocuments("https://evil-copy.example/", wellKnown, manifest);
+
+    expect(verification.ok).toBe(false);
+    expect(verification.errors.join("\n")).toMatch(/declared site URL does not match requested site/i);
+  });
+
   test("rejects mismatched well-known metadata and wrong keys", async () => {
     const { wellKnown, manifest } = await proofFixture();
     wellKnown.bundleFingerprint = "psn1-sha3-512-not-real";

@@ -49,6 +49,7 @@ export function verifyProofDocuments(siteUrl: string, wellKnown: unknown, manife
   add(errors, stringValue(wellKnownRecord.siteTitle) === stringValue(siteRecord.siteTitle), ".well-known site title mismatch.");
   add(errors, stringValue(wellKnownRecord.handle) === stringValue(siteRecord.handle), ".well-known handle mismatch.");
   add(errors, stringValue(wellKnownRecord.siteUrl) === stringValue(siteRecord.siteUrl), ".well-known site URL mismatch.");
+  add(errors, declaredSiteMatchesRequest(siteUrl, stringValue(siteRecord.siteUrl)), "Declared site URL does not match requested site.");
   add(errors, stringValue(wellKnownRecord.generatedAt) === stringValue(manifestRecord.generatedAt), ".well-known generated time mismatch.");
   if (stringValue(wellKnownRecord.identitySignature)) {
     const identity = verifyIdentityDocument(wellKnownRecord, { manifest: manifestRecord, siteUrl } as any);
@@ -197,6 +198,22 @@ function objectRecord(value: unknown): Record<string, unknown> {
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function declaredSiteMatchesRequest(requestedSiteUrl: string, declaredSiteUrl: string): boolean {
+  try {
+    const requested = new URL(requestedSiteUrl);
+    const declared = new URL(declaredSiteUrl);
+    requested.hash = "";
+    requested.search = "";
+    declared.hash = "";
+    declared.search = "";
+    requested.pathname = requested.pathname.replace(/\/+$/u, "/") || "/";
+    declared.pathname = declared.pathname.replace(/\/+$/u, "/") || "/";
+    return requested.toString() === declared.toString();
+  } catch {
+    return false;
+  }
 }
 
 function safeImageFiles(value: unknown): string[] {
