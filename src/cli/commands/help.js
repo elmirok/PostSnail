@@ -4,9 +4,6 @@ export function renderHelp() {
   const lines = [
     "PostSnail CLI",
     "",
-    "Command Center:",
-    "  postsnail menu",
-    "",
     "Commands:",
   ];
   for (const group of groupedCliCommands()) {

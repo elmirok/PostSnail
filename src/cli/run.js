@@ -15,7 +15,6 @@ import { runShellNameCommand } from "./commands/shellname.js";
 import { runVerifyCommand } from "./commands/verify.js";
 import { runWorkspaceCommand } from "./commands/workspace.js";
 import { runZipCommand } from "./commands/zip.js";
-import { runMenu } from "./menu.js";
 
 export async function runCli(argv = [], options = {}) {
   const { positionals, flags } = parseArgv(argv);
@@ -25,10 +24,6 @@ export async function runCli(argv = [], options = {}) {
     return;
   }
 
-  if (positionals[0] === "menu") {
-    await runMenu(options);
-    return;
-  }
   if (positionals[0] === "workspace") {
     await runWorkspaceCommand(positionals.slice(1), flags);
     return;

@@ -4,12 +4,11 @@ Alpha 2 is the first lean release after the prototype cleanup pass. It keeps the
 
 ## What Changed
 
-- Portable launcher now opens a CLI-first Command Center and can start local Admin + Bridge on demand.
+- The browser admin remains the primary local creator interface, with direct CLI commands for trusted automation.
 - SnailLift is Surge-only for hosted publishing, with Download Website ZIP still available as the universal fallback.
-- Local Forest runtime was removed from the portable bundle; remote Forest commands remain available through the CLI.
 - Official bundled extensions stay declarative and route-scoped. Installing or enabling a plugin does not load third-party code.
 - Public proof metadata uses generator version `0.2.0`.
-- The repository removed old experimental Forest, Reader, mock package, and pre-Surge provider prototypes from tracked code.
+- The repository removed old packaging experiments, old experimental Forest, mock package, and pre-Surge provider prototypes from tracked code.
 
 ## What Stayed Stable
 

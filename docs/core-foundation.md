@@ -17,7 +17,7 @@ PostSnail Core is the small trusted engine that keeps the ecosystem compatible, 
 - Deployment providers such as SnailLift.
 - Forest search, registry policy, ranking, accounts, or moderation queues.
 - ShellNames aliases.
-- Pages CMS, Comments, Reader, Canopy, ShellSeed, or PostMail product behavior.
+- Pages CMS, Comments, Canopy, ShellSeed, or PostMail product behavior.
 - Arbitrary plugin execution or marketplace policy.
 
 Core may define the boundaries those projects use, but it should not absorb their product logic.

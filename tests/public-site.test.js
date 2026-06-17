@@ -27,7 +27,6 @@ const projectHtmlPages = [
   "docs/shellnames/index.html",
   "docs/shellnames-protocol/index.html",
   "docs/shellnames-security/index.html",
-  "docs/portable-bundle/index.html",
   "docs/concept/index.html",
   "docs/architecture/index.html",
   "docs/core-foundation/index.html",
@@ -91,20 +90,11 @@ test("public pages are generated from the shared PostSnail layout", () => {
     assert.match(html, /href="\/NOTICE"/, path);
     assert.match(html, /href="\/THIRD_PARTY_NOTICES\.md"/, path);
     if (path === "docs/index.html") {
-      assert.match(html, /href="\/docs\/portable-bundle\/"/, path);
-    }
-    if (path === "docs/portable-bundle/index.html") {
-      assert.match(html, /raw\.githubusercontent\.com\/elmirok\/PostSnail\/main\/portable\/bootstrap\.sh/, path);
-      assert.match(html, /falls back to the GitHub source archive on `main`/, path);
-      assert.match(html, /CLI Command Center/, path);
-      assert.match(html, /guided Command Center/, path);
-      assert.match(html, /There is no local Forest mode/, path);
-      assert.doesNotMatch(html, /Forest only/, path);
-      assert.doesNotMatch(html, /Admin \+ Forest/, path);
+      assert.doesNotMatch(html, /href="\/docs\/portable-bundle\/"/, path);
     }
     if (path === "docs/cli/index.html") {
-      assert.match(html, /guided terminal TUI/, path);
-      assert.match(html, /do not have to type flags by hand/, path);
+      assert.match(html, /trusted local automation interface/, path);
+      assert.doesNotMatch(html, /guided terminal TUI|postsnail menu|Command Center/, path);
     }
   }
 });
@@ -119,16 +109,53 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   );
 
   assert.match(appJs, /renderShellGate/);
-  assert.match(appJs, /Open Shell/);
-  assert.match(appJs, /Create Shell/);
+  assert.match(appJs, /Open Existing Shell/);
+  assert.match(appJs, /Create New Shell/);
+  assert.match(appJs, /This creates your private encrypted Shell\. No account\. No email\. No backend login\./);
+  assert.match(appJs, /Launch your microblog/);
+  assert.match(appJs, /renderLaunchGuide/);
+  assert.match(appJs, /Create Shell Identity/);
+  assert.match(appJs, /Save Private Shell/);
+  assert.match(appJs, /Name The Blog/);
+  assert.match(appJs, /Write First Post/);
+  assert.match(appJs, /Review And Export/);
+  assert.match(appJs, /renderStatusRail/);
+  assert.match(appJs, /Private Shell backup/);
+  assert.match(appJs, /Public ZIP/);
+  assert.match(appJs, /renderIdentityTabs/);
+  assert.match(appJs, /identity-section/);
+  assert.match(appJs, /data-section="signature"/);
+  assert.match(appJs, /data-section="shellnames"/);
+  assert.match(appJs, /data-section="domain"/);
+  assert.match(appJs, /Signature key/);
+  assert.match(appJs, /Forest aliases/);
+  assert.match(appJs, /Need to unlock/);
+  assert.match(appJs, /Unlock publisher key/);
+  assert.match(appJs, /Check requirements and change domain/);
+  assert.match(appJs, /Step 1: export and upload/);
+  assert.match(appJs, /Step 2: verify and notify Forest/);
+  assert.match(appJs, /renderGenerateTabs/);
+  assert.match(appJs, /generate-section/);
+  assert.match(appJs, /data-section="profile"/);
+  assert.match(appJs, /data-section="export"/);
+  assert.match(appJs, /data-section="publish"/);
+  assert.match(appJs, /Profile/);
+  assert.match(appJs, /Export ZIP/);
+  assert.match(appJs, /Publish and Forest/);
+  assert.match(appJs, /Continue writing/);
+  assert.match(appJs, /Export ZIP/);
+  assert.match(appJs, /Published in next ZIP/);
+  assert.match(appJs, /Needs Shell export/);
   assert.match(appJs, /shell-trust-ribbon/);
   assert.match(appJs, /shell-trust-item/);
   assert.match(appJs, /open-shell-card/);
   assert.match(appJs, /create-shell-card/);
   assert.match(appJs, /recovery-shell-card/);
-  assert.match(appJs, /Start a new private Shell/);
+  assert.match(appJs, /Start a new writing notebook/);
   assert.match(appJs, /This creates a signature workspace, not an account/);
   assert.match(appJs, /shell-create-title/);
+  assert.match(appJs, /data-profile-field="displayName"/);
+  assert.match(appJs, /data-profile-field="siteUrl"/);
   assert.match(appJs, /shell-create-passphrase/);
   assert.match(appJs, /shell-create-confirm/);
   assert.match(appJs, /Unlock Local Shell/);
@@ -190,6 +217,12 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Open Shell/);
   assert.match(appJs, /Import Legacy Backup JSON/);
   assert.match(appJs, /Export Website ZIP/);
+  assert.match(appJs, /Private source/);
+  assert.match(appJs, /Public output/);
+  assert.match(appJs, /After upload/);
+  assert.match(appJs, /Shell saved/);
+  assert.match(appJs, /Blog named/);
+  assert.match(appJs, /One published post or page/);
   assert.match(appJs, /Show Powered by PostSnail/);
   assert.match(appJs, /Show tracker credit/);
   assert.match(appJs, /Notify Forest/);
@@ -221,8 +254,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-settings-field="siteMoveFromUrl"/);
   assert.match(appJs, /data-settings-field="siteMoveToUrl"/);
   assert.match(appJs, /buildSiteMovePayload/);
-  assert.match(submitSiteMoveSource, /state\.lastExportResult/);
-  assert.match(submitSiteMoveSource, /Export Website ZIP first/);
+  assert.doesNotMatch(submitSiteMoveSource, /state\.lastExportResult/);
+  assert.doesNotMatch(submitSiteMoveSource, /Export Website ZIP first/);
+  assert.match(submitSiteMoveSource, /expectedPublicKey:\s*state\.identity\.publicKey/);
+  assert.match(submitSiteMoveSource, /bundleFingerprint:\s*liveVerification\.bundleFingerprint/);
   assert.doesNotMatch(submitSiteMoveSource, /buildCurrentWebsiteExport\(/);
   assert.match(appJs, /Forest notify unlocks only after live verification passes/);
   assert.match(appJs, /Upload ZIP contents to your live host/);
@@ -249,6 +284,17 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /image-rendering:\s*pixelated/);
   assert.match(css, /\.shell-trust-ribbon/);
   assert.match(css, /\.shell-trust-item/);
+  assert.match(css, /\.status-rail/);
+  assert.match(css, /\.launch-guide/);
+  assert.match(css, /\.writer-workbench/);
+  assert.match(css, /\.writer-body/);
+  assert.match(css, /\.launch-checklist/);
+  assert.match(css, /\.admin-section-tabs/);
+  assert.match(css, /\.generate-admin/);
+  assert.match(css, /\.generate-hero/);
+  assert.match(css, /\.generate-section-panel/);
+  assert.match(css, /\.unlock-prompt/);
+  assert.match(css, /\.site-move-checklist/);
   assert.match(css, /\.shell-gate\s*\{[\s\S]*gap:\s*10px/);
   assert.match(css, /\.shell-intro h1\s*\{[\s\S]*clamp\(1\.55rem,\s*4vw,\s*2\.45rem\)/);
   assert.match(css, /\.shell-card-grid/);

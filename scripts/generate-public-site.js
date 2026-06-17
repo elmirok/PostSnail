@@ -88,7 +88,7 @@ const pages = [
         </div>
         <div class="copy-block">
           <p>A microblog should not disappear because a platform changes rules, pricing, ranking, or ownership. PostSnail makes the blog portable and the proof portable: the creator owns the files, the domain, and the signature trail.</p>
-          <p>Alpha 2 is still intentionally small, but now has the practical loop creators need: encrypted Shells, portable local launch, official bundled extensions, Surge publishing through a local bridge, Forest discovery, ShellNames, Pages, and approved static comments. It still does not become a hosted account platform, legal identity system, moderation authority, federation layer, or truth engine.</p>
+          <p>Alpha 2 is still intentionally small, but now has the practical loop creators need: encrypted Shells, official bundled extensions, Surge publishing through a local bridge, Forest discovery, ShellNames, Pages, approved static comments, and direct CLI automation. It still does not become a hosted account platform, legal identity system, moderation authority, federation layer, or truth engine.</p>
         </div>
       </section>
       <section class="link-grid" aria-label="Explore PostSnail">
@@ -229,7 +229,6 @@ const pages = [
         <a href="/docs/compatibility/"><strong>Compatibility Contract</strong><span>Stable core, optional extensions, required features, legacy warnings, and migration promises.</span></a>
         <a href="/docs/protocol/"><strong>Protocol Reference</strong><span>Manifest, well-known identity, commit proofs, Shell vaults, and tracker announce records.</span></a>
         <a href="/docs/migrations/"><strong>Workspace Migrations</strong><span>How versioned workspace migrations keep old editable projects importable.</span></a>
-        <a href="/docs/portable-bundle/"><strong>Portable Bundle</strong><span>Run the CLI-first Command Center, local Admin, and Surge bridge from a flash drive.</span></a>
         <a href="/docs/psep/"><strong>PSEP Process</strong><span>How PostSnail Enhancement Proposals govern protocol-risk changes.</span></a>
         <a href="/docs/legal/"><strong>PostSnail Legal</strong><span>Apache-2.0 license, NOTICE attribution, third-party notices, logo provenance, and Forest cost notes.</span></a>
       </section>
@@ -240,8 +239,8 @@ const pages = [
     title: "PostSnail Alpha 2",
     description: "PostSnail Alpha 2 release notes, cleanup boundaries, and stable compatibility promises.",
     canonical: "https://postsnail.org/docs/alpha-2/",
-    body: docPage("Alpha 2 sections", "PostSnail Alpha 2", "A lean release focused on portable local use, Surge publishing, official bundled extensions, Forest discovery, and prototype cleanup.", [
-      ["changed", "What Changed", "The portable launcher now opens a CLI-first Command Center and can start local Admin + Bridge on demand. Local Forest runtime was removed from the portable bundle, while remote Forest commands remain available through the CLI. SnailLift is Surge-only for hosted publishing. Public proof metadata uses generator version 0.2.0. Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code."],
+    body: docPage("Alpha 2 sections", "PostSnail Alpha 2", "A lean release focused on browser-native local use, Surge publishing, official bundled extensions, Forest discovery, and prototype cleanup.", [
+      ["changed", "What Changed", "The browser admin remains the primary local creator interface, with direct CLI commands for trusted automation. SnailLift is Surge-only for hosted publishing. Public proof metadata uses generator version 0.2.0. Old packaging experiments, old experimental Forest, mock package, and pre-Surge provider prototypes were removed from tracked code."],
       ["stable", "What Stayed Stable", ".postsnail remains the private encrypted editable Shell. .zip remains the public static signed website artifact. Forest remains a tracker and search surface, not the source of truth. Protocol version remains postsnail version 1."],
       ["boundaries", "Alpha 2 Boundaries", "Alpha 2 does not add accounts, a plugin marketplace, third-party plugin loading, legal identity, moderation authority, federation, semantic search, or required backend publishing."],
       ["compatibility", "Compatibility Promise", "Old valid Shells and old valid public ZIP exports should keep opening and verifying. New protocol-risk changes still need a PSEP."],
@@ -264,17 +263,16 @@ const pages = [
   {
     path: "docs/cli/index.html",
     title: "PostSnail CLI - Alpha 2",
-    description: "Use the PostSnail CLI command center to open Shells, manage content, publish with Surge, verify output, and notify Forest.",
+    description: "Use the PostSnail CLI to open Shells, manage content, publish with Surge, verify output, and notify Forest.",
     canonical: "https://postsnail.org/docs/cli/",
-    body: docPage("CLI sections", "PostSnail CLI", "A trusted local automation interface and teaching command center for Shell-aware publishing workflows.", [
+    body: docPage("CLI sections", "PostSnail CLI", "A trusted local automation interface for Shell-aware publishing workflows.", [
       ["role", "What The CLI Is", "PostSnail CLI is the automation interface for local trusted workflows. The browser admin remains the main human interface; the CLI reuses the same workspace, exporter, verifier, and signing boundaries."],
-      ["menu", "Command Center", "Use postsnail menu to open the guided terminal TUI. It shows workflow groups, explains required inputs and private-data boundaries, and runs workflows through prompts so creators do not have to type flags by hand. The exact CLI command is still shown for learning."],
       ["open", "Open A Shell", "Use workspace info or workspace migrate with a .postsnail Shell and the Shell passphrase. The Shell passphrase unlocks the encrypted workspace; it does not automatically unlock the signing key."],
       ["content", "Content Commands", "Use post list/new/import/status/delete, page list/import/status/delete/navigation, asset list/unused/delete-unused, and comment verify/approve/reject/list/block-key to manage encrypted Shell content locally."],
       ["build", "Build And ZIP", "Use build to write a public directory and zip to write a publishable Website ZIP. Both commands require the Shell passphrase and the identity passphrase so PostSnail can unlock the encrypted signing key and sign proof files."],
       ["verify", "Verify Output", "Use verify on a public directory or ZIP. Verification recomputes hashes, checks signatures, and confirms the bundle fingerprint before publish or deploy steps."],
       ["publish", "Publish And Forest", "Use publish surge for the local Surge bridge, forest announce for remote Forest refresh, shellname register/update/renew for aliases, and domain move/mirror for signed site moves. These commands send public records and generated files, not private keys or Shell vault data."],
-      ["boundaries", "Boundaries", "The CLI does not add backend accounts, browser token entry, or a bundled local Forest server. Portable keeps Forest remote and keeps secrets local."],
+      ["boundaries", "Boundaries", "The CLI does not add backend accounts, browser token entry, guided menus, or a bundled local Forest server. Forest commands talk to remote Forest APIs and keep secrets local."],
     ]),
   },
   {
@@ -516,7 +514,7 @@ const pages = [
     canonical: "https://postsnail.org/docs/core-foundation/",
     body: docPage("Core Foundation sections", "Core Foundation", "The Core Foundation documents what PostSnail Core owns and what stays out of Core.", [
       ["owns", "What PostSnail Core Owns", "PostSnail Core owns encrypted Shells, workspace schema and migrations, public Website ZIP export, proof files, identity signing boundaries, compatibility rules, plugin/theme manifest foundations, route-level asset declarations, and public export safety checks."],
-      ["outside", "What Stays Out Of Core", "SnailLift, Forest product policy, ShellNames, Pages CMS, Comments, Reader, Canopy, ShellSeed, PostMail, plugin marketplaces, and arbitrary plugin execution stay outside Core unless they change the stable source/export/proof boundary."],
+      ["outside", "What Stays Out Of Core", "SnailLift, Forest product policy, ShellNames, Pages CMS, Comments, Canopy, ShellSeed, PostMail, plugin marketplaces, and arbitrary plugin execution stay outside Core unless they change the stable source/export/proof boundary."],
       ["extensions", "Extension Rule", "New features should be optional extensions first. Unknown optional fields are ignored safely. Unknown required features fail clearly before import, verification, or export could become misleading."],
       ["apis", "Current APIs", "Alpha 2 exposes plugin registries, hook planning, plugin migration helpers, theme registries, Quiet Feed defaults, route asset resolution, and public export safety under src/core without moving stable modules yet."],
     ]),
@@ -631,21 +629,6 @@ const pages = [
       ["chain", "Future Chains", "Future migrations should move data one version at a time, such as v1 to v2 to v3, with deterministic transforms and tests for every version step."],
       ["future", "Future Version Failure", "If a .postsnail file was created by a newer PostSnail version, this version shows: This workspace was created by a newer PostSnail version."],
       ["legacy", "Legacy JSON", "Legacy JSON backups are not the new source format. They remain importable, are validated, and are converted into the v1 encrypted workspace schema."],
-    ]),
-  },
-  {
-    path: "docs/portable-bundle/index.html",
-    title: "PostSnail Portable Bundle - Alpha 2",
-    description: "Run PostSnail from a flash drive or local folder with a CLI-first command center, local admin, and bridge helper.",
-    canonical: "https://postsnail.org/docs/portable-bundle/",
-    body: docPage("Portable bundle sections", "Portable Bundle", "A folder bundle that opens a CLI-first TUI Command Center, can launch Admin + Bridge when needed, and keeps writable state on removable media.", [
-      ["launch", "First Launch", "Open the portable launcher script or run `node bin/postsnail-portable.js`. The launcher resolves the bundle root, checks a signed release manifest, and opens the terminal Command Center first."],
-      ["github", "GitHub Bootstrap", "For a one-command GitHub-hosted launch, run `curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash`. The bootstrapper tries the latest portable ZIP from GitHub Releases first. If that asset is not published yet, it falls back to the GitHub source archive on `main`, unpacks it into a local folder, checks the host prerequisites, offers package-manager installs with permission, and then launches the bundle. It reads prompts from your terminal, so it can still ask before installing dependencies or launching the bundle even when invoked through `curl | bash`."],
-      ["modes", "Run Modes", "Default launch is the CLI Command Center. Use `--run admin` to start only local Admin + Bridge, or `--run cli` / `--menu` to force the menu. There is no local Forest mode in the portable bundle."],
-      ["update", "Update Behavior", "The launcher checks a signed release manifest on start. If a newer release is verified and the bundle fingerprint matches, it stages the new release into the bundle-local data cache and starts from that staged snapshot. If offline or verification fails, it keeps the bundled snapshot and still starts the selected local tool."],
-      ["data", "Writable Data", "Portable state stays in the bundle-local data directory. The updater stores staged releases and logs there, command-center preferences can remember non-secret paths there, and the Surge bridge uses that same area for temporary files so the portable bundle does not write outside its own folder."],
-      ["workflow", "Portable Workflow", "Use the guided Command Center or portable admin to open a Shell, write posts, export the public ZIP, run the verifier, start the local bridge, publish with Surge, notify remote Forest, manage ShellNames, move domains, and moderate comments without typing full commands or using any hosted admin."],
-      ["move", "Move To Another Computer", "Copy the portable folder or ZIP to another machine, run the launcher again, import the same `.postsnail` Shell if needed, and continue from the same local workspace."],
     ]),
   },
   {

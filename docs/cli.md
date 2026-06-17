@@ -9,10 +9,7 @@ It keeps the same core rules as the browser admin:
 - The Shell passphrase opens the workspace.
 - The identity passphrase unlocks the signing key for `build` and `zip`.
 
-The CLI now has two surfaces:
-
-- `postsnail menu` opens the guided TUI Command Center used by PostSnail Portable.
-- Direct commands support non-interactive local workflows with flags and environment variables where practical.
+The CLI exposes direct commands for trusted local automation with flags and environment variables where practical.
 
 Core commands:
 
@@ -33,12 +30,9 @@ Core commands:
 - `postsnail shellname register|update|renew`
 - `postsnail domain move|mirror`
 
-The Command Center shows what each workflow does, which inputs are required, the exact CLI command for learning, and the privacy boundary. Choosing `Run` asks for the needed fields and executes the workflow, so creators do not have to type flags by hand.
-
 Secrets stay local:
 
 - Shell passphrases and identity passphrases are accepted as command inputs or environment variables for trusted local automation.
-- The portable menu may keep passphrases in process memory for one session, but never writes them to disk or logs.
 - Forest, ShellName, and domain-move commands send only signed public records, never raw private keys or `.postsnail` vault data.
 
-There is no bundled local Forest server in the portable bundle. Forest commands talk to a configured remote Forest API.
+There is no bundled local Forest server. Forest commands talk to a configured remote Forest API.

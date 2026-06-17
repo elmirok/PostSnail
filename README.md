@@ -23,14 +23,14 @@ PostSnail does not require a backend, submit automatically to a registry, upload
 
 ## Alpha 2 Highlights
 
-Alpha 2 is the first lean release after the prototype cleanup pass. The repo now keeps the real deployable surfaces clear: the public website/admin, the browser-native Shell workflow, the portable launcher, the Surge bridge, and the Forest Worker in `registry/`.
+Alpha 2 is the first lean release after the prototype cleanup pass. The repo now keeps the real deployable surfaces clear: the public website/admin, the browser-native Shell workflow, direct CLI automation, the Surge bridge, and the Forest Worker in `registry/`.
 
-- Portable launch opens a CLI-first Command Center and can start local Admin + Bridge on demand.
+- The browser admin remains the primary local creator interface.
+- The CLI remains available for direct, explicit automation commands.
 - SnailLift is Surge-only for hosted publishing, with Download Website ZIP still available as the universal fallback.
-- Local Forest runtime is not bundled in portable; remote Forest commands remain available through the CLI.
 - Official bundled extensions remain declarative: install/enable changes state, but no third-party plugin code is loaded.
-- Old experimental Forest, Reader, mock package, and pre-Surge provider prototypes were removed from tracked code.
-- Public docs, package metadata, portable bundle metadata, and generated proof metadata now identify the release as Alpha 2 / `0.2.0`.
+- Old packaging experiments, old experimental Forest, mock package, and pre-Surge provider prototypes were removed from tracked code.
+- Public docs, package metadata, and generated proof metadata now identify the release as Alpha 2 / `0.2.0`.
 
 See [Alpha 2 release notes](docs/alpha-2.md).
 
@@ -41,31 +41,6 @@ python3 -m http.server 4173
 ```
 
 Open `http://localhost:4173` for the public website or `http://localhost:4173/admin/` for the local-first admin.
-
-## Portable Bundle
-
-PostSnail also ships a USB-friendly portable bundle. Build it with:
-
-```bash
-npm run portable:build
-```
-
-The bundle lands in `dist/postsnail-portable/` with a matching ZIP at `dist/postsnail-portable.zip`. You can launch it from a local folder or removable drive with:
-
-```bash
-node bin/postsnail-portable.js
-```
-
-The portable launcher checks a signed release manifest on launch, stages a newer verified bundle into the local `data/` cache when available, then opens the PostSnail Portable Command Center. From there, creators can use a guided TUI to run CLI workflows without typing full commands, start local Admin + Bridge, build and verify ZIPs, publish through Surge, notify remote Forest, manage ShellNames, change domains, and moderate comments. If the update check is offline or fails verification, it keeps the bundled snapshot and still opens the command center.
-
-If you want a GitHub-hosted one-command startup flow, use the bootstrapper in this repo. It downloads the latest portable ZIP from GitHub Releases, unpacks it into a local folder, checks the host prerequisites, offers to install missing tools when a package manager is available, and then launches the bundle:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/elmirok/PostSnail/main/portable/bootstrap.sh | bash
-```
-
-The bootstrapper works on macOS and Linux. It is easiest to use from the folder where you want the bundle installed, such as a removable drive or a working directory you keep for PostSnail. If a GitHub Release asset is not published yet, it falls back to the GitHub source archive on `main` and still launches the portable command center.
-Because it reads prompts from your terminal, it can still ask before installing dependencies or launching the bundle even when you run it through `curl | bash`.
 
 ## Deploy The Public Site And Admin
 
@@ -95,7 +70,6 @@ PostSnail CLI is the trusted local automation interface for PostSnail. It reuses
 
 CLI commands include:
 
-- `postsnail menu`
 - `postsnail workspace create|info|migrate`
 - `postsnail profile show|set`
 - `postsnail identity generate|show`

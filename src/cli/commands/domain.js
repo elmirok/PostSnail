@@ -16,14 +16,14 @@ export async function runDomainCommand(positionals, flags) {
   if (!fromUrl || !toUrl) throw new Error("Both --from-url and --to-url are required.");
   const live = flags["skip-live-verify"]
     ? { ok: true, bundleFingerprint: result.bundleFingerprint }
-    : await verifySnailLiftLiveSite({ siteUrl: toUrl, exportResult: result });
+    : await verifySnailLiftLiveSite({ siteUrl: toUrl, expectedPublicKey: context.state.identity.publicKey });
   if (!live.ok) throw new Error(`Live verification failed: ${live.errors.join("; ")}`);
   const record = signSiteMoveRecord({
     mode: subcommand === "mirror" ? "mirror" : "move",
     fromUrl,
     toUrl,
     publicKey: context.state.identity.publicKey,
-    bundleFingerprint: result.bundleFingerprint,
+    bundleFingerprint: live.bundleFingerprint || result.bundleFingerprint,
     createdAt: new Date().toISOString(),
   }, secretKey);
   const forestUrl = cleanText(flags["forest-url"] || "https://forest.postsnail.org").replace(/\/+$/u, "");

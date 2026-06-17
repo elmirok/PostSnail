@@ -35,7 +35,6 @@ const roadmapFiles = [
   "postsnail-cli-headless-publisher-plan.md",
   "aurel-shellscribe-full-auto-workflow-plan.md",
   "forest-ux-polish-plan.md",
-  "postsnail-reader-plan.md",
   "canopy-future-project-plan.md",
   "shellseed-decentralized-hosting-plan.md",
   "postsnail-inbox-mailsnail-future-plan.md",

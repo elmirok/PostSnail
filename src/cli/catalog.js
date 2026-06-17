@@ -1,5 +1,4 @@
 export const CLI_COMMANDS = [
-  { group: "Shell setup", usage: "postsnail menu", summary: "Open the terminal Command Center." },
   { group: "Shell setup", usage: "postsnail workspace create --workspace <file.postsnail>", summary: "Create a new encrypted Shell file." },
   { group: "Shell setup", usage: "postsnail workspace info --workspace <file.postsnail>", summary: "Show Shell profile, post, and asset counts." },
   { group: "Shell setup", usage: "postsnail workspace migrate --workspace <file.postsnail> --out <file.postsnail>", summary: "Rewrite a Shell with the current workspace schema." },

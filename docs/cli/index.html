@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PostSnail CLI - Alpha 2</title>
-    <meta name="description" content="Use the PostSnail CLI command center to open Shells, manage content, publish with Surge, verify output, and notify Forest.">
+    <meta name="description" content="Use the PostSnail CLI to open Shells, manage content, publish with Surge, verify output, and notify Forest.">
     <link rel="canonical" href="https://postsnail.org/docs/cli/">
     <meta name="theme-color" content="#ef4056">
     <link rel="icon" href="/assets/brand/postsnail-icon.svg" type="image/svg+xml">
@@ -39,19 +39,18 @@
       <section class="page-hero">
             <p class="eyebrow">Guide</p>
             <h1>PostSnail CLI</h1>
-            <p class="lede">A trusted local automation interface and teaching command center for Shell-aware publishing workflows.</p>
+            <p class="lede">A trusted local automation interface for Shell-aware publishing workflows.</p>
           </section>
           <article class="doc-layout">
-            <nav class="doc-nav" aria-label="CLI sections"><a href="#role">What The CLI Is</a><a href="#menu">Command Center</a><a href="#open">Open A Shell</a><a href="#content">Content Commands</a><a href="#build">Build And ZIP</a><a href="#verify">Verify Output</a><a href="#publish">Publish And Forest</a><a href="#boundaries">Boundaries</a></nav>
+            <nav class="doc-nav" aria-label="CLI sections"><a href="#role">What The CLI Is</a><a href="#open">Open A Shell</a><a href="#content">Content Commands</a><a href="#build">Build And ZIP</a><a href="#verify">Verify Output</a><a href="#publish">Publish And Forest</a><a href="#boundaries">Boundaries</a></nav>
             <div class="doc-content">
               <section id="role"><h2>What The CLI Is</h2><p>PostSnail CLI is the automation interface for local trusted workflows. The browser admin remains the main human interface; the CLI reuses the same workspace, exporter, verifier, and signing boundaries.</p></section>
-              <section id="menu"><h2>Command Center</h2><p>Use postsnail menu to open the guided terminal TUI. It shows workflow groups, explains required inputs and private-data boundaries, and runs workflows through prompts so creators do not have to type flags by hand. The exact CLI command is still shown for learning.</p></section>
               <section id="open"><h2>Open A Shell</h2><p>Use workspace info or workspace migrate with a .postsnail Shell and the Shell passphrase. The Shell passphrase unlocks the encrypted workspace; it does not automatically unlock the signing key.</p></section>
               <section id="content"><h2>Content Commands</h2><p>Use post list/new/import/status/delete, page list/import/status/delete/navigation, asset list/unused/delete-unused, and comment verify/approve/reject/list/block-key to manage encrypted Shell content locally.</p></section>
               <section id="build"><h2>Build And ZIP</h2><p>Use build to write a public directory and zip to write a publishable Website ZIP. Both commands require the Shell passphrase and the identity passphrase so PostSnail can unlock the encrypted signing key and sign proof files.</p></section>
               <section id="verify"><h2>Verify Output</h2><p>Use verify on a public directory or ZIP. Verification recomputes hashes, checks signatures, and confirms the bundle fingerprint before publish or deploy steps.</p></section>
               <section id="publish"><h2>Publish And Forest</h2><p>Use publish surge for the local Surge bridge, forest announce for remote Forest refresh, shellname register/update/renew for aliases, and domain move/mirror for signed site moves. These commands send public records and generated files, not private keys or Shell vault data.</p></section>
-              <section id="boundaries"><h2>Boundaries</h2><p>The CLI does not add backend accounts, browser token entry, or a bundled local Forest server. Portable keeps Forest remote and keeps secrets local.</p></section>
+              <section id="boundaries"><h2>Boundaries</h2><p>The CLI does not add backend accounts, browser token entry, guided menus, or a bundled local Forest server. Forest commands talk to remote Forest APIs and keep secrets local.</p></section>
             </div>
           </article>
     </main>

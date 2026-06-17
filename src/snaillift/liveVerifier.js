@@ -1,6 +1,6 @@
 import { verifyRemoteSite } from "../remote-verifier.js";
 
-export async function verifySnailLiftLiveSite({ siteUrl, exportResult, fetcher = fetch } = {}) {
+export async function verifySnailLiftLiveSite({ siteUrl, exportResult, expectedPublicKey = "", fetcher = fetch } = {}) {
   const errors = [];
   const warnings = [];
   let remote;
@@ -18,11 +18,15 @@ export async function verifySnailLiftLiveSite({ siteUrl, exportResult, fetcher =
   const expectedFingerprint = exportResult?.bundleFingerprint || exportResult?.manifest?.bundleFingerprint || "";
   const liveFingerprint =
     remote.summary?.bundleFingerprint || remote.manifest?.bundleFingerprint || remote.wellKnown?.bundleFingerprint || "";
+  const livePublicKey = remote.summary?.publicKey || remote.manifest?.publicKey || remote.wellKnown?.publicKey || "";
   if (expectedFingerprint && liveFingerprint !== expectedFingerprint) {
     errors.push(`Live bundle fingerprint mismatch. Expected ${expectedFingerprint}, found ${liveFingerprint || "none"}.`);
   }
   if (exportResult?.manifest?.publicKey && remote.manifest?.publicKey !== exportResult.manifest.publicKey) {
     errors.push("Live public key does not match the generated export.");
+  }
+  if (expectedPublicKey && livePublicKey !== expectedPublicKey) {
+    errors.push("Live public key does not match this Shell.");
   }
 
   return {

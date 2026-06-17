@@ -236,6 +236,33 @@ test("verifySnailLiftLiveSite fails when live fingerprint differs", async () => 
   assert.match(result.errors.join("\n"), /fingerprint/i);
 });
 
+test("verifySnailLiftLiveSite can verify a live domain by publisher key without pinning the last local fingerprint", async () => {
+  const keys = generateSigningKeyPair();
+  const previous = await makeExportFixture({ keys, body: "Previous body." });
+  const live = await makeExportFixture({ keys, body: "New live body." });
+
+  assert.notEqual(live.bundleFingerprint, previous.bundleFingerprint);
+
+  const accepted = await verifySnailLiftLiveSite({
+    siteUrl: "https://creator.example/",
+    expectedPublicKey: previous.manifest.publicKey,
+    fetcher: liveFilesFetcher(live.files),
+  });
+
+  assert.equal(accepted.ok, true, accepted.errors.join("\n"));
+  assert.equal(accepted.bundleFingerprint, live.bundleFingerprint);
+
+  const wrongKey = generateSigningKeyPair();
+  const rejected = await verifySnailLiftLiveSite({
+    siteUrl: "https://creator.example/",
+    expectedPublicKey: `base64:${Buffer.from(wrongKey.publicKey).toString("base64")}`,
+    fetcher: liveFilesFetcher(live.files),
+  });
+
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.errors.join("\n"), /public key/i);
+});
+
 test("Forest announce only happens after live verification succeeds", async () => {
   const exported = await makeExportFixture();
   const requests = [];
@@ -285,12 +312,12 @@ test("SnailLift provider logic stays out of PostSnail Core modules", () => {
   assert.doesNotMatch(workspaceSchema, /cloudflare|github|wrangler/iu, "src/workspaceSchema.js");
 });
 
-async function makeExportFixture() {
-  const keys = generateSigningKeyPair();
+async function makeExportFixture(options = {}) {
+  const keys = options.keys || generateSigningKeyPair();
   const post = normalizePost({
     id: "p1",
     title: "Live Verified",
-    body: "Published body.",
+    body: options.body || "Published body.",
     status: "published",
     createdAt: "2026-06-06T00:00:00.000Z",
   });

@@ -197,20 +197,7 @@ Creator profiles, ShellName profiles, search, tags, language pages, badges, and 
 
 ---
 
-## 10. PostSnail Reader
-
-**Priority:** Medium  
-**Plan:** [postsnail-reader-plan.md](postsnail-reader-plan.md)
-
-### Why
-Publishing is only half of the network. Readers need a way to follow, verify, and discover PostSnail blogs.
-
-### Main outcome
-A local-first reader for signed PostSnail feeds and forests.
-
----
-
-## 11. Canopy Future Dashboard
+## 10. Canopy Future Dashboard
 
 **Priority:** Medium-Low  
 **Plan:** [canopy-future-project-plan.md](canopy-future-project-plan.md)
@@ -223,7 +210,7 @@ A dashboard above the ecosystem, starting local/browser-based.
 
 ---
 
-## 12. ShellSeed Decentralized Hosting / Seeding
+## 11. ShellSeed Decentralized Hosting / Seeding
 
 **Priority:** Experimental / Later  
 **Plan:** [shellseed-decentralized-hosting-plan.md](shellseed-decentralized-hosting-plan.md)
@@ -236,7 +223,7 @@ Signed public bundles can be seeded by creators and supporters, then resolved th
 
 ---
 
-## 13. PostSnail Inbox / MailSnail
+## 12. PostSnail Inbox / MailSnail
 
 **Priority:** Future  
 **Plan:** [postsnail-inbox-mailsnail-future-plan.md](postsnail-inbox-mailsnail-future-plan.md)
