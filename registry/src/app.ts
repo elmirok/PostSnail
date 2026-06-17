@@ -432,21 +432,21 @@ async function handleShellNameJson(url: URL, deps: AppDeps): Promise<Response> {
   const name = normalizeShellNameName(url.pathname.split("/").pop()?.replace(/\.json$/u, "") || "");
   const record = await deps.store.getShellName(name);
   if (!record) return json({ error: "ShellName not found." }, 404, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
-  return json({ shellName: publicShellName(record, deps.now?.() || new Date().toISOString()) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+  return json({ shellName: await publicShellNameChecked(record, deps) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
 }
 
 async function handleShellNameSlashJson(url: URL, deps: AppDeps): Promise<Response> {
   const name = normalizeShellNameName(url.pathname.split("/").pop()?.replace(/\.json$/u, "") || "");
   const record = await deps.store.getShellName(name);
   if (!record) return json({ error: "ShellName not found." }, 404, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
-  return json({ shellName: publicShellName(record, deps.now?.() || new Date().toISOString()) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
+  return json({ shellName: await publicShellNameChecked(record, deps) }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
 }
 
 async function handleShellNameProfile(url: URL, deps: AppDeps): Promise<Response> {
   const name = normalizeShellNameName(url.pathname.slice(2));
   const record = await deps.store.getShellName(name);
   if (!record) return new Response(renderShellNameProfile(null), { status: 404, headers: htmlHeaders() });
-  return new Response(renderShellNameProfile(publicShellName(record, deps.now?.() || new Date().toISOString())), { headers: htmlHeaders() });
+  return new Response(renderShellNameProfile(await publicShellNameChecked(record, deps)), { headers: htmlHeaders() });
 }
 
 async function handleShellNameSearch(url: URL, deps: AppDeps): Promise<Response> {
@@ -681,6 +681,20 @@ function publicShellName(record: ShellNameRecord, now: string) {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+async function publicShellNameChecked(record: ShellNameRecord, deps: AppDeps) {
+  const now = deps.now?.() || new Date().toISOString();
+  const publicRecord = publicShellName(record, now);
+  const indexedSite = await deps.store.getSiteByCanonicalUrl(record.siteUrl);
+  if (indexedSite && !indexedSite.hidden && indexedSite.publicKey !== record.publicKey) {
+    return {
+      ...publicRecord,
+      status: "conflict",
+      warning: "This ShellName points to a site indexed with a different public key.",
+    };
+  }
+  return publicRecord;
 }
 
 function publicSiteMove(record: SiteMoveRecord) {

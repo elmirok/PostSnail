@@ -1173,6 +1173,35 @@ describe("registry API and crawl flow", () => {
     const searchJson = await search.json() as any;
     expect(searchJson.items).toHaveLength(1);
     expect(searchJson.items[0].shellName).toBeUndefined();
+
+    await store.upsertShellName({
+      name: "victim-alias",
+      fullName: "@victim-alias@forest.postsnail.org",
+      forest: "forest.postsnail.org",
+      siteUrl: "https://victim.example/",
+      publicKey: attacker.publicKey,
+      bundleFingerprint: victimDocuments.bundleFingerprint,
+      record: attacker.record,
+      signature: String(attacker.record.signature),
+      status: "active",
+      hidden: 0,
+      expiresAt: "2027-06-05T00:00:00.000Z",
+      searchText: "victim-alias victim.example",
+      createdAt: "2026-06-05T00:00:00.000Z",
+      updatedAt: "2026-06-05T00:00:00.000Z",
+    });
+    const staleJson = await handleRequest(new Request("https://forest.postsnail.org/shellnames/victim-alias.json"), deps);
+    expect(await staleJson.json()).toMatchObject({
+      shellName: {
+        name: "victim-alias",
+        status: "conflict",
+        warning: "This ShellName points to a site indexed with a different public key.",
+      },
+    });
+    const staleProfile = await handleRequest(new Request("https://forest.postsnail.org/@victim-alias"), deps);
+    expect(await staleProfile.text()).toContain("conflict");
+    const shellNameSearch = await handleRequest(new Request("https://forest.postsnail.org/shellnames/search?q=victim-alias"), deps);
+    expect((await shellNameSearch.json() as any).items).toHaveLength(0);
   });
 
   test("ShellNames rejects invalid, reserved, tampered, wrong-owner, and rate-limited records", async () => {
