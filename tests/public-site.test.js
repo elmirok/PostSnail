@@ -258,6 +258,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /@name@forest\.postsnail\.org/);
   assert.match(appJs, /data-settings-field="shellNameForestUrl"/);
   assert.match(appJs, /data-settings-field="shellNameDesiredName"/);
+  assert.match(appJs, /data-settings-field="publicFont"/);
+  assert.match(appJs, /PUBLIC_FONT_OPTIONS/);
+  assert.match(appJs, /Preview: The quiet microblog stays readable/);
   assert.match(appJs, /data-action="register-shellname"/);
   assert.match(appJs, /data-action="update-shellname"/);
   assert.match(appJs, /data-action="renew-shellname"/);
@@ -351,6 +354,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.markdown-editor-mount \.ps-md-list-line/);
   assert.match(css, /\.markdown-editor-mount \.ps-md-code-token/);
   assert.match(css, /\.markdown-editor-mount \.ps-md-link-token/);
+  assert.match(css, /\.field > span/);
+  assert.doesNotMatch(css, /\.field span,/);
+  assert.match(css, /\.font-preview/);
   assert.doesNotMatch(css, /\.markdown-source-editor/);
   assert.doesNotMatch(css, /\.markdown-editor-shell/);
   assert.doesNotMatch(css, /\.markdown-style-layer/);

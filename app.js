@@ -28,6 +28,7 @@ import {
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import { buildSiteMovePayload, signSiteMoveRecord } from "./src/siteMoves.js";
 import { buildMovedShellNameUpdate, findShellNameForMove, shellNameFromForestResponse } from "./src/domainMoveShellName.js";
+import { PUBLIC_FONT_OPTIONS, normalizePublicFontChoice } from "./src/publicFonts.js";
 import {
   commentSummary,
   createApprovedCommentRecord,
@@ -77,6 +78,7 @@ const defaultSettings = {
   topics: "",
   preferredTrackers: "",
   indexingPolicy: "allow",
+  publicFont: "system",
   showPoweredBy: true,
   showTrackerCredit: true,
   snailLiftSiteUrl: "",
@@ -2792,6 +2794,7 @@ function renderGenerateTabs(active) {
 }
 
 function renderGenerateProfileSettings() {
+  const selectedFont = normalizePublicFontChoice(state.settings.publicFont);
   return `
     <section class="panel-box fields generate-section-panel">
       <h2 class="panel-title">Name The Blog</h2>
@@ -2835,6 +2838,15 @@ function renderGenerateProfileSettings() {
           </select>
         </label>
       </div>
+      <label class="field">
+        <span>Website font</span>
+        <select data-settings-field="publicFont">
+          ${PUBLIC_FONT_OPTIONS.map(
+            (font) => `<option value="${escapeAttr(font.id)}" ${selectedFont.id === font.id ? "selected" : ""}>${escapeHtml(font.label)}</option>`,
+          ).join("")}
+        </select>
+      </label>
+      <p class="font-preview" style="font-family: ${escapeAttr(selectedFont.stack)}">Preview: The quiet microblog stays readable with mixed UPPER and lower case letters.</p>
       <label class="field">
         <span>Topics</span>
         <input data-settings-field="topics" value="${escapeAttr(state.settings.topics || "")}" placeholder="protocol, notes, research">

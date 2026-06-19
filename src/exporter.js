@@ -167,6 +167,7 @@ import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
 import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
 import { resolveRouteAssets } from "./core/assets/routeAssets.js";
+import { normalizePublicFontChoice, publicFontCssValue } from "./publicFonts.js";
 import {
   buildCommentsPublicData,
   commentsRuntimeCss,
@@ -615,6 +616,7 @@ function normalizeAttributionSettings(settings = {}, discoverySettings = normali
   return {
     showPoweredBy: settings.showPoweredBy !== false && settings.showPoweredBy !== "false",
     showTrackerCredit: settings.showTrackerCredit !== false && settings.showTrackerCredit !== "false",
+    publicFont: normalizePublicFontChoice(settings.publicFont).id,
     trackerUrls:
       settings.showTrackerCredit === false || settings.showTrackerCredit === "false"
         ? []
@@ -1044,7 +1046,7 @@ function renderPage(profile, { title, body, rootPrefix = "", path = "", type = "
   ${post.tags.map((tag) => `<meta property="article:tag" content="${escapeAttr(tag)}">`).join("\n  ")}` : ""}
   ${head}
   <script type="application/ld+json">${jsonScript(jsonLd)}</script>
-  <style>${publicCss()}</style>
+  <style>${publicCss(attribution)}</style>
 </head>
 <body>
   <header class="site-header">
@@ -1141,9 +1143,10 @@ function articleJsonLd(profile, post, url) {
   };
 }
 
-function publicCss() {
+function publicCss(attribution = {}) {
+  const fontStack = publicFontCssValue(attribution.publicFont);
   return `
-    :root { color: #17151f; background: #f7f7f5; font-family: Inter, Avenir Next, Segoe UI, system-ui, sans-serif; }
+    :root { color: #17151f; background: #f7f7f5; font-family: ${fontStack}; }
     * { box-sizing: border-box; }
     body { margin: 0; background: #f7f7f5; color: #17151f; }
     a { color: #3c1aaf; text-decoration-thickness: 0.08em; }

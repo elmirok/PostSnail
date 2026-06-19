@@ -62,10 +62,11 @@ export function createPostSnailMarkdownEditor({ parent, value = "", onChange = (
             minHeight: "min(48dvh, 540px)",
             padding: "14px",
             caretColor: "var(--ink)",
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
             fontSize: "0.98rem",
             fontWeight: "500",
             lineHeight: "1.58",
+            textTransform: "none",
           },
           ".cm-scroller": {
             minHeight: "min(48dvh, 540px)",

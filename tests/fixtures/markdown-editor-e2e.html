@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PostSnail Markdown Editor E2E Fixture</title>
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <main class="app-shell" style="padding: 24px;">
+    <label class="field">
+      <span>Markdown body</span>
+      <div id="markdown-body" class="writer-body markdown-editor-mount" data-markdown-editor aria-label="Markdown body"></div>
+    </label>
+  </main>
+  <script type="module">
+    import { createPostSnailMarkdownEditor } from "../../vendor/postsnail-editor/editor.bundle.js";
+
+    window.postsnailEditorChanges = [];
+    window.postsnailEditor = createPostSnailMarkdownEditor({
+      parent: document.getElementById("markdown-body"),
+      value: "",
+      onChange(markdown) {
+        window.postsnailEditorChanges.push(markdown);
+      },
+    });
+    window.postsnailEditor.focus();
+  </script>
+</body>
+</html>

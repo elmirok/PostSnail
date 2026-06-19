@@ -21,6 +21,8 @@ test("PostSnail Markdown editor is backed by CodeMirror and stores Markdown text
   assert.match(source, /update\.state\.doc\.toString\(\)/);
   assert.match(source, /getMarkdown\(\)/);
   assert.match(source, /insertSnippet/);
+  assert.match(source, /textTransform:\s*"none"/);
+  assert.match(source, /system-ui, -apple-system/);
   assert.match(app, /syncMarkdownEditorToForm\(\);/);
   assert.match(app, /state\.form\.body = state\.markdownEditor\.getMarkdown\(\)/);
 });
@@ -46,6 +48,14 @@ test("PostSnail Markdown editor has inline visual token styles for common Markdo
     assert.match(source, new RegExp(expected));
     assert.match(css, new RegExp(expected));
   }
+});
+
+test("admin label styling does not uppercase CodeMirror Markdown token spans", () => {
+  const css = read("styles.css");
+
+  assert.match(css, /\.field > span/);
+  assert.doesNotMatch(css, /\.field span,/);
+  assert.match(css, /\.markdown-editor-mount \.cm-editor\s*\{[\s\S]*text-transform:\s*none;/);
 });
 
 test("vendored Markdown editor bundle and license notices are present", () => {
