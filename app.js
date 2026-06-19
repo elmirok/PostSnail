@@ -330,6 +330,10 @@ async function handleAction(button) {
     insertImageUrlAtCursor();
     return;
   }
+  if (action === "insert-gallery-image") {
+    await insertGalleryImageAtCursor(button.dataset.id || "");
+    return;
+  }
   if (action === "md-helper") {
     applyMarkdownHelper(button.dataset.md || "");
     return;
@@ -861,6 +865,19 @@ async function insertUploadedImageAtCursor(file) {
   await persistLocalShellNow();
   insertMarkdownImageAtCursor({ alt, src: `/assets/${asset.fileName}` });
   setStatus(`Uploaded and inserted ${asset.name}. Save the post to keep the Markdown placement.`);
+}
+
+async function insertGalleryImageAtCursor(id) {
+  const asset = state.assets.find((item) => item.id === id);
+  if (!asset) {
+    setStatus("Choose an image from the gallery.");
+    return;
+  }
+  ensureAssetFileName(asset);
+  markShellBackupStale();
+  await persistLocalShellNow();
+  insertMarkdownImageAtCursor({ alt: asset.alt || asset.name || "image", src: `/assets/${asset.fileName}` });
+  setStatus(`Inserted ${asset.name || "gallery image"} at the cursor.`);
 }
 
 function insertMarkdownImageAtCursor({ alt, src }) {
@@ -2160,7 +2177,7 @@ function renderImageInsertDialog() {
           <div>
             <p class="kicker">Markdown image</p>
             <h2 id="image-insert-title">Insert image at cursor</h2>
-            <p class="help">Use a public HTTPS image URL or upload a local image into this Shell. Uploaded images are inserted as Markdown and exported with the Website ZIP.</p>
+            <p class="help">Use a public HTTPS image URL, upload a local image, or pick one already in your Shell gallery. Images are inserted as Markdown and exported with the Website ZIP.</p>
           </div>
           <button class="btn small" type="button" data-action="close-image-insert">Close</button>
         </div>
@@ -2188,8 +2205,32 @@ function renderImageInsertDialog() {
             <p class="help">Original image metadata may remain. Strip EXIF/GPS metadata before uploading if that matters for your threat model.</p>
           </section>
         </div>
+        ${renderImageInsertGallery()}
       </aside>
     </div>
+  `;
+}
+
+function renderImageInsertGallery() {
+  return `
+    <section class="panel-box fields image-insert-gallery">
+      <div>
+        <p class="kicker">From gallery</p>
+        <h3>Choose an existing Shell image</h3>
+        <p class="help">Gallery images stay private in your Shell until they appear in an exported Website ZIP.</p>
+      </div>
+      <div class="asset-list image-insert-gallery-grid">
+        ${state.assets.map((asset) => `
+          <button class="asset-chip image-gallery-choice" type="button" data-action="insert-gallery-image" data-id="${escapeAttr(asset.id)}">
+            <img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name || "Shell image")}">
+            <span>
+              <strong>${escapeHtml(asset.name || "Shell image")}</strong>
+              <small>${escapeHtml(formatBytes(asset.size))}</small>
+            </span>
+          </button>
+        `).join("") || `<div class="empty-state"><span>No gallery images yet</span><p>Upload an image here or add images from Content > Images first.</p></div>`}
+      </div>
+    </section>
   `;
 }
 
@@ -2216,11 +2257,24 @@ function renderReadingPreviewDialog() {
             ${tags.length ? `<div class="post-tags">${tags.map((tag) => `<span>#${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
           </header>
           ${attached.length ? `<div class="reading-preview-images">${attached.map((asset) => `<img src="${assetSrc(asset)}" alt="${escapeAttr(asset.alt || asset.name || "")}">`).join("")}</div>` : ""}
-          <div class="markdown reading-preview-body">${renderMarkdown(state.form.body || "")}</div>
+          <div class="markdown reading-preview-body">${renderMarkdownWithLocalAssets(state.form.body || "")}</div>
         </article>
       </aside>
     </div>
   `;
+}
+
+function renderMarkdownWithLocalAssets(markdown) {
+  return renderMarkdown(markdown).replace(/\ssrc="\/?assets\/([^"]+)"/giu, (match, fileName) => {
+    const previewSrc = localAssetPreviewSrc(fileName);
+    return previewSrc ? ` src="${escapeAttr(previewSrc)}"` : match;
+  });
+}
+
+function localAssetPreviewSrc(fileName) {
+  const cleanName = String(fileName || "").split(/[?#]/u)[0].toLowerCase();
+  const asset = state.assets.find((item) => String(item.fileName || "").toLowerCase() === cleanName);
+  return asset ? assetSrc(asset) : "";
 }
 
 function parseTags(value) {
@@ -4561,8 +4615,20 @@ function assetSrc(asset) {
   return `data:${asset.type || "image/png"};base64,${asset.dataBase64}`;
 }
 
-function uniqueAssetFileName(file) {
-  const used = new Set(state.assets.map((asset) => String(asset.fileName || "").toLowerCase()).filter(Boolean));
+function ensureAssetFileName(asset) {
+  if (!asset) return "";
+  if (safeAssetFileName(asset.fileName)) return asset.fileName;
+  asset.fileName = uniqueAssetFileName(asset, asset.id);
+  return asset.fileName;
+}
+
+function uniqueAssetFileName(file, excludeId = "") {
+  const used = new Set(
+    state.assets
+      .filter((asset) => !excludeId || asset.id !== excludeId)
+      .map((asset) => String(asset.fileName || "").toLowerCase())
+      .filter(Boolean),
+  );
   const extension = extensionForImageFile(file);
   const base = slugify(file.name?.replace(/\.[^.]+$/u, "") || "image") || "image";
   let candidate = `${base}${extension}`;
@@ -4572,6 +4638,10 @@ function uniqueAssetFileName(file) {
     counter += 1;
   }
   return candidate;
+}
+
+function safeAssetFileName(value) {
+  return /^[a-z0-9][a-z0-9-]*\.[a-z0-9]{2,5}$/u.test(String(value || ""));
 }
 
 function extensionForImageFile(file) {
