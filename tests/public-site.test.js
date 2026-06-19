@@ -353,6 +353,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.launch-guide/);
   assert.match(css, /\.writer-workbench/);
   assert.match(css, /\.writer-body/);
+  assert.match(css, /\.writer-sidebar\s*\{[\s\S]*align-self:\s*start/);
+  assert.match(css, /\.writer-sidebar\s*\{[\s\S]*position:\s*sticky/);
+  assert.match(css, /\.writer-sidebar\s*\{[\s\S]*overflow:\s*auto/);
+  assert.doesNotMatch(css, /\.writer-sidebar\s*\{[\s\S]*align-self:\s*stretch/);
   assert.match(css, /\.tab-menu\.open \.tab-submenu/);
   assert.doesNotMatch(css, /\.tab-menu\.active \.tab-submenu/);
   assert.match(css, /\.markdown-editor-mount \.cm-editor/);

@@ -788,7 +788,12 @@ textarea:disabled {
 }
 
 .writer-sidebar {
-  align-self: stretch;
+  align-self: start;
+  position: sticky;
+  top: 0;
+  max-height: calc(100dvh - 220px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .writer-state-bar {
@@ -1977,6 +1982,12 @@ code {
 
   .writer-head {
     flex-direction: column;
+  }
+
+  .writer-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .content-hero {
