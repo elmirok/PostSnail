@@ -18,6 +18,7 @@ The exported site includes:
 - `postsnail.manifest.json` with file hashes, post records, post signatures, manifest signature, and bundle fingerprint.
 - `.well-known/postsnail.json` as a signed identity/discovery document bound to the creator domain when a site URL is set.
 - `.well-known/postsnail/latest-commit.json` and `.well-known/postsnail/commits.json` with signed export history.
+- Two-color signature badge SVGs and downloadable public badge claim files for published posts.
 
 PostSnail does not require a backend, submit automatically to a registry, upload files, or create accounts.
 
@@ -125,6 +126,12 @@ When a creator changes domains, Forest should not keep showing dead old post URL
 
 `Move to new domain` hides the old indexed domain from Forest search and stores a public audit row. `Keep old domain as mirror` stores the relationship while leaving both domains visible. Accepted move records stay in the encrypted Shell and are published in manifest/well-known metadata only if the creator enables move-history publishing. See [Site Moves](docs/site-moves.md).
 
+## Signature Badges
+
+Published posts include deterministic two-color pixel-art nature badges generated from the post signature. The badge is a human-friendly proof seal; raw hashes and signatures remain in the manifest for machines and verifiers.
+
+Readers can click a badge to download a `.postsnail.badge.<hash-prefix>.json` claim file. Their own encrypted Shell can import and verify that claim through the official `postsnail-badges` plugin, then optionally publish a `/badges/` collection page. Collection links go through Forest's `/go/post` resolver so a badge bookmark can follow signed domain moves when Forest knows the current indexed post. See [Signature Badges](docs/signature-badges.md).
+
 ## Compatibility Contract
 
 PostSnail uses a stable-core, optional-extension model so old valid Shells and old valid public ZIP exports keep working as the protocol grows.
@@ -146,9 +153,9 @@ The Core Foundation APIs live under `src/core/` and cover plugin manifest valida
 
 Alpha 2 extension support is intentionally declarative. PostSnail can install/enable official plugin manifests, preserve plugin state, plan hooks, and declare route assets, but it does not load third-party plugin packages or run arbitrary plugin code.
 
-The admin Extensions tab currently supports official bundled plugins only. `postsnail-comments` adds signed comment moderation and approved static replies, `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback, and `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
+The admin Extensions tab currently supports official bundled plugins only. `postsnail-badges` imports and publishes badge collections, `postsnail-comments` adds signed comment moderation and approved static replies, `postsnail-snaillift` reveals the SnailLift deployment assistants while keeping Download ZIP available as the universal fallback, and `postsnail-pages` adds the Pages tab for static pages, docs, navigation, and homepage override while keeping CMS state inside the encrypted Shell.
 
-See [PostSnail Comments](docs/comments.md) and [PostSnail Pages](docs/postsnail-pages.md) for the current official plugin boundaries.
+See [Signature Badges](docs/signature-badges.md), [PostSnail Comments](docs/comments.md), and [PostSnail Pages](docs/postsnail-pages.md) for the current official plugin boundaries.
 
 ## Privacy and Recovery
 

@@ -1,4 +1,3 @@
-import DOMPurify from "./vendor/dompurify/purify.es.mjs";
 import { findUnusedAssets } from "./src/assetCleanup.js";
 import { buildExcerpt, normalizePost, uniqueSlug } from "./src/content.js";
 import {
@@ -9,7 +8,6 @@ import {
   textToBytes,
 } from "./src/crypto.js";
 import { buildStaticExport } from "./src/exporter.js";
-import { renderMarkdown } from "./src/markdown.js";
 import {
   clearAppState,
   loadAppState,
@@ -45,11 +43,13 @@ import {
   getOfficialPluginManifest,
   installPlugin,
   isPluginEnabled,
+  POSTSNAIL_BADGES_PLUGIN_ID,
   POSTSNAIL_COMMENTS_PLUGIN_ID,
   POSTSNAIL_PAGES_PLUGIN_ID,
   POSTSNAIL_SNAILLIFT_PLUGIN_ID,
 } from "./src/core/index.js";
 import { createPagesItem, normalizePagesState } from "./src/pages/plugin.js";
+import { badgeDataUriForClaim, importBadgeClaim, normalizeBadgesState } from "./src/badges/plugin.js";
 import {
   announceForestAfterLiveVerification,
   createDeploymentLogEntry,
@@ -59,8 +59,6 @@ import {
   surgeProvider,
   validateSurgeSettings,
 } from "./src/snaillift/index.js";
-
-globalThis.DOMPurify = DOMPurify;
 
 const app = document.getElementById("app");
 const FOREST_ANNOUNCE_URL = "https://forest.postsnail.org/api/announce";
@@ -113,6 +111,10 @@ const state = {
   onboardingStateKnown: true,
   notifyForestAttention: false,
   activeTab: "home",
+  contentSection: "posts",
+  openAdminMenu: "",
+  launchGuideOpen: false,
+  previewImageId: "",
   identitySection: "signature",
   generateSection: "profile",
   pagesSection: "pages",
@@ -166,8 +168,17 @@ async function init() {
 
 app.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
-  if (!button) return;
+  const clickedInsideMenu = event.target.closest("[data-admin-menu]");
+  const shouldCloseOpenMenu = Boolean(state.openAdminMenu && !clickedInsideMenu);
+  if (!button) {
+    if (shouldCloseOpenMenu) {
+      state.openAdminMenu = "";
+      render();
+    }
+    return;
+  }
   event.preventDefault();
+  if (shouldCloseOpenMenu) state.openAdminMenu = "";
   await handleAction(button);
 });
 
@@ -177,30 +188,69 @@ app.addEventListener("submit", async (event) => {
   await saveCurrentPost();
 });
 
-app.addEventListener("input", (event) => {
-  const input = event.target;
-  if (input.matches("[data-post-field]")) {
-    state.form[input.dataset.postField] = input.value;
-    updatePreview();
+app.addEventListener("beforeinput", (event) => {
+  const editor = event.target.closest?.("#markdown-body");
+  if (!editor?.isContentEditable) return;
+  if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
+    event.preventDefault();
+    insertMarkdownAtSelection("\n");
+    return;
   }
-  if (input.matches("[data-profile-field]")) {
+  if (event.inputType === "insertText" && typeof event.data === "string") {
+    event.preventDefault();
+    insertMarkdownAtSelection(event.data);
+  }
+});
+
+app.addEventListener("keydown", (event) => {
+  const editor = event.target.closest?.("#markdown-body");
+  if (!editor?.isContentEditable) return;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    insertMarkdownAtSelection("\n");
+  }
+});
+
+app.addEventListener("paste", (event) => {
+  const editor = event.target.closest?.("#markdown-body");
+  if (!editor?.isContentEditable) return;
+  const text = event.clipboardData?.getData("text/plain") || "";
+  if (!text) return;
+  event.preventDefault();
+  insertMarkdownAtSelection(text);
+});
+
+app.addEventListener("input", (event) => {
+  const input = event.target.closest?.("[data-post-field]");
+  if (input) {
+    if (input.id === "markdown-body" && input.isContentEditable) {
+      syncMarkdownSourceEditor(input);
+    } else {
+      state.form[input.dataset.postField] = input.value;
+    }
+  }
+  if (event.target.matches("[data-profile-field]")) {
+    const input = event.target;
     state.profile[input.dataset.profileField] = input.value;
     markShellBackupStale();
     scheduleLocalShellSave();
   }
-  if (input.matches("[data-settings-field]")) {
-    updateSettingFromInput(input);
+  if (event.target.matches("[data-settings-field]")) {
+    updateSettingFromInput(event.target);
   }
-  if (input.matches("[data-runtime-field]")) {
-    updateRuntimeFieldFromInput(input);
+  if (event.target.matches("[data-runtime-field]")) {
+    updateRuntimeFieldFromInput(event.target);
   }
 });
 
 app.addEventListener("change", async (event) => {
-  const input = event.target;
+  const input = event.target.closest?.("[data-post-field]") || event.target;
   if (input.matches("[data-post-field]")) {
-    state.form[input.dataset.postField] = input.value;
-    updatePreview();
+    if (input.id === "markdown-body" && input.isContentEditable) {
+      syncMarkdownSourceEditor(input);
+    } else {
+      state.form[input.dataset.postField] = input.value;
+    }
   }
   if (input.matches("[data-settings-field]")) {
     updateSettingFromInput(input);
@@ -231,10 +281,17 @@ app.addEventListener("change", async (event) => {
     await verifyZipFile(input.files?.[0]);
     input.value = "";
   }
+  if (input.id === "badge-claim-import") {
+    await importBadgeClaimFile(input.files?.[0]);
+    input.value = "";
+  }
 });
 
 async function handleAction(button) {
   const action = button.dataset.action;
+  if (action === "noop") {
+    return;
+  }
   if (action === "open-shell") {
     await openShellFromGate();
     return;
@@ -256,8 +313,38 @@ async function handleAction(button) {
     return;
   }
   if (action === "tab") {
-    state.activeTab = button.dataset.tab;
+    const nextTab = button.dataset.tab;
+    const togglesMenu = button.dataset.menu === "true";
+    state.activeTab = nextTab;
+    if (state.activeTab === "content") state.contentSection = "posts";
+    state.openAdminMenu = togglesMenu && state.openAdminMenu !== nextTab ? nextTab : "";
     render();
+    return;
+  }
+  if (action === "content-section") {
+    state.activeTab = "content";
+    state.contentSection = button.dataset.section || "posts";
+    state.openAdminMenu = "";
+    if (state.contentSection === "editor" && !state.form.id && state.posts[0]) {
+      state.form = postToForm(state.posts[0]);
+    }
+    setStatus(`Content ${contentSectionLabel(state.contentSection)} ready.`);
+    render();
+    return;
+  }
+  if (action === "open-launch-guide") {
+    state.openAdminMenu = "";
+    state.launchGuideOpen = true;
+    render();
+    return;
+  }
+  if (action === "close-launch-guide") {
+    state.launchGuideOpen = false;
+    render();
+    return;
+  }
+  if (action === "md-helper") {
+    applyMarkdownHelper(button.dataset.md || "");
     return;
   }
   if (action === "identity-section") {
@@ -281,7 +368,9 @@ async function handleAction(button) {
   }
   if (action === "new-post") {
     state.form = emptyPostForm();
-    state.activeTab = "write";
+    state.activeTab = "content";
+    state.contentSection = "editor";
+    state.openAdminMenu = "";
     setStatus("New post draft ready.");
     render();
     return;
@@ -290,10 +379,16 @@ async function handleAction(button) {
     const post = state.posts.find((item) => item.id === button.dataset.id);
     if (post) {
       state.form = postToForm(post);
-      state.activeTab = "write";
+      state.activeTab = "content";
+      state.contentSection = "editor";
+      state.openAdminMenu = "";
       setStatus(`Editing ${post.title || post.slug}.`);
       render();
     }
+    return;
+  }
+  if (action === "quick-post-status") {
+    await updatePostStatus(button.dataset.id || "", button.dataset.status || "draft");
     return;
   }
   if (action === "delete-post") {
@@ -316,6 +411,21 @@ async function handleAction(button) {
   }
   if (action === "delete-unused-images") {
     await deleteUnusedImages();
+    return;
+  }
+  if (action === "delete-image") {
+    await deleteImage(button.dataset.id || "");
+    return;
+  }
+  if (action === "view-image") {
+    state.openAdminMenu = "";
+    state.previewImageId = button.dataset.id || "";
+    render();
+    return;
+  }
+  if (action === "close-image-preview") {
+    state.previewImageId = "";
+    render();
     return;
   }
   if (action === "generate-key") {
@@ -399,6 +509,14 @@ async function handleAction(button) {
   }
   if (action === "remove-blocked-key") {
     await removeBlockedCommentKey(button.dataset.key || "");
+    return;
+  }
+  if (action === "save-badges-settings") {
+    await saveBadgesSettings();
+    return;
+  }
+  if (action === "delete-badge-claim") {
+    await deleteBadgeClaim(button.dataset.key || "");
     return;
   }
   if (action === "new-pages-item") {
@@ -587,7 +705,7 @@ async function createShell() {
   state.onboardingStateKnown = true;
   state.activeTab = "home";
   await persistLocalShellNow(passphrase);
-  setStatus("Shell created. Follow Launch Guide to create a signature key, save the Shell, write, and export.");
+  setStatus("Shell created. Open the launch guide for a calm setup path, or start from Content.");
   render();
 }
 
@@ -676,7 +794,8 @@ async function saveCurrentPost() {
     String(b.updatedAt).localeCompare(String(a.updatedAt)),
   );
   state.form = postToForm(post);
-  state.activeTab = "library";
+  state.activeTab = "content";
+  state.contentSection = "posts";
   markShellBackupStale();
   await persistLocalShellNow();
   setStatus("Post saved locally.");
@@ -686,6 +805,7 @@ async function saveCurrentPost() {
 async function addImages(files) {
   const imageFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
   if (!imageFiles.length) return;
+  const attachToCurrentPost = state.activeTab === "content" && state.contentSection === "editor";
   for (const file of imageFiles) {
     const asset = {
       id: crypto.randomUUID(),
@@ -696,11 +816,13 @@ async function addImages(files) {
       createdAt: new Date().toISOString(),
     };
     state.assets = [asset, ...state.assets];
-    state.form.imageIds = Array.from(new Set([...state.form.imageIds, asset.id]));
+    if (attachToCurrentPost) {
+      state.form.imageIds = Array.from(new Set([...state.form.imageIds, asset.id]));
+    }
   }
   markShellBackupStale();
   await persistLocalShellNow();
-  setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} attached. Originals may contain metadata.`);
+  setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} ${attachToCurrentPost ? "attached" : "imported"}. Originals may contain metadata.`);
   render();
 }
 
@@ -719,6 +841,52 @@ async function deleteUnusedImages() {
   markShellBackupStale();
   await persistLocalShellNow();
   setStatus(`Deleted ${unused.length} unused image${unused.length === 1 ? "" : "s"}.`);
+  render();
+}
+
+async function updatePostStatus(id, nextStatus) {
+  const status = nextStatus === "published" ? "published" : "draft";
+  const post = state.posts.find((item) => item.id === id);
+  if (!post) return;
+  const now = new Date().toISOString();
+  state.posts = state.posts.map((item) => item.id === id
+    ? {
+        ...item,
+        status,
+        updatedAt: now,
+        publishedAt: status === "published" ? (item.publishedAt || now) : item.publishedAt,
+      }
+    : item);
+  if (state.form.id === id) {
+    const updated = state.posts.find((item) => item.id === id);
+    state.form = updated ? postToForm(updated) : state.form;
+  }
+  markShellBackupStale();
+  await persistLocalShellNow();
+  setStatus(status === "published" ? "Post will publish in the next Website ZIP." : "Post moved back to Draft.");
+  render();
+}
+
+async function deleteImage(id) {
+  const asset = state.assets.find((item) => item.id === id);
+  if (!asset) return;
+  const references = imageReferenceCount(id);
+  if (references > 0) {
+    const message = `"${asset.name}" is used ${references} time${references === 1 ? "" : "s"}. Delete it and detach it everywhere?`;
+    if (!window.confirm(message)) return;
+  } else if (!window.confirm(`Delete "${asset.name}" from this Shell?`)) {
+    return;
+  }
+  state.assets = state.assets.filter((item) => item.id !== id);
+  state.posts = state.posts.map((post) => ({
+    ...post,
+    imageIds: post.imageIds.filter((imageId) => imageId !== id),
+  }));
+  state.form.imageIds = state.form.imageIds.filter((imageId) => imageId !== id);
+  if (state.previewImageId === id) state.previewImageId = "";
+  markShellBackupStale();
+  await persistLocalShellNow();
+  setStatus("Image deleted and detached from content.");
   render();
 }
 
@@ -1361,16 +1529,18 @@ function render() {
     ${renderTabs()}
     <section class="app-workbench">
       ${renderPanel("home", renderHome())}
-      ${renderPanel("write", renderWrite())}
-      ${renderPanel("library", renderLibrary())}
+      ${renderPanel("content", renderContent())}
       ${renderPanel("identity", renderIdentity())}
       ${renderPanel("extensions", renderExtensions())}
       ${pagesEnabled() ? renderPanel("pages", renderPagesAdmin()) : ""}
       ${commentsEnabled() ? renderPanel("comments", renderCommentsAdmin()) : ""}
+      ${badgesEnabled() ? renderPanel("badges", renderBadgesAdmin()) : ""}
       ${renderPanel("generate", renderGenerate())}
       ${renderPanel("verify", renderVerify())}
       ${renderPanel("info", renderInfo())}
     </section>
+    ${state.launchGuideOpen ? renderLaunchGuideDrawer() : ""}
+    ${state.previewImageId ? renderImagePreviewDialog() : ""}
     ${renderAppFooter()}
   `;
 }
@@ -1390,6 +1560,7 @@ function renderHeader() {
           <button class="btn ghost" type="button" data-action="tab" data-tab="generate">Generate</button>
           <button class="btn ghost" type="button" data-action="close-shell">Close Shell</button>
           <a class="btn donate-link" href="#donate" data-action="donate">Donate</a>
+          <button class="btn icon-btn" type="button" data-action="open-launch-guide" aria-label="Read PostSnail launch guide">?</button>
         `}
       </div>
     </header>
@@ -1406,30 +1577,70 @@ function renderAppFooter() {
 }
 
 function renderTabs() {
-  const homeLabel = shouldShowCurrentLaunchGuide() ? "Launch Guide" : "Dashboard";
+  const items = adminNavigationItems();
   return `
     <nav class="app-tabs" aria-label="PostSnail panels" role="tablist">
-      ${[
-        ["home", homeLabel],
-        ["write", "Write"],
-        ["library", "Library"],
-        ["identity", "Identity"],
-        ["extensions", "Extensions"],
-        ...(pagesEnabled() ? [["pages", "Pages"]] : []),
-        ...(commentsEnabled() ? [["comments", "Comments"]] : []),
-        ["generate", "Generate"],
-        ["verify", "Verify"],
-        ["info", "Info"],
-      ]
-        .map(
-          ([id, label]) => `
-            <button class="tab-btn ${state.activeTab === id ? "active" : ""}" role="tab" aria-selected="${state.activeTab === id}" type="button" data-action="tab" data-tab="${id}">
-              ${label}
-            </button>
-          `,
-        )
-        .join("")}
+      ${items.map(renderNavigationItem).join("")}
     </nav>
+  `;
+}
+
+function adminNavigationItems() {
+  return [
+    { id: "home", label: "Dashboard", group: "core" },
+    {
+      id: "content",
+      label: "Content",
+      group: "content",
+      submenu: [
+        { section: "posts", label: "Posts" },
+        { section: "editor", label: "New Post", action: "new-post" },
+        { section: "images", label: "Images" },
+      ],
+    },
+    { id: "identity", label: "Identity", group: "identity" },
+    { id: "extensions", label: "Extensions", group: "extensions" },
+    ...enabledPluginNavigationItems(),
+    { id: "generate", label: "Generate", group: "publish" },
+    { id: "verify", label: "Verify", group: "tools" },
+    { id: "info", label: "Info", group: "core" },
+  ];
+}
+
+function enabledPluginNavigationItems() {
+  return getOfficialPluginCatalog()
+    .map((manifest) => ({ manifest, nav: manifest.extensions?.adminNavigation || {} }))
+    .filter(({ manifest, nav }) => isPluginEnabled(state.plugins, manifest.id) && nav.group === "plugin" && nav.tab)
+    .map(({ nav }) => ({
+      id: nav.tab,
+      label: nav.label || nav.tab,
+      group: "plugin",
+      pluginOwned: true,
+    }));
+}
+
+function renderNavigationItem(item) {
+  if (item.submenu?.length) {
+    const isOpen = state.openAdminMenu === item.id;
+    return `
+      <div class="tab-menu ${state.activeTab === item.id ? "active" : ""} ${isOpen ? "open" : ""}" data-admin-menu="${escapeAttr(item.id)}">
+        <button class="tab-btn ${state.activeTab === item.id ? "active" : ""}" role="tab" aria-selected="${state.activeTab === item.id}" aria-haspopup="menu" aria-expanded="${isOpen}" type="button" data-action="tab" data-tab="${item.id}" data-menu="true" data-group="${escapeAttr(item.group)}">
+          ${escapeHtml(item.label)}
+        </button>
+        <div class="tab-submenu" role="menu" aria-label="${escapeAttr(item.label)} menu">
+          ${item.submenu.map((entry) => `
+            <button class="submenu-btn ${state.activeTab === item.id && state.contentSection === entry.section ? "active" : ""}" type="button" role="menuitem" data-action="${escapeAttr(entry.action || "content-section")}" data-section="${escapeAttr(entry.section)}">
+              ${escapeHtml(entry.label)}
+            </button>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <button class="tab-btn ${state.activeTab === item.id ? "active" : ""} ${item.pluginOwned ? "plugin-tab" : ""}" role="tab" aria-selected="${state.activeTab === item.id}" type="button" data-action="tab" data-tab="${escapeAttr(item.id)}" data-group="${escapeAttr(item.group)}">
+      ${escapeHtml(item.label)}
+    </button>
   `;
 }
 
@@ -1448,16 +1659,32 @@ function renderStatusRail() {
 }
 
 function renderHome() {
-  return shouldShowCurrentLaunchGuide() ? renderLaunchGuide() : renderDashboard();
+  return renderDashboard();
+}
+
+function renderLaunchGuideDrawer() {
+  return `
+    <div class="launch-guide-backdrop" role="presentation" data-action="close-launch-guide">
+      <aside class="launch-guide-drawer" role="dialog" aria-modal="true" aria-labelledby="launch-guide-title" data-action="noop">
+        <div class="launch-drawer-head">
+          <div>
+            <p class="kicker">Writer-first setup</p>
+            <h2 id="launch-guide-title">PostSnail launch guide</h2>
+          </div>
+          <button class="btn small" type="button" data-action="close-launch-guide">Close</button>
+        </div>
+        ${renderLaunchGuide()}
+      </aside>
+    </div>
+  `;
 }
 
 function renderLaunchGuide() {
   const readiness = currentLaunchReadiness();
   return `
     <div class="launch-guide">
-      <section class="panel-box launch-hero">
-        <p class="kicker">Writer-first setup</p>
-        <h1>Launch your microblog</h1>
+      <section class="launch-hero">
+        <h3>Launch your microblog</h3>
         <p>PostSnail works best when the private Shell, signature identity, blog name, first post, and public Website ZIP happen in one calm path.</p>
       </section>
       <section class="launch-checklist">
@@ -1484,10 +1711,10 @@ function renderLaunchGuide() {
         })}
         ${renderLaunchStep({
           number: 4,
-          title: "Write First Post",
+          title: "Create a Post",
           complete: readiness.hasPublishedContent,
           body: "Draft like a writer: title first, body large, metadata to the side. Published means it enters the next Website ZIP.",
-          action: `<button class="btn small primary" type="button" data-action="tab" data-tab="write">Write first post</button>`,
+          action: `<button class="btn small primary" type="button" data-action="new-post">New Post</button>`,
         })}
         ${renderLaunchStep({
           number: 5,
@@ -1517,14 +1744,18 @@ function renderLaunchStep({ number, title, complete, body, action }) {
 
 function renderDashboard() {
   const latestPost = state.posts[0];
+  const needsGuide = shouldShowCurrentLaunchGuide();
   return `
     <div class="dashboard-grid">
       <section class="panel-box launch-hero">
         <p class="kicker">Ready Shell</p>
         <h1>${escapeHtml(state.profile.siteTitle || "Your microblog")}</h1>
         <p>${escapeHtml(state.profile.description || "Keep writing, then export a signed Website ZIP when you are ready.")}</p>
+        ${needsGuide ? `<button class="guide-hint" type="button" data-action="open-launch-guide">Click here to read PostSnail's launch guide</button>` : ""}
         <div class="actions">
-          <button class="btn primary" type="button" data-action="tab" data-tab="write">Continue writing</button>
+          ${latestPost
+            ? `<button class="btn primary" type="button" data-action="edit-post" data-id="${escapeAttr(latestPost.id)}">Continue writing</button>`
+            : `<button class="btn primary" type="button" data-action="new-post">New Post</button>`}
           <button class="btn" type="button" data-action="tab" data-tab="generate">Export ZIP</button>
         </div>
       </section>
@@ -1649,7 +1880,47 @@ function renderPanel(id, contents) {
   return `<section class="app-panel ${state.activeTab === id ? "active" : ""}" data-panel="${id}" ${state.activeTab === id ? "" : "hidden"}><div class="panel-scroll">${contents}</div></section>`;
 }
 
-function renderWrite() {
+function renderContent() {
+  const section = normalizedContentSection();
+  return `
+    <div class="content-admin">
+      <section class="panel-box content-hero">
+        <div>
+          <p class="kicker">Core microblog content</p>
+          <h2 class="panel-title">${escapeHtml(contentSectionLabel(section))}</h2>
+          <p class="help">Content is for core microblog posts and images. Pages CMS, Comments, and Badges stay in their own plugin-owned panels.</p>
+        </div>
+        <div class="actions content-section-tabs" role="tablist" aria-label="Content sections">
+          <button class="btn small ${section === "posts" ? "primary" : ""}" type="button" data-action="content-section" data-section="posts">Posts</button>
+          <button class="btn small ${section === "editor" ? "primary" : ""}" type="button" data-action="new-post">New Post</button>
+          <button class="btn small ${section === "images" ? "primary" : ""}" type="button" data-action="content-section" data-section="images">Images</button>
+        </div>
+      </section>
+      ${section === "posts" ? renderContentPosts() : ""}
+      ${section === "editor" ? renderContentEditor() : ""}
+      ${section === "images" ? renderContentImages() : ""}
+    </div>
+  `;
+}
+
+function renderContentPosts() {
+  return `
+    <section class="panel-box">
+      <div class="actions">
+        <div>
+          <p class="kicker">Posts</p>
+          <h3>Microblog posts</h3>
+        </div>
+        <button class="btn small primary" type="button" data-action="new-post">New Post</button>
+      </div>
+      <div class="post-list">
+        ${state.posts.map(renderPostRow).join("") || `<div class="empty-state"><span>No posts yet</span><p>Create your first local microblog post from Content.</p></div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderContentEditor() {
   const attached = state.form.imageIds.map((id) => state.assets.find((asset) => asset.id === id)).filter(Boolean);
   return `
     <div class="writer-workbench">
@@ -1657,11 +1928,11 @@ function renderWrite() {
         <div class="writer-head">
           <div>
             <p class="kicker">Microblog editor</p>
-            <h2 class="panel-title">${state.form.id ? "Keep writing" : "Write first post"}</h2>
+            <h3>${state.form.id ? "Keep writing" : "New Post"}</h3>
           </div>
           <div class="actions">
             <button class="btn primary" type="submit">Save post</button>
-            <button class="btn" type="button" data-action="new-post">New</button>
+            <button class="btn" type="button" data-action="content-section" data-section="posts">Back to posts</button>
           </div>
         </div>
         ${renderWriterStateBar()}
@@ -1669,9 +1940,10 @@ function renderWrite() {
           <span>Title</span>
           <input data-post-field="title" value="${escapeAttr(state.form.title)}" placeholder="A clear title readers can remember">
         </label>
+        ${renderMarkdownToolbar()}
         <label class="field">
           <span>Markdown body</span>
-          <textarea class="writer-body" data-post-field="body" placeholder="Write the post. Keep going; metadata can wait.">${escapeHtml(state.form.body)}</textarea>
+          ${renderMarkdownSourceEditor(state.form.body)}
         </label>
       </form>
       <aside class="panel-box fields writer-sidebar">
@@ -1704,11 +1976,46 @@ function renderWrite() {
         </div>
         <p class="help">PostSnail stores selected images locally and copies them into the generated ZIP. Browser APIs do not remove original image metadata.</p>
       </aside>
-      <section class="panel-box">
-        <h2 class="panel-title">Preview</h2>
-        <div id="preview" class="preview-surface">${renderPreviewBody()}</div>
-      </section>
     </div>
+  `;
+}
+
+function renderMarkdownToolbar() {
+  const helpers = [
+    ["h1", "H1"],
+    ["h2", "H2"],
+    ["h3", "H3"],
+    ["bold", "B"],
+    ["italic", "I"],
+    ["strike", "S"],
+    ["link", "Link"],
+    ["image", "Image"],
+    ["quote", "Quote"],
+    ["code", "Code"],
+    ["codeblock", "Block"],
+    ["bullet", "Bullets"],
+    ["numbered", "Numbers"],
+    ["task", "Task"],
+    ["table", "Table"],
+    ["divider", "Rule"],
+    ["footnote", "Footnote"],
+  ];
+  return `
+    <div class="markdown-toolbar" aria-label="Markdown helper toolbar">
+      <div>
+        <strong>Markdown tools</strong>
+        <p class="help">The editor keeps Markdown symbols visible while lightly styling headings, lists, quotes, code, links, and rules as you write.</p>
+      </div>
+      <div class="toolbar-buttons">
+        ${helpers.map(([id, label]) => `<button class="btn small md-tool-${escapeAttr(id)}" type="button" data-action="md-helper" data-md="${id}" title="Insert ${escapeAttr(label)} Markdown">${escapeHtml(label)}</button>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderMarkdownSourceEditor(body) {
+  return `
+    <div id="markdown-body" class="writer-body markdown-source-editor" data-post-field="body" data-markdown-editor contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-placeholder="Write with Markdown. Use the toolbar when you want symbols inserted for you.">${renderMarkdownSourceMarkup(body || "")}</div>
   `;
 }
 
@@ -1723,35 +2030,68 @@ function renderWriterStateBar() {
   `;
 }
 
-function renderLibrary() {
+function renderContentImages() {
   const unused = unusedAssets();
   return `
-    <div class="grid-2">
-      <section class="panel-box">
-        <div class="actions">
-          <h2 class="panel-title">Local posts</h2>
-          <button class="btn small" type="button" data-action="new-post">New</button>
+    <section class="panel-box">
+      <div class="actions">
+        <div>
+          <p class="kicker">Images</p>
+          <h3>Shell image assets</h3>
         </div>
-        <div class="post-list">
-          ${state.posts.map(renderPostRow).join("") || `<div class="empty-state"><span>No posts yet</span><p>Create your first local microblog post in Write.</p></div>`}
+        <span class="status-badge ${unused.length ? "draft" : ""}">Unused ${unused.length}</span>
+        <label class="btn small" for="image-upload">Add images</label>
+        <button class="btn small danger" type="button" data-action="delete-unused-images" ${unused.length ? "" : "disabled"}>Delete unused</button>
+      </div>
+      <input id="image-upload" type="file" accept="image/*" multiple hidden>
+      <div class="asset-list image-grid">
+        ${state.assets.map(renderAssetSummary).join("") || `<div class="empty-state"><span>No images</span><p>Images are imported only from files you select.</p></div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderImagePreviewDialog() {
+  const asset = state.assets.find((item) => item.id === state.previewImageId);
+  if (!asset) return "";
+  const references = imageReferenceCount(asset.id);
+  return `
+    <div class="image-preview-backdrop" role="presentation" data-action="close-image-preview">
+      <aside class="image-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="image-preview-title" data-action="noop">
+        <div class="image-preview-head">
+          <div>
+            <p class="kicker">Image preview</p>
+            <h2 id="image-preview-title">${escapeHtml(asset.name)}</h2>
+            <p class="help">${escapeHtml(formatBytes(asset.size))} · Used ${references} time${references === 1 ? "" : "s"}</p>
+          </div>
+          <button class="btn small" type="button" data-action="close-image-preview">Close</button>
         </div>
-      </section>
-      <section class="panel-box">
-        <div class="actions">
-          <h2 class="panel-title">Images</h2>
-          <span class="status-badge ${unused.length ? "draft" : ""}">Unused ${unused.length}</span>
-          <button class="btn small danger" type="button" data-action="delete-unused-images" ${unused.length ? "" : "disabled"}>Delete unused</button>
-        </div>
-        <div class="asset-list">
-          ${state.assets.map(renderAssetSummary).join("") || `<div class="empty-state"><span>No images</span><p>Images are imported only from files you select.</p></div>`}
-        </div>
-      </section>
+        <img class="image-preview-full" src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
+      </aside>
     </div>
   `;
 }
 
 function unusedAssets() {
   return findUnusedAssets(snapshotState(), { extraReferences: [state.form] });
+}
+
+function imageReferenceCount(id) {
+  const postReferences = state.posts.reduce((count, post) => count + post.imageIds.filter((imageId) => imageId === id).length, 0);
+  const editorReferences = state.form.imageIds.filter((imageId) => imageId === id).length;
+  return postReferences + editorReferences;
+}
+
+function normalizedContentSection() {
+  return ["posts", "editor", "images"].includes(state.contentSection) ? state.contentSection : "posts";
+}
+
+function contentSectionLabel(section) {
+  return {
+    posts: "Posts",
+    editor: state.form.id ? "Edit Post" : "New Post",
+    images: "Images",
+  }[section] || "Posts";
 }
 
 function renderIdentity() {
@@ -1984,7 +2324,7 @@ function renderExtensions() {
         </div>
         ${warnings.length ? `
           <div class="notice warning">
-            <strong>Missing plugin state preserved</strong>
+            <strong>Plugin compatibility notice</strong>
             ${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}
           </div>
         ` : ""}
@@ -2029,8 +2369,9 @@ function renderOfficialPluginCard(manifest) {
         <button class="btn small" type="button" data-action="disable-plugin" data-plugin-id="${escapeAttr(manifest.id)}" ${enabled ? "" : "disabled"}>Disable</button>
       </div>
       ${manifest.id === "postsnail-comments" ? `<p class="help">PostSnail Comments adds a Comments tab for signed packet review, approved static replies, private rejections, and tracker metadata.</p>` : ""}
+      ${manifest.id === "postsnail-badges" ? `<p class="help">PostSnail Badges adds a Badges tab for importing public claim files and publishing a badge collection page. It does not load public runtime JavaScript.</p>` : ""}
       ${manifest.id === "postsnail-snaillift" ? `<p class="help">SnailLift appears in Generate only when enabled. Download ZIP stays available either way.</p>` : ""}
-      ${manifest.id === "postsnail-pages" ? `<p class="help">PostSnail Pages adds the Pages tab for static pages, docs, navigation, and homepage override. Draft CMS content stays private in the Shell.</p>` : ""}
+      ${manifest.id === "postsnail-pages" ? `<p class="help">PostSnail Pages adds the Pages CMS plugin panel for static pages, docs, navigation, and homepage override. Draft CMS content stays private in the Shell.</p>` : ""}
     </article>
   `;
 }
@@ -2043,8 +2384,8 @@ function renderPagesAdmin() {
       <section class="panel-box">
         <div>
           <p class="kicker">Official CMS plugin</p>
-          <h2 class="panel-title">PostSnail Pages</h2>
-          <p class="help">Pages tab content lives inside your encrypted Shell. Published pages enter the Website ZIP; drafts and archived CMS content stay private.</p>
+          <h2 class="panel-title">Pages CMS</h2>
+          <p class="help">PostSnail Pages CMS content lives inside your encrypted Shell. Published pages enter the Website ZIP; drafts and archived CMS content stay private.</p>
         </div>
         <div class="actions pages-section-tabs" role="tablist" aria-label="PostSnail Pages sections">
           ${[
@@ -2306,6 +2647,105 @@ function renderCommentsAdmin() {
         ${blocked.length ? `<div class="blocked-key-list">${blocked.map((key) => `<div class="hash-row"><code class="hash-cell">${escapeHtml(key)}</code><button class="btn small danger" type="button" data-action="remove-blocked-key" data-key="${escapeAttr(key)}">Remove</button></div>`).join("")}</div>` : `<div class="empty-state"><span>No blocked keys</span><p>Only approved comments become public. The blocklist stays private.</p></div>`}
       </section>
     </div>
+  `;
+}
+
+function renderBadgesAdmin() {
+  const badges = badgesPluginState();
+  const claims = badges.claims || [];
+  const grouped = groupAdminBadgeClaims(claims);
+  return `
+    <div class="badges-admin">
+      <section class="panel-box">
+        <div>
+          <p class="kicker">Official bundled plugin</p>
+          <h2 class="panel-title">PostSnail Badges</h2>
+          <p class="help">Import public <code>.postsnail.badge.&lt;hash&gt;.json</code> claim files from posts you read. Claims are verified locally and stored in the encrypted Shell. Your public badge page links through Forest so moved posts can resolve to their current indexed URL.</p>
+        </div>
+        <div class="grid-3">
+          <div class="metric"><span>Claims</span><b>${claims.length}</b></div>
+          <div class="metric"><span>Public page</span><b>${badges.settings.publishBadgePage ? "On" : "Off"}</b></div>
+          <div class="metric"><span>Path</span><b>${escapeHtml(badges.settings.pagePath || "/badges/")}</b></div>
+        </div>
+      </section>
+      <div class="grid-2 badges-workbench">
+        <section class="panel-box fields">
+          <div>
+            <p class="kicker">Import claim</p>
+            <h3>Collect a proof seal</h3>
+            <p class="help">Download a badge claim from a public post, then import it here. The public blog never sees or opens your private Shell.</p>
+          </div>
+          <label class="field">
+            <span>Badge claim file</span>
+            <input id="badge-claim-import" type="file" accept=".json,application/json">
+          </label>
+          <div class="notice">
+            <strong>Local verification</strong>
+            <p>PostSnail verifies the claim digest and ML-DSA-65 post signature against the source public key before storing a sanitized public summary.</p>
+          </div>
+        </section>
+        <section class="panel-box fields">
+          <div>
+            <p class="kicker">Public collection</p>
+            <h3>Badge page settings</h3>
+            <p class="help">The collection page is optional. It exports only public claim summaries and deterministic badge SVGs.</p>
+          </div>
+          <label class="field checkbox-field">
+            <input id="badges-publish-page" type="checkbox" ${badges.settings.publishBadgePage ? "checked" : ""}>
+            <span>Publish badge collection page in Website ZIP</span>
+          </label>
+          <label class="field">
+            <span>Page path</span>
+            <input id="badges-page-path" value="${escapeAttr(badges.settings.pagePath || "/badges/")}" placeholder="/badges/">
+          </label>
+          <div class="actions">
+            <button class="btn primary" type="button" data-action="save-badges-settings">Save badge settings</button>
+          </div>
+        </section>
+      </div>
+      <section class="panel-box">
+        <div>
+          <p class="kicker">Collection preview</p>
+          <h3>Grouped by Forest, ShellName, then date</h3>
+        </div>
+        ${grouped.length ? grouped.map(renderAdminBadgeForestGroup).join("") : `<div class="empty-state"><span>No badge claims yet</span><p>Import your first <code>.postsnail.badge.&lt;hash&gt;.json</code> claim after clicking a badge on a public PostSnail post.</p></div>`}
+      </section>
+    </div>
+  `;
+}
+
+function renderAdminBadgeForestGroup(group) {
+  return `
+    <div class="badge-admin-group">
+      <h4>${escapeHtml(group.forest)}</h4>
+      ${group.shells.map((shell) => `
+        <div class="badge-admin-shell">
+          <strong>${escapeHtml(shell.name)}</strong>
+          <div class="badge-admin-list">
+            ${shell.claims.map(renderAdminBadgeClaim).join("")}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderAdminBadgeClaim(claim) {
+  const key = `${claim.sourcePublicKey}\n${claim.postDigest}`;
+  return `
+    <article class="post-row badge-claim-row">
+      <img class="badge-seal" src="${escapeAttr(badgeDataUriForClaim(claim))}" alt="" loading="lazy" data-postsnail-badge-hash="${escapeAttr(claim.badgeHash || "")}">
+      <div>
+        <small>${escapeHtml(claim.claimedAt || claim.publishedAt || "")} · ${escapeHtml(claim.shellName || claim.sourceSiteUrl || "unknown Shell")}</small>
+        <h3>${escapeHtml(claim.title || claim.slug || "Untitled post")}</h3>
+        <p>${escapeHtml(claim.excerpt || "Signed public post proof.")}</p>
+        <code class="hash-cell">${escapeHtml(claim.badgeHash || "")}</code>
+      </div>
+      <div class="actions">
+        <span class="status-badge good">Verified on import</span>
+        <button class="btn small danger" type="button" data-action="delete-badge-claim" data-key="${escapeAttr(key)}">Delete</button>
+      </div>
+    </article>
   `;
 }
 
@@ -2784,6 +3224,7 @@ function renderInfo() {
 }
 
 function renderPostRow(post) {
+  const isPublished = post.status === "published";
   return `
     <article class="post-row">
       <div>
@@ -2793,8 +3234,10 @@ function renderPostRow(post) {
       </div>
       <div class="actions">
         <span class="status-badge ${post.status === "draft" ? "draft" : ""}">${post.status}</span>
-        <button class="btn small" type="button" data-action="edit-post" data-id="${post.id}">Edit</button>
-        <button class="btn small danger" type="button" data-action="delete-post" data-id="${post.id}">Delete</button>
+        <button class="btn small ${isPublished ? "" : "primary"}" type="button" data-action="quick-post-status" data-id="${escapeAttr(post.id)}" data-status="draft" ${isPublished ? "" : "disabled"}>Draft</button>
+        <button class="btn small ${isPublished ? "primary" : ""}" type="button" data-action="quick-post-status" data-id="${escapeAttr(post.id)}" data-status="published" ${isPublished ? "disabled" : ""}>Publish</button>
+        <button class="btn small" type="button" data-action="edit-post" data-id="${escapeAttr(post.id)}">Edit</button>
+        <button class="btn small danger" type="button" data-action="delete-post" data-id="${escapeAttr(post.id)}">Delete</button>
       </div>
     </article>
   `;
@@ -2803,31 +3246,28 @@ function renderPostRow(post) {
 function renderAttachedAsset(asset) {
   return `
     <div class="asset-chip">
-      <img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
+      <button class="asset-preview-button" type="button" data-action="view-image" data-id="${escapeAttr(asset.id)}" aria-label="View ${escapeAttr(asset.name)}">
+        <img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
+      </button>
       <div><strong>${escapeHtml(asset.name)}</strong><small>${formatBytes(asset.size)}</small></div>
+      <button class="btn small" type="button" data-action="view-image" data-id="${escapeAttr(asset.id)}">View</button>
       <button class="btn small" type="button" data-action="detach-image" data-id="${asset.id}">Detach</button>
     </div>
   `;
 }
 
 function renderAssetSummary(asset) {
+  const references = imageReferenceCount(asset.id);
   return `
     <div class="asset-chip">
-      <img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
-      <div><strong>${escapeHtml(asset.name)}</strong><small>${formatBytes(asset.size)}</small></div>
+      <button class="asset-preview-button" type="button" data-action="view-image" data-id="${escapeAttr(asset.id)}" aria-label="View ${escapeAttr(asset.name)}">
+        <img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
+      </button>
+      <div><strong>${escapeHtml(asset.name)}</strong><small>${formatBytes(asset.size)} · Used ${references}</small></div>
+      <button class="btn small" type="button" data-action="view-image" data-id="${escapeAttr(asset.id)}">View</button>
+      <button class="btn small danger" type="button" data-action="delete-image" data-id="${escapeAttr(asset.id)}">Delete</button>
     </div>
   `;
-}
-
-function renderPreviewBody() {
-  const title = state.form.title || "Untitled post";
-  const body = state.form.body || "Start writing to preview Markdown.";
-  const images = state.form.imageIds
-    .map((id) => state.assets.find((asset) => asset.id === id))
-    .filter(Boolean)
-    .map((asset) => `<img src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">`)
-    .join("");
-  return `<h1>${escapeHtml(title)}</h1>${images}<div>${renderMarkdown(body)}</div>`;
 }
 
 function renderVerifyResult(result) {
@@ -2876,9 +3316,164 @@ function renderVerifyResult(result) {
   `;
 }
 
-function updatePreview() {
-  const preview = document.getElementById("preview");
-  if (preview) preview.innerHTML = renderPreviewBody();
+function applyMarkdownHelper(type) {
+  const current = markdownEditorCurrentText();
+  const selection = markdownEditorCurrentSelection(current.length);
+  const selected = current.slice(selection.start, selection.end);
+  const snippet = markdownHelperSnippet(type, selected);
+  insertMarkdownAtSelection(snippet.text, {
+    current,
+    selection,
+    cursorOffset: snippet.cursorOffset,
+    selectionLength: snippet.selectionLength,
+  });
+  setStatus("Markdown helper inserted.");
+}
+
+function insertMarkdownAtSelection(text, options = {}) {
+  const editor = document.getElementById("markdown-body");
+  const current = options.current ?? markdownEditorCurrentText();
+  const selection = options.selection ?? markdownEditorCurrentSelection(current.length);
+  const start = selection.start;
+  const end = selection.end;
+  const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
+  state.form.body = next;
+  if (editor?.isContentEditable) {
+    renderMarkdownSourceEditorValue(editor, next);
+    editor.focus();
+    const cursor = start + (options.cursorOffset ?? text.length);
+    setSourceEditorSelection(editor, cursor, cursor + (options.selectionLength ?? 0));
+  }
+}
+
+function markdownEditorCurrentText() {
+  const editor = document.getElementById("markdown-body");
+  return editor?.isContentEditable ? markdownTextFromEditor(editor) : state.form.body ?? "";
+}
+
+function markdownEditorCurrentSelection(fallbackOffset = 0) {
+  const editor = document.getElementById("markdown-body");
+  return editor?.isContentEditable ? sourceEditorSelection(editor) : { start: fallbackOffset, end: fallbackOffset };
+}
+
+function markdownHelperSnippet(type, selected) {
+  const text = selected || "";
+  const lineStart = text || "Text";
+  const snippets = {
+    h1: { text: `# ${lineStart}`, cursorOffset: 2, selectionLength: text ? text.length : 4 },
+    h2: { text: `## ${lineStart}`, cursorOffset: 3, selectionLength: text ? text.length : 4 },
+    h3: { text: `### ${lineStart}`, cursorOffset: 4, selectionLength: text ? text.length : 4 },
+    bold: { text: `**${text || "bold text"}**`, cursorOffset: 2, selectionLength: text ? text.length : 9 },
+    italic: { text: `*${text || "italic text"}*`, cursorOffset: 1, selectionLength: text ? text.length : 11 },
+    strike: { text: `~~${text || "struck text"}~~`, cursorOffset: 2, selectionLength: text ? text.length : 11 },
+    link: { text: `[${text || "link text"}](https://example.com)`, cursorOffset: text ? text.length + 3 : 1, selectionLength: text ? 19 : 9 },
+    quote: { text: text ? text.split("\n").map((line) => `> ${line}`).join("\n") : "> Quote", cursorOffset: 2, selectionLength: text ? text.length : 5 },
+    code: { text: text.includes("\n") ? `\`\`\`\n${text}\n\`\`\`` : `\`${text || "code"}\``, cursorOffset: text.includes("\n") ? 4 : 1, selectionLength: text ? text.length : 4 },
+    codeblock: { text: `\`\`\`\n${text || "code block"}\n\`\`\``, cursorOffset: 4, selectionLength: text ? text.length : 10 },
+    bullet: { text: text ? text.split("\n").map((line) => `- ${line}`).join("\n") : "- List item", cursorOffset: 2, selectionLength: text ? text.length : 9 },
+    numbered: { text: text ? text.split("\n").map((line, index) => `${index + 1}. ${line}`).join("\n") : "1. List item", cursorOffset: 3, selectionLength: text ? text.length : 9 },
+    task: { text: text ? text.split("\n").map((line) => `- [ ] ${line}`).join("\n") : "- [ ] Task item", cursorOffset: 6, selectionLength: text ? text.length : 9 },
+    table: { text: "\n| Column | Column |\n| --- | --- |\n| Value | Value |\n", cursorOffset: 3, selectionLength: 6 },
+    divider: { text: "\n\n---\n\n", cursorOffset: 7, selectionLength: 0 },
+    image: { text: `![${text || "image alt"}](image-url)`, cursorOffset: 2, selectionLength: text ? text.length : 9 },
+    footnote: { text: `${text || "note"}[^1]\n\n[^1]: Footnote text`, cursorOffset: text ? text.length + 4 : 0, selectionLength: text ? 0 : 4 },
+  };
+  return snippets[type] || snippets.bold;
+}
+
+function syncMarkdownSourceEditor(editor) {
+  const selection = sourceEditorSelection(editor);
+  const markdown = markdownTextFromEditor(editor);
+  state.form.body = markdown;
+  renderMarkdownSourceEditorValue(editor, markdown);
+  setSourceEditorSelection(editor, selection.start, selection.end);
+}
+
+function markdownTextFromEditor(editor) {
+  return (editor?.innerText || editor?.textContent || "").replace(/\u00a0/gu, " ");
+}
+
+function renderMarkdownSourceEditorValue(editor, markdown) {
+  editor.innerHTML = renderMarkdownSourceMarkup(markdown);
+}
+
+function renderMarkdownSourceMarkup(markdown) {
+  const source = markdown || "";
+  if (!source) return "";
+  let inFence = false;
+  return source.split("\n").map((line) => {
+    if (/^\s*```/u.test(line)) {
+      inFence = !inFence;
+      return `<span class="md-line md-code-fence">${escapeHtml(line)}</span>`;
+    }
+    if (inFence) return `<span class="md-line md-code-block">${escapeHtml(line)}</span>`;
+    if (/^\s*#{1,6}\s+/u.test(line)) return `<span class="md-line md-heading">${styleInlineMarkdown(line)}</span>`;
+    if (/^\s*>/u.test(line)) return `<span class="md-line md-quote">${styleInlineMarkdown(line)}</span>`;
+    if (/^\s*(?:[-*+]|\d+\.)\s+(?:\[.\]\s+)?/u.test(line)) return `<span class="md-line md-list">${styleInlineMarkdown(line)}</span>`;
+    if (/^\s*\|.+\|\s*$/u.test(line)) return `<span class="md-line md-table">${styleInlineMarkdown(line)}</span>`;
+    if (/^\s*-{3,}\s*$/u.test(line)) return `<span class="md-line md-rule">${escapeHtml(line)}</span>`;
+    return `<span class="md-line">${styleInlineMarkdown(line)}</span>`;
+  }).join("\n");
+}
+
+function sourceEditorSelection(editor) {
+  const fallback = markdownTextFromEditor(editor).length;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || !editor.contains(selection.anchorNode)) {
+    return { start: fallback, end: fallback };
+  }
+  const range = selection.getRangeAt(0);
+  return {
+    start: sourceEditorOffset(editor, range.startContainer, range.startOffset),
+    end: sourceEditorOffset(editor, range.endContainer, range.endOffset),
+  };
+}
+
+function sourceEditorOffset(editor, container, offset) {
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  try {
+    range.setEnd(container, offset);
+  } catch {
+    return markdownTextFromEditor(editor).length;
+  }
+  return range.toString().length;
+}
+
+function setSourceEditorSelection(editor, start, end = start) {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  const startPoint = sourceEditorTextPoint(editor, start);
+  const endPoint = sourceEditorTextPoint(editor, end);
+  range.setStart(startPoint.node, startPoint.offset);
+  range.setEnd(endPoint.node, endPoint.offset);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function sourceEditorTextPoint(editor, offset) {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  let currentOffset = 0;
+  let node = walker.nextNode();
+  while (node) {
+    const nextOffset = currentOffset + node.nodeValue.length;
+    if (offset <= nextOffset) return { node, offset: Math.max(0, offset - currentOffset) };
+    currentOffset = nextOffset;
+    node = walker.nextNode();
+  }
+  const text = document.createTextNode("");
+  editor.appendChild(text);
+  return { node: text, offset: 0 };
+}
+
+function styleInlineMarkdown(line) {
+  return escapeHtml(line)
+    .replace(/(`[^`]+`)/gu, `<span class="md-code-inline">$1</span>`)
+    .replace(/(\*\*[^*]+\*\*)/gu, `<span class="md-bold-token">$1</span>`)
+    .replace(/(~~[^~]+~~)/gu, `<span class="md-strike-token">$1</span>`)
+    .replace(/(!?\[[^\]]+\]\([^)]+\))/gu, `<span class="md-link-token">$1</span>`)
+    .replace(/(^|\s)(\*[^*\n]+\*)/gu, `$1<span class="md-italic-token">$2</span>`);
 }
 
 function emptyPostForm() {
@@ -2944,6 +3539,10 @@ function applyLoadedState(loaded) {
   state.posts = loaded.posts || [];
   state.assets = loaded.assets || [];
   state.form = state.posts[0] ? postToForm(state.posts[0]) : emptyPostForm();
+  state.contentSection = "posts";
+  state.openAdminMenu = "";
+  state.launchGuideOpen = false;
+  state.previewImageId = "";
 }
 
 function resetEditableState() {
@@ -2973,6 +3572,10 @@ function resetEditableState() {
   state.localShellSaveError = false;
   state.onboardingStateKnown = true;
   state.activeTab = "home";
+  state.contentSection = "posts";
+  state.openAdminMenu = "";
+  state.launchGuideOpen = false;
+  state.previewImageId = "";
 }
 
 function hasLegacyLocalData(loaded) {
@@ -3042,12 +3645,12 @@ function homeTabId() {
 function validUnlockedTabIds() {
   return [
     "home",
-    "write",
-    "library",
+    "content",
     "identity",
     "extensions",
     ...(pagesEnabled() ? ["pages"] : []),
     ...(commentsEnabled() ? ["comments"] : []),
+    ...(badgesEnabled() ? ["badges"] : []),
     "generate",
     "verify",
     "info",
@@ -3112,11 +3715,24 @@ function pagesEnabled() {
   return isPluginEnabled(state.plugins, POSTSNAIL_PAGES_PLUGIN_ID);
 }
 
+function badgesEnabled() {
+  return isPluginEnabled(state.plugins, POSTSNAIL_BADGES_PLUGIN_ID);
+}
+
 function pluginInstalled(id) {
   return state.plugins.installed.some((entry) => entry.id === id);
 }
 
 function ensureOfficialPluginState(id, plugins) {
+  if (id === POSTSNAIL_BADGES_PLUGIN_ID) {
+    return {
+      ...plugins,
+      state: {
+        ...plugins.state,
+        [POSTSNAIL_BADGES_PLUGIN_ID]: normalizeBadgesState(plugins.state?.[POSTSNAIL_BADGES_PLUGIN_ID] || {}),
+      },
+    };
+  }
   if (id === POSTSNAIL_COMMENTS_PLUGIN_ID) {
     return {
       ...plugins,
@@ -3156,6 +3772,7 @@ async function enableOfficialPlugin(id) {
     state.plugins = ensureOfficialPluginState(id, enablePlugin(next, id));
     if (id === POSTSNAIL_PAGES_PLUGIN_ID) state.activeTab = "pages";
     if (id === POSTSNAIL_COMMENTS_PLUGIN_ID) state.activeTab = "comments";
+    if (id === POSTSNAIL_BADGES_PLUGIN_ID) state.activeTab = "badges";
     markShellBackupStale();
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} enabled.`);
@@ -3171,6 +3788,7 @@ async function disableOfficialPlugin(id) {
     state.plugins = disablePlugin(state.plugins, id);
     if (id === POSTSNAIL_PAGES_PLUGIN_ID && state.activeTab === "pages") state.activeTab = "extensions";
     if (id === POSTSNAIL_COMMENTS_PLUGIN_ID && state.activeTab === "comments") state.activeTab = "extensions";
+    if (id === POSTSNAIL_BADGES_PLUGIN_ID && state.activeTab === "badges") state.activeTab = "extensions";
     markShellBackupStale();
     await persistLocalShellNow();
     setStatus(`${pluginDisplayName(id)} disabled. Its settings remain in this Shell.`);
@@ -3191,9 +3809,18 @@ function pluginDisplayName(id) {
 
 function missingPluginWarnings() {
   const officialIds = new Set(getOfficialPluginCatalog().map((plugin) => plugin.id));
-  return state.plugins.installed
+  const missing = state.plugins.installed
     .filter((entry) => !officialIds.has(entry.id))
     .map((entry) => `This Shell uses plugin ${entry.id}, but it is not installed. Its state is preserved.`);
+  const navigationFallbacks = getOfficialPluginCatalog()
+    .filter((plugin) => isPluginEnabled(state.plugins, plugin.id))
+    .filter((plugin) => (plugin.capabilities || []).includes("adminPanel"))
+    .filter((plugin) => {
+      const nav = plugin.extensions?.adminNavigation || {};
+      return !nav.tab && !nav.surfacedIn;
+    })
+    .map((plugin) => `${plugin.name} is enabled, but it has no admin navigation metadata. Manage it from Extensions until the bundled plugin declares a surface.`);
+  return [...missing, ...navigationFallbacks];
 }
 
 function pagesPluginState() {
@@ -3375,6 +4002,83 @@ async function removeBlockedCommentKey(key) {
   await persistLocalShellNow();
   setStatus("Blocked author key removed.");
   render();
+}
+
+function badgesPluginState() {
+  return normalizeBadgesState(state.plugins.state?.[POSTSNAIL_BADGES_PLUGIN_ID] || {});
+}
+
+async function saveBadgesPluginState(nextBadgesState) {
+  state.plugins = ensureOfficialPluginState(POSTSNAIL_BADGES_PLUGIN_ID, state.plugins);
+  state.plugins = {
+    ...state.plugins,
+    state: {
+      ...state.plugins.state,
+      [POSTSNAIL_BADGES_PLUGIN_ID]: normalizeBadgesState(nextBadgesState),
+    },
+  };
+  markShellBackupStale();
+  await persistLocalShellNow();
+}
+
+async function importBadgeClaimFile(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const claim = JSON.parse(text);
+    const imported = importBadgeClaim(badgesPluginState(), claim, { claimedAt: new Date().toISOString() });
+    await saveBadgesPluginState(imported.state);
+    setStatus(imported.duplicate ? "Badge claim already existed; refreshed the stored public summary." : "Badge claim verified and collected in this Shell.");
+    render();
+  } catch (error) {
+    setStatus(error.message || "Badge claim could not be imported.");
+    render();
+  }
+}
+
+async function saveBadgesSettings() {
+  const badges = badgesPluginState();
+  await saveBadgesPluginState({
+    ...badges,
+    settings: {
+      publishBadgePage: Boolean(document.getElementById("badges-publish-page")?.checked),
+      pagePath: document.getElementById("badges-page-path")?.value || "/badges/",
+    },
+  });
+  setStatus("Badge collection settings saved in the Shell.");
+  render();
+}
+
+async function deleteBadgeClaim(key) {
+  const badges = badgesPluginState();
+  const claims = badges.claims.filter((claim) => `${claim.sourcePublicKey}\n${claim.postDigest}` !== key);
+  await saveBadgesPluginState({ ...badges, claims });
+  setStatus("Badge claim removed from this Shell.");
+  render();
+}
+
+function groupAdminBadgeClaims(claims) {
+  const groups = [];
+  const sorted = [...claims].sort((left, right) => (
+    String(left.claimedAt || "").localeCompare(String(right.claimedAt || "")) ||
+    String(left.title || "").localeCompare(String(right.title || ""))
+  ));
+  for (const claim of sorted) {
+    const forest = claim.forestUrl || "https://forest.postsnail.org";
+    const shell = claim.shellName || claim.sourceSiteUrl || "Unknown Shell";
+    let forestGroup = groups.find((group) => group.forest === forest);
+    if (!forestGroup) {
+      forestGroup = { forest, shells: [] };
+      groups.push(forestGroup);
+    }
+    let shellGroup = forestGroup.shells.find((group) => group.name === shell);
+    if (!shellGroup) {
+      shellGroup = { name: shell, claims: [] };
+      forestGroup.shells.push(shellGroup);
+    }
+    shellGroup.claims.push(claim);
+  }
+  return groups;
 }
 
 async function savePagesPluginState(nextPagesState) {

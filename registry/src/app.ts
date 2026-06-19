@@ -110,6 +110,7 @@ export async function handleRequest(request: Request, deps: AppDeps): Promise<Re
     if (request.method === "GET" && url.pathname.startsWith("/api/submissions/")) return await handleSubmission(url, deps);
     if (request.method === "GET" && url.pathname === "/api/search") return await handleSearch(url, deps);
     if (request.method === "GET" && url.pathname.startsWith("/api/sites/")) return await handleSite(url, deps);
+    if (request.method === "GET" && url.pathname === "/go/post") return await handlePostResolver(url, deps);
     if (request.method === "POST" && url.pathname === "/shellnames/register") return await handleShellNameRegister(request, url, deps);
     if (request.method === "POST" && url.pathname === "/shellnames/update") return await handleShellNameUpdate(request, url, deps);
     if (request.method === "POST" && url.pathname === "/shellnames/renew") return await handleShellNameRenew(request, url, deps);
@@ -309,6 +310,29 @@ async function handleSite(url: URL, deps: AppDeps): Promise<Response> {
     latestCrawlStatus: site.latestCrawlStatus,
     latestCrawlMessage: site.latestCrawlMessage || undefined,
   }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+}
+
+async function handlePostResolver(url: URL, deps: AppDeps): Promise<Response> {
+  const publicKey = stringValue(url.searchParams.get("publicKey")).trim();
+  const digest = stringValue(url.searchParams.get("digest")).trim();
+  const slug = stringValue(url.searchParams.get("slug")).trim();
+  if (!publicKey.startsWith("base64:") || publicKey.length > 4096) {
+    return new Response(renderPostResolverPage(null, { publicKey, digest, slug, message: "The badge resolver needs a valid PostSnail public key." }), { status: 400, headers: htmlHeaders() });
+  }
+  if (!/^[a-f0-9]{128}$/iu.test(digest)) {
+    return new Response(renderPostResolverPage(null, { publicKey, digest, slug, message: "The badge resolver needs a valid SHA3-512 post digest." }), { status: 400, headers: htmlHeaders() });
+  }
+  if (slug && !/^[a-z0-9-]{1,160}$/iu.test(slug)) {
+    return new Response(renderPostResolverPage(null, { publicKey, digest, slug, message: "The badge resolver slug is not valid." }), { status: 400, headers: htmlHeaders() });
+  }
+  const match = await deps.store.findPostByPublicKeyDigest(publicKey, digest.toLowerCase(), slug.toLowerCase());
+  if (!match) {
+    return new Response(renderPostResolverPage(null, { publicKey, digest, slug, message: "Post not found in Forest yet." }), {
+      status: 404,
+      headers: htmlHeaders({ "cache-control": "public, max-age=30, stale-while-revalidate=120" }),
+    });
+  }
+  return Response.redirect(match.post.url, 302);
 }
 
 async function handleAdmin(request: Request, url: URL, deps: AppDeps): Promise<Response> {
@@ -536,7 +560,7 @@ function requesterHashFor(request: Request, secret: string): string {
   return sha3Hex(encodeText(`${secret}:${ip}`));
 }
 
-function htmlHeaders(): HeadersInit {
+function htmlHeaders(extra: HeadersInit = {}): HeadersInit {
   return {
     "content-type": "text/html; charset=utf-8",
     "content-security-policy":
@@ -544,6 +568,7 @@ function htmlHeaders(): HeadersInit {
     "referrer-policy": "strict-origin-when-cross-origin",
     "x-content-type-options": "nosniff",
     "x-frame-options": "DENY",
+    ...extra,
   };
 }
 
@@ -665,6 +690,44 @@ function publicSearchItem(item: Awaited<ReturnType<RegistryStore["search"]>>["it
   };
 }
 
+function renderPostResolverPage(match: { site: RegistrySite; post: RegistryPost } | null, context: { publicKey: string; digest: string; slug: string; message: string }): string {
+  const title = match ? "Post found in Forest" : "Post not found in Forest yet";
+  const target = match?.post.url || "";
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)} - PostSnail Forest</title>
+  <link rel="stylesheet" href="/forest.css">
+</head>
+<body>
+  <main class="forest-shell resolver-shell">
+    <header class="forest-topline">
+      <a class="forest-brand" href="/"><img src="/assets/brand/postsnail-icon.png" alt="" width="24" height="24"><span>PostSnail Forest</span></a>
+    </header>
+    <section class="result resolver-card">
+      <div class="result-body">
+        <div class="meta"><span>Badge resolver</span><span>Discovery only</span></div>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(match ? "Forest found the current visible indexed post for this public key and digest." : context.message)}</p>
+        ${target ? `<p><a class="btn primary" href="${escapeAttr(target)}" rel="noopener noreferrer">Open post</a></p>` : ""}
+        <details open>
+          <summary>Proof details</summary>
+          <dl class="detail-grid">
+            <dt>Public key</dt><dd>${escapeHtml(context.publicKey)}</dd>
+            <dt>Digest</dt><dd>${escapeHtml(context.digest)}</dd>
+            <dt>Slug</dt><dd>${escapeHtml(context.slug || "not supplied")}</dd>
+            ${match ? `<dt>Resolved URL</dt><dd>${escapeHtml(target)}</dd><dt>Site</dt><dd>${escapeHtml(match.site.siteTitle || match.site.canonicalUrl)}</dd>` : ""}
+          </dl>
+        </details>
+      </div>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
 function publicShellName(record: ShellNameRecord, now: string) {
   const status = record.hidden ? "hidden" : record.expiresAt <= now ? "expired" : record.status;
   return {
@@ -763,6 +826,19 @@ function addYears(value: string, years: number): string {
   if (!Number.isFinite(date.getTime())) return new Date(Date.now() + years * 365 * 24 * 60 * 60 * 1000).toISOString();
   date.setUTCFullYear(date.getUTCFullYear() + years);
   return date.toISOString();
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeAttr(value: unknown): string {
+  return escapeHtml(value);
 }
 
 function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {

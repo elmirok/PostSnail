@@ -77,6 +77,12 @@ ShellName metadata may appear in `postsnail.manifest.json` and `.well-known/post
 
 Forest accepts a move only after verifying the record signature, the old indexed public key, the new live proof files, the new live public key, and the signed bundle fingerprint. The optional `site-moves` feature may appear in public proof metadata only when a creator chooses to publish move history.
 
+## Signature Badge Claims
+
+`postsnail-badge-claim` records are public downloaded claim files for collected proof seals. A claim includes the source public key, post digest, post signature, badge hash, public post URL, title, tags, excerpt, and the public canonical post record needed to verify the signature.
+
+The optional `signature-badge` feature means public post pages may include two-color SVG badge seals and downloadable claim JSON. Badge claims are not private workspace files; they are public proof/bookmark records. Reader collections live in the reader's encrypted Shell under the optional `postsnail-badges` plugin state.
+
 ## Plugin, Theme, And Route Asset Extensions
 
 Alpha 2 public manifests may include optional `themes`, `plugins`, and `route-assets` features. Their data lives under `extensions`.

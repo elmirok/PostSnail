@@ -4,7 +4,7 @@ export { validatePluginManifest, validatePluginPermissions } from "./plugins/plu
 export { createPluginRegistry, disablePlugin, enablePlugin, installPlugin } from "./plugins/pluginRegistry.js";
 export { planPluginHooks, SUPPORTED_PLUGIN_HOOKS } from "./plugins/pluginHooks.js";
 export { migratePluginState } from "./plugins/pluginMigrations.js";
-export { getOfficialPluginCatalog, getOfficialPluginManifest, isPluginEnabled, POSTSNAIL_COMMENTS_PLUGIN_ID, POSTSNAIL_PAGES_PLUGIN_ID, POSTSNAIL_SNAILLIFT_PLUGIN_ID } from "./plugins/officialCatalog.js";
+export { getOfficialPluginCatalog, getOfficialPluginManifest, isPluginEnabled, POSTSNAIL_BADGES_PLUGIN_ID, POSTSNAIL_COMMENTS_PLUGIN_ID, POSTSNAIL_PAGES_PLUGIN_ID, POSTSNAIL_SNAILLIFT_PLUGIN_ID } from "./plugins/officialCatalog.js";
 export { BUILTIN_THEMES, DEFAULT_ADMIN_THEME, QUIET_FEED_THEME } from "./themes/builtinThemes.js";
 export { validateThemeManifest } from "./themes/themeManifest.js";
 export { createThemeRegistry, resolveAdminThemeTokens, resolveFrontendTheme } from "./themes/themeRegistry.js";

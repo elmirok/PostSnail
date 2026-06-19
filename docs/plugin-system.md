@@ -58,6 +58,8 @@ Plugin manifests use:
 
 The admin Extensions tab can install, enable, and disable official plugin manifests that ship with PostSnail. This is not a marketplace and does not upload plugin ZIP files.
 
+`postsnail-badges` exposes the Badges tab for importing public `.postsnail.badge.<hash-prefix>.json` claim files, verifying post signatures locally, storing sanitized collection claims inside the encrypted Shell, and publishing an optional static badge collection page.
+
 `postsnail-comments` exposes the Comments tab for signed packet review, approved static replies, tracker metadata, and private moderation state inside the encrypted Shell.
 
 `postsnail-snaillift` exposes the existing SnailLift deployment assistant when enabled, but its provider logic still lives under `src/snaillift/` and stays out of PostSnail Core.

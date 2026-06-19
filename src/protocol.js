@@ -21,6 +21,7 @@ export const KNOWN_OPTIONAL_FEATURES = [
   "forest-tracker",
   "shellnames",
   "site-moves",
+  "signature-badge",
   "comments",
   "deployment-assistant",
   "themes",

@@ -23,6 +23,8 @@ If both browser data and the `.postsnail` workspace/passphrase are lost, PostSna
 
 The public Website ZIP is not the full project source. A published ZIP or deployed site can only recover public pages, public assets, feeds, public proof files, and public post records. It cannot restore private signing keys, drafts, private plugin state, rejected comments, moderation notes, or recovery data.
 
+Public badge claim files can recover badge bookmarks and proof summaries only. They cannot recover the reader's private badge collection notes, Shell passphrase, signing key, drafts, or any unpublished source state.
+
 To move to another computer, export `.postsnail`, import it in the new browser, unlock the publisher key, then export a new public Website ZIP.
 
 ## Verifier Results

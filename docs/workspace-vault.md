@@ -11,7 +11,7 @@ The admin also keeps the browser-local Shell cache encrypted at rest in IndexedD
 
 ## What The Workspace Contains
 
-The encrypted workspace payload contains profile data, posts, drafts, images/assets, the identity object with encrypted private signing key material, settings, commit history, plugin lock data, plugin private state, approved comments, rejected comments, blocked public keys, tracker URLs, ShellName records, and export history when available.
+The encrypted workspace payload contains profile data, posts, drafts, images/assets, the identity object with encrypted private signing key material, settings, commit history, plugin lock data, plugin private state, badge claims, approved comments, rejected comments, blocked public keys, tracker URLs, ShellName records, and export history when available.
 
 It must never contain raw private signing keys.
 

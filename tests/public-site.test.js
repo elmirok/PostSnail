@@ -24,6 +24,7 @@ const projectHtmlPages = [
   "docs/snaillift-surge/index.html",
   "docs/snaillift-security/index.html",
   "docs/comments/index.html",
+  "docs/signature-badges/index.html",
   "docs/shellnames/index.html",
   "docs/shellnames-protocol/index.html",
   "docs/shellnames-security/index.html",
@@ -113,11 +114,15 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Create New Shell/);
   assert.match(appJs, /This creates your private encrypted Shell\. No account\. No email\. No backend login\./);
   assert.match(appJs, /Launch your microblog/);
+  assert.match(appJs, /Click here to read PostSnail's launch guide/);
+  assert.match(appJs, /renderLaunchGuideDrawer/);
+  assert.match(appJs, /data-action="open-launch-guide"/);
+  assert.match(appJs, /aria-label="Read PostSnail launch guide"/);
   assert.match(appJs, /renderLaunchGuide/);
   assert.match(appJs, /Create Shell Identity/);
   assert.match(appJs, /Save Private Shell/);
   assert.match(appJs, /Name The Blog/);
-  assert.match(appJs, /Write First Post/);
+  assert.match(appJs, /Create a Post/);
   assert.match(appJs, /Review And Export/);
   assert.match(appJs, /renderStatusRail/);
   assert.match(appJs, /Private Shell backup/);
@@ -143,6 +148,39 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /Export ZIP/);
   assert.match(appJs, /Publish and Forest/);
   assert.match(appJs, /Continue writing/);
+  assert.match(appJs, /adminNavigationItems/);
+  assert.match(appJs, /enabledPluginNavigationItems/);
+  assert.match(appJs, /Content/);
+  assert.match(appJs, /data-action="content-section"/);
+  assert.match(appJs, /data-section="posts"/);
+  assert.match(appJs, /data-section="images"/);
+  assert.match(appJs, /data-action="quick-post-status"/);
+  assert.match(appJs, /data-action="delete-image"/);
+  assert.match(appJs, /data-action="view-image"/);
+  assert.match(appJs, /data-action="close-image-preview"/);
+  assert.match(appJs, /renderImagePreviewDialog/);
+  assert.match(appJs, /openAdminMenu/);
+  assert.match(appJs, /data-admin-menu/);
+  assert.match(appJs, /data-action="md-helper"/);
+  assert.match(appJs, /renderMarkdownSourceEditor/);
+  assert.match(appJs, /renderMarkdownSourceMarkup/);
+  assert.match(appJs, /insertMarkdownAtSelection\("\\n"\)/);
+  assert.match(appJs, /beforeinput/);
+  assert.match(appJs, /insertText/);
+  assert.match(appJs, /insertFromPaste|paste/);
+  assert.match(appJs, /syncMarkdownSourceEditor/);
+  assert.match(appJs, /contenteditable="true"/);
+  assert.match(appJs, /markdown-source-editor/);
+  assert.match(appJs, /md-heading/);
+  assert.doesNotMatch(appJs, /markdown-style-layer/);
+  assert.match(appJs, /\["h1", "H1"\]/);
+  assert.match(appJs, /\["table", "Table"\]/);
+  assert.doesNotMatch(appJs, /data-action="editor-mode"/);
+  assert.doesNotMatch(appJs, /WYSIWYG/);
+  assert.doesNotMatch(appJs, /markdownFromEditable/);
+  assert.match(appJs, /Plugin compatibility notice/);
+  assert.doesNotMatch(appJs, /\["write", "Write"\]/);
+  assert.doesNotMatch(appJs, /\["library", "Library"\]/);
   assert.match(appJs, /Export ZIP/);
   assert.match(appJs, /Published in next ZIP/);
   assert.match(appJs, /Needs Shell export/);
@@ -175,7 +213,8 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderPagesAdmin/);
   assert.match(appJs, /PostSnail Pages/);
   assert.match(appJs, /postsnail-pages/);
-  assert.match(appJs, /Pages tab/);
+  assert.match(appJs, /Pages CMS/);
+  assert.match(appJs, /Pages CMS plugin panel/);
   assert.match(appJs, /data-action="new-pages-item"/);
   assert.match(appJs, /data-action="save-pages-item"/);
   assert.match(appJs, /data-action="delete-pages-item"/);
@@ -188,6 +227,13 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderCommentsAdmin/);
   assert.match(appJs, /PostSnail Comments/);
   assert.match(appJs, /postsnail-comments/);
+  assert.match(appJs, /PostSnail Badges/);
+  assert.match(appJs, /postsnail-badges/);
+  assert.match(appJs, /data-action="save-badges-settings"/);
+  assert.match(appJs, /data-action="delete-badge-claim"/);
+  assert.match(appJs, /badge-claim-import/);
+  assert.match(appJs, /Verified on import/);
+  assert.match(appJs, /Badge collection/);
   assert.match(appJs, /data-action="save-comments-settings"/);
   assert.match(appJs, /data-action="verify-comment-packet"/);
   assert.match(appJs, /data-action="approve-comment-packet"/);
@@ -294,6 +340,16 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.launch-guide/);
   assert.match(css, /\.writer-workbench/);
   assert.match(css, /\.writer-body/);
+  assert.match(css, /\.tab-menu\.open \.tab-submenu/);
+  assert.doesNotMatch(css, /\.tab-menu\.active \.tab-submenu/);
+  assert.match(css, /\.markdown-source-editor/);
+  assert.doesNotMatch(css, /\.markdown-editor-shell/);
+  assert.doesNotMatch(css, /\.markdown-style-layer/);
+  assert.doesNotMatch(css, /\.markdown-body-input/);
+  assert.match(css, /\.image-grid/);
+  assert.match(css, /repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.image-preview-dialog/);
+  assert.match(css, /\.image-preview-full/);
   assert.match(css, /\.launch-checklist/);
   assert.match(css, /\.admin-section-tabs/);
   assert.match(css, /\.generate-admin/);

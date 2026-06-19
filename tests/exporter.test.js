@@ -53,6 +53,8 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
 
   const files = unzipSync(result.zipBytes);
   const names = Object.keys(files).sort();
+  const claimName = names.find((name) => /^badges\/claims\/hello-postsnail\.postsnail\.badge\.[a-f0-9]{32}\.json$/u.test(name));
+  assert.ok(claimName, "expected hashed badge claim filename");
   const expectedNames = [
     ".surgeignore",
     ".well-known/postsnail.json",
@@ -65,6 +67,8 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
     "assets/postsnail-brand/postsnail-icon.png",
     "assets/postsnail-brand/postsnail-logo.png",
     "assets/tiny-proof.png",
+    claimName,
+    "badges/posts/hello-postsnail.svg",
     "feed.json",
     "index.html",
     "netlify.toml",
@@ -96,15 +100,23 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   assert.deepEqual(manifest.posts[0].record.imageFiles, ["tiny-proof.png"]);
   assert.equal(manifest.posts[0].signature.startsWith("base64:"), true);
   assert.equal(manifest.bundleFingerprint.startsWith("psn1-sha3-512-"), true);
+  assert.ok(manifest.optionalFeatures.includes("signature-badge"));
   assert.equal(result.filename, "postsnail-postsnail-test.zip");
 
   const indexHtml = decodeText(files["index.html"]);
   const postHtml = decodeText(files["posts/hello-postsnail/index.html"]);
   const tagHtml = decodeText(files["tags/intro/index.html"]);
+  const claim = JSON.parse(decodeText(files[claimName]));
   assert.match(indexHtml, /src="assets\/tiny-proof\.png"/);
   assert.match(indexHtml, /Powered by PostSnail/);
   assert.match(indexHtml, /src="assets\/postsnail-brand\/postsnail-logo\.png"/);
   assert.match(postHtml, /src="\.\.\/\.\.\/assets\/postsnail-brand\/postsnail-logo\.png"/);
+  assert.match(postHtml, /Download badge claim/);
+  assert.match(postHtml, /badges\/posts\/hello-postsnail\.svg/);
+  assert.match(postHtml, /badges\/claims\/hello-postsnail\.postsnail\.badge\.[a-f0-9]{32}\.json/);
+  assert.equal(claim.protocol, "postsnail-badge-claim");
+  assert.equal(claim.sourceSiteUrl, "https://example.com");
+  assert.equal(claim.postDigest, manifest.posts[0].digest);
   assert.doesNotMatch(indexHtml, /Tracked by/);
   assert.equal(Boolean(files["trackers/index.html"]), false);
   assert.match(indexHtml, /href="posts\/hello-postsnail\/"/);
@@ -352,7 +364,7 @@ test("buildStaticExport keeps workspace-only data out of the public ZIP", async 
   assert.doesNotMatch(combined, /plugin-private-token/);
   assert.doesNotMatch(combined, /Rejected private moderation note/);
   assert.doesNotMatch(combined, /postsnail-workspace/);
-  assert.doesNotMatch(combined, /\.postsnail/);
+  assert.doesNotMatch(combined, /my-blog\.postsnail|workspace\.postsnail/);
   assert.doesNotMatch(combined, /encryptedSecretKey|secretKey|privateKey|rawPrivateKey/);
   assert.equal(Object.keys(files).some((name) => name.endsWith(".postsnail")), false);
 });

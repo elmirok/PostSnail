@@ -136,6 +136,19 @@ class MemoryStore implements RegistryStore {
     return this.posts.get(id) || [];
   }
 
+  async findPostByPublicKeyDigest(publicKey: string, digest: string, slug = ""): Promise<any | null> {
+    const matches = [];
+    for (const site of this.sites.values()) {
+      if (site.hidden || site.publicKey !== publicKey) continue;
+      for (const post of this.posts.get(site.id) || []) {
+        if (!post.visible || post.digest !== digest) continue;
+        if (slug && post.slug !== slug) continue;
+        matches.push({ site, post });
+      }
+    }
+    return matches.sort((left, right) => String(right.site.lastVerifiedAt || right.site.generatedAt || "").localeCompare(String(left.site.lastVerifiedAt || left.site.generatedAt || "")))[0] || null;
+  }
+
   async setSiteHidden(id: string, hidden: boolean): Promise<void> {
     if (hidden) this.hidden.add(id);
     else this.hidden.delete(id);
@@ -778,6 +791,70 @@ describe("registry API and crawl flow", () => {
       expect(retry.status).toBe(202);
       expect(await retry.json()).toMatchObject({ moveId: movedJson.moveId, status: "moved" });
     }
+  });
+
+  test("badge resolver redirects by public key and digest to the latest visible indexed post", async () => {
+    const keys = generateSigningKeyPair();
+    const oldDocs = await fixtureDocuments({
+      keys,
+      siteUrl: "https://badge-old.example",
+      title: "Badge Bookmark",
+      body: "Old badge bookmark.",
+    });
+    const newDocs = await fixtureDocuments({
+      keys,
+      siteUrl: "https://badge-new.example",
+      title: "Badge Bookmark",
+      body: "New badge bookmark.",
+      generatedAt: "2026-06-05T00:10:00.000Z",
+    });
+    const store = new MemoryStore();
+    const queue = new MemoryQueue();
+    const deps = {
+      store,
+      queue,
+      now: () => "2026-06-05T00:20:00.000Z",
+      rateLimitSecret: "test-secret",
+      fetcher: mappedFetch([oldDocs, newDocs])
+    };
+
+    await handleRequest(new Request("https://registry.example/api/submit", {
+      method: "POST",
+      body: JSON.stringify({ url: "https://badge-old.example/" })
+    }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+    await handleRequest(new Request("https://registry.example/api/submit", {
+      method: "POST",
+      body: JSON.stringify({ url: "https://badge-new.example/" })
+    }), deps);
+    await processCrawlMessage(queue.messages.shift()!, deps);
+
+    const oldDigest = JSON.parse(oldDocs.manifest).posts[0].digest;
+    const newDigest = JSON.parse(newDocs.manifest).posts[0].digest;
+    const publicKey = publicKeyToText(keys.publicKey);
+    const moveRecord = await signedSiteMoveRecord({
+      keys,
+      fromUrl: "https://badge-old.example/",
+      toUrl: "https://badge-new.example/",
+      bundleFingerprint: newDocs.bundleFingerprint,
+      mode: "move",
+    });
+    await handleRequest(new Request("https://registry.example/api/site-moves", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(moveRecord),
+    }), deps);
+
+    const resolvedNew = await handleRequest(new Request(`https://forest.postsnail.org/go/post?publicKey=${encodeURIComponent(publicKey)}&digest=${newDigest}&slug=badge-bookmark`), deps);
+    expect(resolvedNew.status).toBe(302);
+    expect(resolvedNew.headers.get("location")).toBe("https://badge-new.example/posts/badge-bookmark/");
+
+    const hiddenOld = await handleRequest(new Request(`https://forest.postsnail.org/go/post?publicKey=${encodeURIComponent(publicKey)}&digest=${oldDigest}&slug=badge-bookmark`), deps);
+    expect(hiddenOld.status).toBe(404);
+    expect(await hiddenOld.text()).toContain("Post not found in Forest yet");
+
+    const badDigest = await handleRequest(new Request(`https://forest.postsnail.org/go/post?publicKey=${encodeURIComponent(publicKey)}&digest=not-a-digest`), deps);
+    expect(badDigest.status).toBe(400);
   });
 
   test("signed site mirror keeps both domains searchable", async () => {

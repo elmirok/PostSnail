@@ -37,6 +37,7 @@ Examples include:
 - `forest-tracker`
 - `shellnames`
 - `site-moves`
+- `signature-badge`
 - `comments`
 - `deployment-assistant`
 - `themes`

@@ -215,6 +215,33 @@ export class D1RegistryStore implements RegistryStore {
     return (result.results || []).map(rowToPost);
   }
 
+  async findPostByPublicKeyDigest(publicKey: string, digest: string, slug = ""): Promise<{ site: RegistrySite; post: RegistryPost } | null> {
+    const conditions = ["s.hidden = 0", "p.visible = 1", "s.public_key = ?", "p.digest = ?"];
+    const values: unknown[] = [publicKey, digest];
+    if (slug) {
+      conditions.push("p.slug = ?");
+      values.push(slug);
+    }
+    const row = await this.db.prepare(
+      `SELECT
+        s.id AS site_id, s.canonical_url, s.manifest_url, s.site_title, s.handle, s.description,
+        s.site_url, s.public_key, s.bundle_fingerprint, s.logo_url, s.details_json AS site_details_json,
+        s.generated_at, s.last_verified_at, s.hidden, s.created_at AS site_created_at,
+        s.updated_at AS site_updated_at, s.latest_crawl_status, s.latest_crawl_message,
+        s.last_checked_at, s.next_check_at, s.check_interval_minutes, s.unchanged_check_count,
+        s.failure_count, s.pending_fingerprint,
+        p.id AS post_id, p.slug, p.title, p.url, p.excerpt, p.tags_json, p.digest, p.thumbnail_url,
+        p.details_json AS post_details_json, p.published_at, p.search_text, p.visible,
+        p.created_at AS post_created_at, p.updated_at AS post_updated_at
+       FROM posts p
+       JOIN sites s ON s.id = p.site_id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY COALESCE(s.last_verified_at, s.generated_at) DESC, p.published_at DESC, p.id DESC
+       LIMIT 1`,
+    ).bind(...values).first<Row>();
+    return row ? { site: rowToSite(row), post: rowToPost(row) } : null;
+  }
+
   async setSiteHidden(id: string, hidden: boolean, now = new Date().toISOString()): Promise<void> {
     await this.db.prepare("UPDATE sites SET hidden = ?, updated_at = ? WHERE id = ?").bind(hidden ? 1 : 0, now, id).run();
   }

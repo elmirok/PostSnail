@@ -34,7 +34,7 @@ import {
   protocolVersionFor,
 } from "./compatibility.js";
 
-const IDENTITY_OPTIONAL_FEATURES = ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker"];
+const IDENTITY_OPTIONAL_FEATURES = ["identity-document", "commit-history", "sitemap", "tracker-announce", "forest-tracker", "signature-badge"];
 const COMMIT_OPTIONAL_FEATURES = ["commit-history"];
 const ANNOUNCE_OPTIONAL_FEATURES = ["tracker-announce", "forest-tracker"];
 

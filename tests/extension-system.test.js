@@ -23,6 +23,7 @@ import { TEMPLATE_SLOTS } from "../src/core/themes/templateSlots.js";
 import { resolveRouteAssets } from "../src/core/assets/routeAssets.js";
 import {
   getOfficialPluginCatalog,
+  POSTSNAIL_BADGES_PLUGIN_ID,
   POSTSNAIL_COMMENTS_PLUGIN_ID,
   getOfficialPluginManifest,
   isPluginEnabled,
@@ -213,6 +214,7 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   const manifest = getOfficialPluginManifest(POSTSNAIL_SNAILLIFT_PLUGIN_ID);
 
   assert.deepEqual(catalog.map((plugin) => plugin.id).sort(), [
+    "postsnail-badges",
     "postsnail-comments",
     "postsnail-pages",
     "postsnail-snaillift",
@@ -230,6 +232,29 @@ test("official plugin catalog exposes SnailLift as a bundled admin-only extensio
   );
   assert.equal(isPluginEnabled(installed, "postsnail-snaillift"), true);
   assert.deepEqual(installed.state["postsnail-snaillift"], { provider: "surge" });
+});
+
+test("official plugin catalog exposes PostSnail Badges as a bundled collection extension", () => {
+  const manifest = getOfficialPluginManifest(POSTSNAIL_BADGES_PLUGIN_ID);
+
+  assert.equal(manifest.id, "postsnail-badges");
+  assert.equal(manifest.name, "PostSnail Badges");
+  assert.deepEqual(manifest.capabilities, [
+    "adminPanel",
+    "storePluginState",
+    "exportRoutes",
+    "exportManifestExtensions",
+  ]);
+  assert.deepEqual(manifest.permissions, [
+    "read:posts",
+    "read:pluginState",
+    "write:pluginState",
+    "export:routes",
+    "export:assets",
+    "export:manifestExtensions",
+  ]);
+  assert.deepEqual(manifest.runtime, {});
+  assert.equal(isPluginEnabled({ installed: [] }, "postsnail-badges"), false);
 });
 
 test("official plugin catalog exposes PostSnail Pages as a bundled CMS extension", () => {

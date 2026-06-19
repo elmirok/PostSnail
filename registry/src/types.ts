@@ -130,6 +130,7 @@ export interface RegistryStore {
   getSiteByCanonicalUrl(siteUrl: string): Promise<RegistrySite | null>;
   getDueSites(now: string, limit: number): Promise<RegistrySite[]>;
   getPostsForSite(id: string, limit?: number): Promise<RegistryPost[]>;
+  findPostByPublicKeyDigest(publicKey: string, digest: string, slug?: string): Promise<{ site: RegistrySite; post: RegistryPost } | null>;
   recordPendingRefresh(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void>;
   recordRefreshQueued(siteId: string, fingerprint: string, nextCheckAt: string, now: string): Promise<void>;
   recordRefreshCheck(siteId: string, outcome: { changed: boolean; failed: boolean; fingerprint?: string }, now: string, nextCheckAt: string, intervalMinutes: number): Promise<void>;

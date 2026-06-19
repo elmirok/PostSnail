@@ -36,6 +36,15 @@ import {
   signatureToText,
 } from "./crypto.js";
 import { renderMarkdown } from "./markdown.js";
+import {
+  badgeClaimFileName,
+  badgeFileName,
+  buildBadgeClaimForPost,
+  buildBadgeCollectionPublicData,
+  createSignatureBadge,
+  forestResolverUrlForClaim,
+  POSTSNAIL_BADGES_PLUGIN_ID,
+} from "./badges/plugin.js";
 
 const CORS_HEADERS = `
 /postsnail.manifest.json
@@ -64,6 +73,16 @@ const CORS_HEADERS = `
   Access-Control-Allow-Headers: Content-Type
 
 /.well-known/postsnail/commits.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/badges/claims/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+
+/badges/posts/*
   Access-Control-Allow-Origin: *
   Access-Control-Allow-Methods: GET, OPTIONS
   Access-Control-Allow-Headers: Content-Type
@@ -129,6 +148,20 @@ const NETLIFY_TOML = `
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/badges/claims/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
+[[headers]]
+  for = "/badges/posts/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
 `;
 import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
@@ -189,6 +222,16 @@ export async function buildStaticExport({
       record,
     };
   });
+  const postBadges = buildPostBadgeData({
+    profile: cleanProfile,
+    posts: publishedPosts,
+    proofs: postProofs,
+    publicKeyText,
+    generatedAt,
+    forestUrl: preferredForestUrl(attribution, publicShellNames),
+    shellName: publicShellNames[0]?.fullName || "",
+  });
+  const postBadgeBySlug = new Map(postBadges.map((badge) => [badge.slug, badge]));
   const commentsOutput = buildEnabledCommentsOutput(
     extensionContext.enabledPlugins,
     plugins,
@@ -198,6 +241,7 @@ export async function buildStaticExport({
     postProofs,
     generatedAt,
   );
+  const badgesOutput = buildEnabledBadgesOutput(extensionContext.enabledPlugins, plugins);
 
   const files = {};
   if (pagesOutput?.usesHomepageOverride) {
@@ -214,14 +258,23 @@ export async function buildStaticExport({
   files["about/index.html"] = htmlBytes(renderAbout(cleanProfile, attribution, siteNavigation));
   files["feed.json"] = htmlBytes(renderFeedJson(cleanProfile, publishedPosts, postProofs));
   files["rss.xml"] = htmlBytes(renderRss(cleanProfile, publishedPosts));
-  files["sitemap.xml"] = htmlBytes(renderSitemap(cleanProfile, publishedPosts, attribution.trackerUrls.length > 0, pagesSitemapEntries(pagesOutput)));
+  files["sitemap.xml"] = htmlBytes(renderSitemap(
+    cleanProfile,
+    publishedPosts,
+    attribution.trackerUrls.length > 0,
+    [...pagesSitemapEntries(pagesOutput), ...badgesSitemapEntries(badgesOutput)],
+  ));
   if (attribution.trackerUrls.length) {
     files["trackers/index.html"] = htmlBytes(renderTrackers(cleanProfile, attribution, siteNavigation));
   }
   for (const post of publishedPosts) {
     files[`posts/${post.slug}/index.html`] = htmlBytes(
-      renderPost(cleanProfile, post, postProofs, assetMap, attribution, siteNavigation, commentsOutput),
+      renderPost(cleanProfile, post, postProofs, assetMap, attribution, siteNavigation, commentsOutput, postBadgeBySlug.get(post.slug)),
     );
+  }
+  for (const badge of postBadges) {
+    files[badge.svgPath] = htmlBytes(badge.svg);
+    files[badge.claimPath] = htmlBytes(JSON.stringify(badge.claim, null, 2));
   }
   for (const tag of tagsForPosts(publishedPosts)) {
     files[`tags/${tag}/index.html`] = htmlBytes(renderTag(cleanProfile, tag, publishedPosts, attribution, siteNavigation));
@@ -229,6 +282,13 @@ export async function buildStaticExport({
   if (pagesOutput) {
     for (const route of pagesOutput.routes) {
       files[route.filePath] = htmlBytes(renderPagesRoute(cleanProfile, route, pagesOutput, attribution));
+    }
+  }
+  if (badgesOutput) {
+    files[routeToFilePath(badgesOutput.pagePath)] = htmlBytes(renderBadgeCollectionPage(cleanProfile, badgesOutput, attribution, siteNavigation));
+    for (const claim of badgesOutput.claims) {
+      const badge = createSignatureBadge(claim.postSignature, { badgeHash: claim.badgeHash, title: claim.title });
+      files[`badges/collection/${badgeFileName(claim)}.svg`] = htmlBytes(badge.svg);
     }
   }
   for (const asset of assetMap.values()) {
@@ -261,6 +321,7 @@ export async function buildStaticExport({
       enabledPlugins: extensionContext.enabledPlugins,
       pagesOutput,
       commentsOutput,
+      badgesOutput,
     }),
     pluginMetadata: {
       ...(pagesOutput ? { [POSTSNAIL_PAGES_PLUGIN_ID]: pagesOutput.metadata } : {}),
@@ -270,6 +331,15 @@ export async function buildStaticExport({
               approvedCommentCount: commentsOutput.approvedEntries.length,
               trackerUrls: commentsOutput.state.trackerUrls,
               publicFiles: commentsOutput.publicFiles,
+            },
+          }
+        : {}),
+      ...(badgesOutput
+        ? {
+            [POSTSNAIL_BADGES_PLUGIN_ID]: {
+              claimCount: badgesOutput.claims.length,
+              pagePath: badgesOutput.pagePath,
+              publicFiles: badgesOutput.publicFiles,
             },
           }
         : {}),
@@ -286,6 +356,7 @@ export async function buildStaticExport({
       "sitemap",
       "tracker-announce",
       "forest-tracker",
+      "signature-badge",
       "themes",
       "route-assets",
       ...(commentsOutput ? ["comments"] : []),
@@ -390,12 +461,43 @@ function buildEnabledCommentsOutput(enabledPlugins, plugins, moderation, publicK
   });
 }
 
-function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins, pagesOutput = null, commentsOutput = null }) {
+function buildEnabledBadgesOutput(enabledPlugins, plugins) {
+  if (!enabledPlugins.some((plugin) => plugin.id === POSTSNAIL_BADGES_PLUGIN_ID)) return null;
+  return buildBadgeCollectionPublicData(plugins?.state?.[POSTSNAIL_BADGES_PLUGIN_ID] || {});
+}
+
+function buildPostBadgeData({ profile, posts, proofs, publicKeyText, generatedAt, forestUrl, shellName }) {
+  return posts
+    .map((post) => {
+      const proof = proofs.find((item) => item.slug === post.slug);
+      if (!proof) return null;
+      const claim = buildBadgeClaimForPost({ profile, post, proof, publicKeyText, generatedAt, forestUrl, shellName });
+      const badge = createSignatureBadge(proof.signature, { badgeHash: claim.badgeHash, title: post.title || post.slug });
+      return {
+        slug: post.slug,
+        badgeHash: badge.badgeHash,
+        svg: badge.svg,
+        svgPath: `badges/posts/${post.slug}.svg`,
+        claimPath: `badges/claims/${badgeClaimFileName(claim)}`,
+        claim,
+      };
+    })
+    .filter(Boolean);
+}
+
+function preferredForestUrl(attribution, shellNames = []) {
+  const shellForest = shellNames[0]?.forest || "";
+  if (shellForest) return shellForest;
+  return attribution.trackerUrls.find((url) => /forest\.postsnail\.org/iu.test(url)) || attribution.trackerUrls[0] || "https://forest.postsnail.org";
+}
+
+function buildRouteAssetMapForExport({ publishedPosts, attribution, theme, enabledPlugins, pagesOutput = null, commentsOutput = null, badgesOutput = null }) {
   const routes = [
     { route: pagesOutput?.usesHomepageOverride ? pagesOutput.blogIndexPath : "/", type: "home", template: "home", features: [] },
     { route: "/archive/", type: "archive", template: "archive", features: [] },
     { route: "/about/", type: "about", template: "page", features: [] },
     ...(attribution.trackerUrls.length ? [{ route: "/trackers/", type: "trackers", template: "page", features: [] }] : []),
+    ...(badgesOutput ? [{ route: badgesOutput.pagePath, type: "badges", template: "page", features: ["postsnail-badges"] }] : []),
     ...(pagesOutput?.routes || []).map((route) => ({
       route: route.route,
       type: route.type,
@@ -624,7 +726,7 @@ function renderAbout(profile, attribution, navigation = null) {
   });
 }
 
-function renderPost(profile, post, proofs, assetMap, attribution, navigation = null, commentsOutput = null) {
+function renderPost(profile, post, proofs, assetMap, attribution, navigation = null, commentsOutput = null, badge = null) {
   const proof = proofs.find((item) => item.slug === post.slug);
   const images = post.imageIds
     .map((id) => assetMap.get(id))
@@ -660,7 +762,7 @@ function renderPost(profile, post, proofs, assetMap, attribution, navigation = n
         <div class="post-tags">${post.tags.map((tag) => `<a href="../../tags/${tag}/">#${escapeHtml(tag)}</a>`).join("")}</div>
         <div class="post-images">${images}</div>
         <div class="markdown">${renderMarkdown(post.body)}</div>
-        <p class="proof">Post digest <code>${escapeHtml(proof?.digest || "")}</code></p>
+        ${renderSignatureBadgeProof(proof, badge)}
       </article>
       ${commentsSection}
     `,
@@ -668,6 +770,30 @@ function renderPost(profile, post, proofs, assetMap, attribution, navigation = n
     attribution,
     navigation,
   });
+}
+
+function renderSignatureBadgeProof(proof, badge) {
+  if (!proof) return "";
+  if (!badge) {
+    return `<p class="proof">Post digest <code>${escapeHtml(proof.digest || "")}</code></p>`;
+  }
+  return `
+        <section class="signature-badge-proof" aria-label="PostSnail signature badge">
+          <a class="signature-badge-link" href="../../${escapeAttr(badge.claimPath)}" download aria-label="Download badge claim">
+            <img src="../../${escapeAttr(badge.svgPath)}" alt="Download badge claim" width="96" height="96" loading="lazy" data-postsnail-badge-hash="${escapeAttr(badge.badgeHash)}">
+          </a>
+          <div>
+            <p class="kicker">Signature badge</p>
+            <h2>Collect this proof seal</h2>
+            <p>This two-color nature badge is generated from the signed post proof. Download the claim file and import it into your own PostSnail Shell to collect it.</p>
+            <details class="proof-details">
+              <summary>Show machine proof</summary>
+              <p>Post digest <code>${escapeHtml(proof.digest || "")}</code></p>
+              <p>Badge hash <code>${escapeHtml(badge.badgeHash || "")}</code></p>
+            </details>
+          </div>
+        </section>
+  `;
 }
 
 function renderTag(profile, tag, posts, attribution, navigation = null) {
@@ -745,6 +871,59 @@ function renderPagesRoute(profile, route, pagesOutput, attribution) {
     attribution,
     navigation,
   });
+}
+
+function renderBadgeCollectionPage(profile, badgesOutput, attribution, navigation = null) {
+  const rootPrefix = rootPrefixForRoute(badgesOutput.pagePath);
+  const groupsHtml = badgesOutput.groups
+    .map((forestGroup) => `
+      <section class="badge-forest-group">
+        <p class="kicker">Forest</p>
+        <h2>${escapeHtml(forestGroup.forest)}</h2>
+        ${forestGroup.shells.map((shellGroup) => `
+          <section class="badge-shell-group">
+            <h3>${escapeHtml(shellGroup.name)}</h3>
+            <div class="badge-grid">
+              ${shellGroup.claims.map((claim) => renderCollectedBadge(claim, rootPrefix)).join("")}
+            </div>
+          </section>
+        `).join("")}
+      </section>
+    `)
+    .join("");
+  return renderPage(profile, {
+    title: `Badge collection - ${profile.siteTitle}`,
+    path: badgesOutput.pagePath,
+    description: "Collected PostSnail signature badges and proof bookmarks.",
+    body: `
+      <section class="badge-collection">
+        <p class="kicker">Collected proof seals</p>
+        <h1>Badge collection</h1>
+        <p>Each badge is a public bookmark to a signed post proof. Links go through Forest so a moved site can resolve to the current indexed post when Forest knows it.</p>
+        ${groupsHtml || `<div class="empty-state"><span>No badges collected yet.</span><p>Import downloaded <code>.postsnail.badge.&lt;hash&gt;.json</code> claim files in the PostSnail Badges tab.</p></div>`}
+      </section>
+    `,
+    rootPrefix,
+    attribution,
+    navigation,
+  });
+}
+
+function renderCollectedBadge(claim, rootPrefix = "") {
+  const resolverUrl = forestResolverUrlForClaim(claim);
+  const imagePath = `${rootPrefix}badges/collection/${badgeFileName(claim)}.svg`;
+  return `
+    <article class="collected-badge">
+      <a href="${escapeAttr(resolverUrl)}" rel="noopener noreferrer">
+        <img src="${escapeAttr(imagePath)}" alt="${escapeAttr(claim.title || "Collected badge")}" width="72" height="72" loading="lazy" data-postsnail-badge-hash="${escapeAttr(claim.badgeHash || "")}">
+      </a>
+      <div>
+        <h4><a href="${escapeAttr(resolverUrl)}" rel="noopener noreferrer">${escapeHtml(claim.title || claim.slug || "Untitled post")}</a></h4>
+        <p>${escapeHtml(claim.excerpt || "Signed public post proof.")}</p>
+        <small>${escapeHtml(claim.claimedAt || claim.publishedAt || "")}</small>
+      </div>
+    </article>
+  `;
 }
 
 function renderPostCard(post, proofs, assetMap, rootPrefix = "") {
@@ -931,6 +1110,10 @@ function pagesSitemapEntries(pagesOutput) {
   ];
 }
 
+function badgesSitemapEntries(badgesOutput) {
+  return badgesOutput ? [{ path: badgesOutput.pagePath }] : [];
+}
+
 function siteJsonLd(profile, url) {
   return {
     "@context": "https://schema.org",
@@ -980,6 +1163,17 @@ function publicCss() {
     .digest, .proof code { overflow-wrap: anywhere; color: #6c6875; font-size: 0.78rem; }
     .post-full { max-width: 760px; }
     .markdown { font-size: 1.05rem; line-height: 1.65; }
+    .signature-badge-proof { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 28px; padding: 14px; border: 1px solid #e7e4ed; background: white; border-radius: 8px; }
+    .signature-badge-link { display: grid; place-items: center; border: 1px solid #17151f; background: #fffdf7; padding: 4px; }
+    .signature-badge-link img, .collected-badge img { width: 100%; height: auto; image-rendering: pixelated; border-radius: 0; }
+    .signature-badge-proof h2 { margin: 2px 0 6px; }
+    .proof-details { margin-top: 8px; }
+    .badge-collection { max-width: 900px; }
+    .badge-forest-group, .badge-shell-group { display: grid; gap: 12px; margin-top: 24px; }
+    .badge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .collected-badge { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 12px; align-items: start; border: 1px solid #e7e4ed; background: white; border-radius: 8px; padding: 12px; }
+    .collected-badge h4 { margin: 0 0 6px; }
+    .collected-badge p { margin: 0 0 8px; }
     .archive-list { display: grid; gap: 10px; padding-left: 1.2em; }
     .archive-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
     .public-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; width: min(980px, 92vw); margin: 0 auto; padding: 18px 0 28px; border-top: 1px solid #e7e4ed; color: #6c6875; font-size: 0.86rem; }
@@ -992,6 +1186,8 @@ function publicCss() {
       .site-header, .post-card { grid-template-columns: 1fr; }
       .site-header { align-items: flex-start; flex-direction: column; }
       .post-card { display: grid; }
+      .signature-badge-proof, .collected-badge { grid-template-columns: 1fr; }
+      .signature-badge-link { width: 104px; }
       .public-footer { align-items: flex-start; flex-direction: column; }
     }
   `;

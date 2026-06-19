@@ -70,6 +70,23 @@ function sampleState() {
           settings: { blogIndexPath: "/blog/" },
           unknownFutureField: { keep: true },
         },
+        "postsnail-badges": {
+          schemaVersion: 1,
+          claims: [
+            {
+              protocol: "postsnail-badge-claim",
+              version: 1,
+              badgeHash: `psb1-sha3-512-${"a".repeat(128)}`,
+              sourcePublicKey: "base64:cHVibGlj",
+              postDigest: "digest-1",
+              postSignature: "base64:c2ln",
+              title: "Collected public proof",
+              claimedAt: now,
+            },
+          ],
+          settings: { publishBadgePage: true, pagePath: "/badges/" },
+          unknownFutureField: { keep: true },
+        },
       },
     },
     moderation: {

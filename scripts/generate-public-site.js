@@ -211,6 +211,7 @@ const pages = [
         <a href="/docs/snaillift-security/"><strong>SnailLift Security</strong><span>Token, Shell privacy, safety scan, and live verification boundaries.</span></a>
         <a href="/docs/postsnail-pages/"><strong>PostSnail Pages</strong><span>Enable the official CMS plugin for static pages, docs, navigation, and homepage override.</span></a>
         <a href="/docs/comments/"><strong>PostSnail Comments</strong><span>Enable the official comments plugin for approved static replies and private moderation in the Shell.</span></a>
+        <a href="/docs/signature-badges/"><strong>Signature Badges</strong><span>Collect deterministic two-color proof seals and publish a badge bookmark page.</span></a>
         <a href="/docs/shellnames/"><strong>ShellNames</strong><span>Claim readable Forest aliases like <code>@creator@forest.postsnail.org</code> without creating an account.</span></a>
         <a href="/docs/shellnames-protocol/"><strong>ShellNames Protocol</strong><span>Signed alias record shape, Forest endpoints, search behavior, and compatibility rules.</span></a>
         <a href="/docs/shellnames-security/"><strong>ShellNames Security</strong><span>What aliases prove, what they do not prove, and how Forest limits abuse.</span></a>
@@ -396,6 +397,20 @@ const pages = [
       ["export", "Public Export", "When enabled, published post pages get a comments runtime plus approved-comments.json. Approved replies become part of the public static site."],
       ["hybrid", "Hybrid Model", "Approved static comments are the official record. Future live tracker replies can remain separate without changing the creator-owned source of truth."],
       ["proof", "Signature Checks", "Signed comment packets are meant to be verified locally before approval. PostSnail never sends the private signing key or Shell passphrase to a backend."],
+    ]),
+  },
+  {
+    path: "docs/signature-badges/index.html",
+    title: "PostSnail Signature Badges - Alpha 2",
+    description: "Deterministic two-color proof badges, claim files, reader collections, and Forest resolver bookmarks.",
+    canonical: "https://postsnail.org/docs/signature-badges/",
+    body: docPage("Signature badge sections", "PostSnail Signature Badges", "Two-color nature proof seals generated from public post signatures.", [
+      ["public", "Public Badge Files", "Generated Website ZIPs include badges/posts/&lt;slug&gt;.svg and badges/claims/&lt;slug&gt;.postsnail.badge.&lt;hash-prefix&gt;.json for published posts. Raw hashes and signatures remain in manifest proof files."],
+      ["claim", "Claim By Download", "Readers click a badge to download a public claim file. Public blogs never ask for a reader's .postsnail file or passphrase."],
+      ["verify", "Local Import Verification", "The PostSnail Badges plugin verifies the public post digest and ML-DSA-65 signature locally, then stores a sanitized claim summary inside the encrypted Shell."],
+      ["collection", "Collection Page", "Readers can publish /badges/ in their own Website ZIP. Claims are grouped by Forest, then ShellName or source site, then ordered by date and title."],
+      ["resolver", "Forest Resolver", "Collection links use Forest /go/post resolver URLs so a badge bookmark can follow signed domain moves when Forest knows the current indexed post."],
+      ["limits", "Limits", "Badges are bookmarks and visual proof seals. They do not prove legal identity, factual truth, endorsement, domain ownership, or full ZIP verification."],
     ]),
   },
   {
