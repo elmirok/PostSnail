@@ -17,6 +17,7 @@ import {
 import { verifyPostSnailZip } from "./src/verifier.js";
 import { decryptLocalShellState, encryptLocalShellState } from "./src/localShell.js";
 import { exportWorkspaceVault, importLegacyBackupJson, importWorkspaceVault } from "./src/workspace.js";
+import { renderMarkdown } from "./src/markdown.js";
 import {
   getLaunchReadiness,
   hasOnboardingState,
@@ -28,7 +29,7 @@ import {
 import { buildShellNamePayload, signShellNameRecord } from "./src/shellnames.js";
 import { buildSiteMovePayload, signSiteMoveRecord } from "./src/siteMoves.js";
 import { buildMovedShellNameUpdate, findShellNameForMove, shellNameFromForestResponse } from "./src/domainMoveShellName.js";
-import { PUBLIC_FONT_OPTIONS, normalizePublicFontChoice } from "./src/publicFonts.js";
+import { PUBLIC_FONT_OPTIONS, normalizePublicFontChoice, normalizePublicTextColor } from "./src/publicFonts.js";
 import {
   commentSummary,
   createApprovedCommentRecord,
@@ -79,6 +80,7 @@ const defaultSettings = {
   preferredTrackers: "",
   indexingPolicy: "allow",
   publicFont: "system",
+  publicTextColor: "#111111",
   showPoweredBy: true,
   showTrackerCredit: true,
   snailLiftSiteUrl: "",
@@ -118,6 +120,7 @@ const state = {
   openAdminMenu: "",
   launchGuideOpen: false,
   previewImageId: "",
+  readingPreviewOpen: false,
   markdownEditor: null,
   identitySection: "signature",
   generateSection: "profile",
@@ -384,6 +387,18 @@ async function handleAction(button) {
   if (action === "view-image") {
     state.openAdminMenu = "";
     state.previewImageId = button.dataset.id || "";
+    render();
+    return;
+  }
+  if (action === "open-reading-preview") {
+    syncMarkdownEditorToForm();
+    state.openAdminMenu = "";
+    state.readingPreviewOpen = true;
+    render();
+    return;
+  }
+  if (action === "close-reading-preview") {
+    state.readingPreviewOpen = false;
     render();
     return;
   }
@@ -1507,6 +1522,7 @@ function render() {
     </section>
     ${state.launchGuideOpen ? renderLaunchGuideDrawer() : ""}
     ${state.previewImageId ? renderImagePreviewDialog() : ""}
+    ${state.readingPreviewOpen ? renderReadingPreviewDialog() : ""}
     ${renderAppFooter()}
   `;
   mountMarkdownEditor();
@@ -1898,6 +1914,7 @@ function renderContentEditor() {
             <h3>${state.form.id ? "Keep writing" : "New Post"}</h3>
           </div>
           <div class="actions">
+            <button class="btn" type="button" data-action="open-reading-preview">Preview reading mode</button>
             <button class="btn primary" type="submit">Save post</button>
             <button class="btn" type="button" data-action="content-section" data-section="posts">Back to posts</button>
           </div>
@@ -2061,6 +2078,43 @@ function renderImagePreviewDialog() {
       </aside>
     </div>
   `;
+}
+
+function renderReadingPreviewDialog() {
+  const attached = state.form.imageIds.map((id) => state.assets.find((asset) => asset.id === id)).filter(Boolean);
+  const title = state.form.title || "Untitled post";
+  const tags = parseTags(state.form.tags);
+  const statusLabel = state.form.status === "draft" ? "Draft preview" : "Published in next ZIP preview";
+  return `
+    <div class="reading-preview-backdrop" role="presentation" data-action="close-reading-preview">
+      <aside class="reading-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="reading-preview-title" data-action="noop">
+        <div class="reading-preview-head">
+          <div>
+            <p class="kicker">No-distraction reader preview</p>
+            <h2 id="reading-preview-title">${escapeHtml(title)}</h2>
+            <p class="help">${escapeHtml(statusLabel)}</p>
+          </div>
+          <button class="btn small" type="button" data-action="close-reading-preview">Back to editor</button>
+        </div>
+        <article class="reading-preview-page">
+          <header class="reading-preview-title">
+            <p class="kicker">${escapeHtml(state.profile.siteTitle || "PostSnail")}</p>
+            <h1>${escapeHtml(title)}</h1>
+            ${tags.length ? `<div class="post-tags">${tags.map((tag) => `<span>#${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+          </header>
+          ${attached.length ? `<div class="reading-preview-images">${attached.map((asset) => `<img src="${assetSrc(asset)}" alt="${escapeAttr(asset.alt || asset.name || "")}">`).join("")}</div>` : ""}
+          <div class="markdown reading-preview-body">${renderMarkdown(state.form.body || "")}</div>
+        </article>
+      </aside>
+    </div>
+  `;
+}
+
+function parseTags(value) {
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim().replace(/^#/u, ""))
+    .filter(Boolean);
 }
 
 function unusedAssets() {
@@ -2795,6 +2849,7 @@ function renderGenerateTabs(active) {
 
 function renderGenerateProfileSettings() {
   const selectedFont = normalizePublicFontChoice(state.settings.publicFont);
+  const selectedTextColor = normalizePublicTextColor(state.settings.publicTextColor);
   return `
     <section class="panel-box fields generate-section-panel">
       <h2 class="panel-title">Name The Blog</h2>
@@ -2838,15 +2893,21 @@ function renderGenerateProfileSettings() {
           </select>
         </label>
       </div>
-      <label class="field">
-        <span>Website font</span>
-        <select data-settings-field="publicFont">
-          ${PUBLIC_FONT_OPTIONS.map(
-            (font) => `<option value="${escapeAttr(font.id)}" ${selectedFont.id === font.id ? "selected" : ""}>${escapeHtml(font.label)}</option>`,
-          ).join("")}
-        </select>
-      </label>
-      <p class="font-preview" style="font-family: ${escapeAttr(selectedFont.stack)}">Preview: The quiet microblog stays readable with mixed UPPER and lower case letters.</p>
+      <div class="grid-2">
+        <label class="field">
+          <span>Website font</span>
+          <select data-settings-field="publicFont">
+            ${PUBLIC_FONT_OPTIONS.map(
+              (font) => `<option value="${escapeAttr(font.id)}" ${selectedFont.id === font.id ? "selected" : ""}>${escapeHtml(font.label)}</option>`,
+            ).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>Website text color</span>
+          <input type="color" data-settings-field="publicTextColor" value="${escapeAttr(selectedTextColor)}">
+        </label>
+      </div>
+      <p class="font-preview" style="font-family: ${escapeAttr(selectedFont.stack)}; color: ${escapeAttr(selectedTextColor)}">Preview: The quiet microblog stays readable with mixed UPPER and lower case letters.</p>
       <label class="field">
         <span>Topics</span>
         <input data-settings-field="topics" value="${escapeAttr(state.settings.topics || "")}" placeholder="protocol, notes, research">
@@ -3419,6 +3480,7 @@ function applyLoadedState(loaded) {
   state.openAdminMenu = "";
   state.launchGuideOpen = false;
   state.previewImageId = "";
+  state.readingPreviewOpen = false;
 }
 
 function resetEditableState() {
@@ -3452,6 +3514,7 @@ function resetEditableState() {
   state.openAdminMenu = "";
   state.launchGuideOpen = false;
   state.previewImageId = "";
+  state.readingPreviewOpen = false;
 }
 
 function hasLegacyLocalData(loaded) {
@@ -3477,7 +3540,9 @@ function hasLegacyLocalData(loaded) {
 }
 
 function updateSettingFromInput(input) {
-  state.settings[input.dataset.settingsField] = input.type === "checkbox" ? input.checked : input.value;
+  const field = input.dataset.settingsField;
+  const rawValue = input.type === "checkbox" ? input.checked : input.value;
+  state.settings[field] = field === "publicTextColor" ? normalizePublicTextColor(rawValue) : rawValue;
   markShellBackupStale();
   scheduleLocalShellSave();
 }

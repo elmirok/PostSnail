@@ -48,6 +48,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
     ],
     settings: {
       publicFont: "georgia",
+      publicTextColor: "#222222",
     },
     publicKey: keys.publicKey,
     secretKey: keys.secretKey,
@@ -111,7 +112,10 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   const tagHtml = decodeText(files["tags/intro/index.html"]);
   const claim = JSON.parse(decodeText(files[claimName]));
   assert.match(indexHtml, /font-family:\s*Georgia, "Times New Roman", Times, serif/);
+  assert.match(indexHtml, /--public-text:\s*#222222/);
+  assert.match(indexHtml, /body \{ margin: 0; background: #f7f7f5; color: var\(--public-text\); \}/);
   assert.match(postHtml, /font-family:\s*Georgia, "Times New Roman", Times, serif/);
+  assert.match(postHtml, /--public-text:\s*#222222/);
   assert.match(indexHtml, /src="assets\/tiny-proof\.png"/);
   assert.match(indexHtml, /Powered by PostSnail/);
   assert.match(indexHtml, /src="assets\/postsnail-brand\/postsnail-logo\.png"/);

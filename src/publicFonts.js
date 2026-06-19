@@ -32,6 +32,7 @@ export const PUBLIC_FONT_OPTIONS = [
 ];
 
 const DEFAULT_FONT = PUBLIC_FONT_OPTIONS[0];
+export const DEFAULT_PUBLIC_TEXT_COLOR = "#111111";
 
 export function normalizePublicFontChoice(value) {
   const id = String(value || DEFAULT_FONT.id).trim().toLowerCase();
@@ -40,4 +41,9 @@ export function normalizePublicFontChoice(value) {
 
 export function publicFontCssValue(value) {
   return normalizePublicFontChoice(value).stack;
+}
+
+export function normalizePublicTextColor(value) {
+  const color = String(value || DEFAULT_PUBLIC_TEXT_COLOR).trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/u.test(color) ? color : DEFAULT_PUBLIC_TEXT_COLOR;
 }

@@ -159,6 +159,11 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-action="view-image"/);
   assert.match(appJs, /data-action="close-image-preview"/);
   assert.match(appJs, /renderImagePreviewDialog/);
+  assert.match(appJs, /data-action="open-reading-preview"/);
+  assert.match(appJs, /data-action="close-reading-preview"/);
+  assert.match(appJs, /renderReadingPreviewDialog/);
+  assert.match(appJs, /No-distraction reader preview/);
+  assert.match(appJs, /renderMarkdown\(state\.form\.body/);
   assert.match(appJs, /openAdminMenu/);
   assert.match(appJs, /data-admin-menu/);
   assert.match(appJs, /data-action="md-helper"/);
@@ -259,7 +264,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /data-settings-field="shellNameForestUrl"/);
   assert.match(appJs, /data-settings-field="shellNameDesiredName"/);
   assert.match(appJs, /data-settings-field="publicFont"/);
+  assert.match(appJs, /data-settings-field="publicTextColor"/);
   assert.match(appJs, /PUBLIC_FONT_OPTIONS/);
+  assert.match(appJs, /normalizePublicTextColor/);
   assert.match(appJs, /Preview: The quiet microblog stays readable/);
   assert.match(appJs, /data-action="register-shellname"/);
   assert.match(appJs, /data-action="update-shellname"/);
@@ -365,6 +372,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.image-preview-dialog/);
   assert.match(css, /\.image-preview-full/);
+  assert.match(css, /\.reading-preview-backdrop/);
+  assert.match(css, /\.reading-preview-dialog/);
+  assert.match(css, /\.reading-preview-page/);
+  assert.match(css, /\.reading-preview-body/);
   assert.match(css, /\.launch-checklist/);
   assert.match(css, /\.admin-section-tabs/);
   assert.match(css, /\.generate-admin/);

@@ -167,7 +167,7 @@ import { validatePublicExportFiles } from "./core/export/safety.js";
 import { createPluginRegistry } from "./core/plugins/pluginRegistry.js";
 import { createThemeRegistry, resolveFrontendTheme } from "./core/themes/themeRegistry.js";
 import { resolveRouteAssets } from "./core/assets/routeAssets.js";
-import { normalizePublicFontChoice, publicFontCssValue } from "./publicFonts.js";
+import { normalizePublicFontChoice, normalizePublicTextColor, publicFontCssValue } from "./publicFonts.js";
 import {
   buildCommentsPublicData,
   commentsRuntimeCss,
@@ -617,6 +617,7 @@ function normalizeAttributionSettings(settings = {}, discoverySettings = normali
     showPoweredBy: settings.showPoweredBy !== false && settings.showPoweredBy !== "false",
     showTrackerCredit: settings.showTrackerCredit !== false && settings.showTrackerCredit !== "false",
     publicFont: normalizePublicFontChoice(settings.publicFont).id,
+    publicTextColor: normalizePublicTextColor(settings.publicTextColor),
     trackerUrls:
       settings.showTrackerCredit === false || settings.showTrackerCredit === "false"
         ? []
@@ -1145,17 +1146,18 @@ function articleJsonLd(profile, post, url) {
 
 function publicCss(attribution = {}) {
   const fontStack = publicFontCssValue(attribution.publicFont);
+  const textColor = normalizePublicTextColor(attribution.publicTextColor);
   return `
-    :root { color: #17151f; background: #f7f7f5; font-family: ${fontStack}; }
+    :root { --public-text: ${textColor}; color: var(--public-text); background: #f7f7f5; font-family: ${fontStack}; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: #f7f7f5; color: #17151f; }
-    a { color: #3c1aaf; text-decoration-thickness: 0.08em; }
+    body { margin: 0; background: #f7f7f5; color: var(--public-text); }
+    a { color: var(--public-text); text-decoration-thickness: 0.08em; }
     .site-header { display: flex; justify-content: space-between; gap: 18px; align-items: center; width: min(980px, 92vw); margin: 0 auto; padding: 20px 0; border-bottom: 1px solid #e7e4ed; }
     .site-header > a { color: inherit; font-weight: 900; text-decoration: none; }
     nav { display: flex; gap: 14px; font-size: 0.9rem; font-weight: 750; }
     main { width: min(980px, 92vw); margin: 0 auto; padding: 34px 0 56px; }
     .hero { max-width: 720px; margin-bottom: 26px; }
-    .kicker, time { color: #6c6875; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; }
+    .kicker, time { color: var(--public-text); opacity: 0.72; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; }
     h1 { font-size: clamp(2.2rem, 8vw, 4.5rem); line-height: 0.95; margin: 8px 0 12px; letter-spacing: 0; }
     h2 { margin: 0 0 8px; font-size: 1.3rem; }
     .feed { display: grid; gap: 12px; }
@@ -1163,7 +1165,7 @@ function publicCss(attribution = {}) {
     .post-card img, .post-full img { width: 100%; border-radius: 8px; object-fit: cover; }
     .post-card img { aspect-ratio: 4 / 3; }
     .post-tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-    .digest, .proof code { overflow-wrap: anywhere; color: #6c6875; font-size: 0.78rem; }
+    .digest, .proof code { overflow-wrap: anywhere; color: var(--public-text); opacity: 0.72; font-size: 0.78rem; }
     .post-full { max-width: 760px; }
     .markdown { font-size: 1.05rem; line-height: 1.65; }
     .signature-badge-proof { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 28px; padding: 14px; border: 1px solid #e7e4ed; background: white; border-radius: 8px; }
