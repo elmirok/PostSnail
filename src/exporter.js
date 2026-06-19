@@ -657,8 +657,11 @@ function buildAssetMap(assets) {
   const used = new Set();
   return new Map(
     assets.map((asset, index) => {
-      const extension = extensionForAsset(asset);
-      const base = slugify(asset.name?.replace(/\.[^.]+$/u, "") || `image-${index + 1}`);
+      const preferred = safeAssetFileName(asset.fileName);
+      const extension = preferred ? /\.[^.]+$/u.exec(preferred)?.[0] || extensionForAsset(asset) : extensionForAsset(asset);
+      const base = preferred
+        ? preferred.replace(/\.[^.]+$/u, "")
+        : slugify(asset.name?.replace(/\.[^.]+$/u, "") || `image-${index + 1}`);
       let fileName = `${base}${extension}`;
       let counter = 2;
       while (used.has(fileName)) {
@@ -669,6 +672,12 @@ function buildAssetMap(assets) {
       return [asset.id, { ...asset, fileName }];
     }),
   );
+}
+
+function safeAssetFileName(value) {
+  const fileName = String(value || "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]*\.[a-z0-9]{2,5}$/u.test(fileName)) return "";
+  return fileName;
 }
 
 function extensionForAsset(asset) {

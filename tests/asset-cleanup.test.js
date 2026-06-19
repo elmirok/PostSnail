@@ -5,13 +5,14 @@ import { findUnusedAssets, removeUnusedAssets } from "../src/assetCleanup.js";
 
 const usedByPost = { id: "asset-post", name: "Post Image.png", type: "image/png", dataBase64: "post-data", size: 10 };
 const usedByPageText = { id: "asset-page", name: "Page Hero.png", type: "image/png", dataBase64: "page-data", size: 20 };
+const usedByMarkdownPath = { id: "asset-markdown", name: "Cursor Image.png", fileName: "cursor-image.png", type: "image/png", dataBase64: "path-data", size: 25 };
 const usedByCurrentEditor = { id: "asset-editor", name: "Unsaved.png", type: "image/png", dataBase64: "editor-data", size: 30 };
 const unused = { id: "asset-unused", name: "Unused.png", type: "image/png", dataBase64: "unused-data", size: 40 };
 
 test("findUnusedAssets ignores asset self data and keeps assets referenced elsewhere in the Shell", () => {
   const workspace = {
-    posts: [{ id: "p1", title: "Post", imageIds: ["asset-post"], body: "Body" }],
-    assets: [usedByPost, usedByPageText, usedByCurrentEditor, unused],
+    posts: [{ id: "p1", title: "Post", imageIds: ["asset-post"], body: "Body\n\n![cursor](/assets/cursor-image.png)" }],
+    assets: [usedByPost, usedByPageText, usedByMarkdownPath, usedByCurrentEditor, unused],
     plugins: {
       state: {
         "postsnail-pages": {

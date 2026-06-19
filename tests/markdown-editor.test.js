@@ -21,6 +21,10 @@ test("PostSnail Markdown editor is backed by CodeMirror and stores Markdown text
   assert.match(source, /update\.state\.doc\.toString\(\)/);
   assert.match(source, /getMarkdown\(\)/);
   assert.match(source, /insertSnippet/);
+  assert.match(source, /getSelectionRange\(\)/);
+  assert.match(source, /insertSnippetAt/);
+  assert.match(source, /insertSnippetAtSelection/);
+  assert.match(source, /typeof snippet === "object"/);
   assert.match(source, /textTransform:\s*"none"/);
   assert.match(source, /system-ui, -apple-system/);
   assert.match(app, /syncMarkdownEditorToForm\(\);/);

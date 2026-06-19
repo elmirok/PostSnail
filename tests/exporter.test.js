@@ -40,6 +40,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
       {
         id: "image-1",
         name: "Tiny Proof.png",
+        fileName: "stable-proof.png",
         type: "image/png",
         alt: "Tiny proof pixel",
         dataBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
@@ -70,7 +71,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
     "archive/index.html",
     "assets/postsnail-brand/postsnail-icon.png",
     "assets/postsnail-brand/postsnail-logo.png",
-    "assets/tiny-proof.png",
+    "assets/stable-proof.png",
     claimName,
     "badges/posts/hello-postsnail.svg",
     "feed.json",
@@ -101,7 +102,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   assert.equal(manifest.algorithm.digest, "SHA3-512");
   assert.equal(manifest.posts[0].slug, "hello-postsnail");
   assert.equal(manifest.posts[0].record.body, "A local-first post.");
-  assert.deepEqual(manifest.posts[0].record.imageFiles, ["tiny-proof.png"]);
+  assert.deepEqual(manifest.posts[0].record.imageFiles, ["stable-proof.png"]);
   assert.equal(manifest.posts[0].signature.startsWith("base64:"), true);
   assert.equal(manifest.bundleFingerprint.startsWith("psn1-sha3-512-"), true);
   assert.ok(manifest.optionalFeatures.includes("signature-badge"));
@@ -116,7 +117,7 @@ test("buildStaticExport creates the expected signed static bundle", async () => 
   assert.match(indexHtml, /body \{ margin: 0; background: #f7f7f5; color: var\(--public-text\); \}/);
   assert.match(postHtml, /font-family:\s*Georgia, "Times New Roman", Times, serif/);
   assert.match(postHtml, /--public-text:\s*#222222/);
-  assert.match(indexHtml, /src="assets\/tiny-proof\.png"/);
+  assert.match(indexHtml, /src="assets\/stable-proof\.png"/);
   assert.match(indexHtml, /Powered by PostSnail/);
   assert.match(indexHtml, /src="assets\/postsnail-brand\/postsnail-logo\.png"/);
   assert.match(postHtml, /src="\.\.\/\.\.\/assets\/postsnail-brand\/postsnail-logo\.png"/);

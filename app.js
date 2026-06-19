@@ -1,5 +1,5 @@
 import { findUnusedAssets } from "./src/assetCleanup.js";
-import { buildExcerpt, normalizePost, uniqueSlug } from "./src/content.js";
+import { buildExcerpt, normalizePost, slugify, uniqueSlug } from "./src/content.js";
 import {
   decryptSecretKey,
   encryptSecretKey,
@@ -120,6 +120,8 @@ const state = {
   openAdminMenu: "",
   launchGuideOpen: false,
   previewImageId: "",
+  imageInsertOpen: false,
+  imageInsertSelection: null,
   readingPreviewOpen: false,
   markdownEditor: null,
   identitySection: "signature",
@@ -184,7 +186,7 @@ app.addEventListener("click", async (event) => {
     }
     return;
   }
-  event.preventDefault();
+  if (button.dataset.action !== "noop") event.preventDefault();
   if (shouldCloseOpenMenu) state.openAdminMenu = "";
   await handleAction(button);
 });
@@ -225,8 +227,12 @@ app.addEventListener("change", async (event) => {
   if (input.matches("[data-runtime-field]")) {
     updateRuntimeFieldFromInput(input);
   }
-  if (input.id === "image-upload") {
+  if (input.id === "asset-upload") {
     await addImages(input.files);
+    input.value = "";
+  }
+  if (input.id === "markdown-image-upload") {
+    await insertUploadedImageAtCursor(input.files?.[0]);
     input.value = "";
   }
   if (input.id === "workspace-import") {
@@ -308,6 +314,20 @@ async function handleAction(button) {
   if (action === "close-launch-guide") {
     state.launchGuideOpen = false;
     render();
+    return;
+  }
+  if (action === "open-image-insert") {
+    openImageInsertDialog();
+    return;
+  }
+  if (action === "close-image-insert") {
+    state.imageInsertOpen = false;
+    state.imageInsertSelection = null;
+    render();
+    return;
+  }
+  if (action === "insert-image-url") {
+    insertImageUrlAtCursor();
     return;
   }
   if (action === "md-helper") {
@@ -785,24 +805,77 @@ async function saveCurrentPost() {
 async function addImages(files) {
   const imageFiles = Array.from(files || []).filter((file) => file.type.startsWith("image/"));
   if (!imageFiles.length) return;
-  const attachToCurrentPost = state.activeTab === "content" && state.contentSection === "editor";
   for (const file of imageFiles) {
-    const asset = {
-      id: crypto.randomUUID(),
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      dataBase64: await readFileBase64(file),
-      createdAt: new Date().toISOString(),
-    };
+    const asset = await createImageAsset(file);
     state.assets = [asset, ...state.assets];
-    if (attachToCurrentPost) {
-      state.form.imageIds = Array.from(new Set([...state.form.imageIds, asset.id]));
-    }
   }
   markShellBackupStale();
   await persistLocalShellNow();
-  setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} ${attachToCurrentPost ? "attached" : "imported"}. Originals may contain metadata.`);
+  setStatus(`${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"} imported. Originals may contain metadata.`);
+  render();
+}
+
+async function createImageAsset(file) {
+  return {
+    id: crypto.randomUUID(),
+    name: file.name,
+    fileName: uniqueAssetFileName(file),
+    type: file.type,
+    size: file.size,
+    dataBase64: await readFileBase64(file),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function openImageInsertDialog() {
+  syncMarkdownEditorToForm();
+  const fallbackPosition = String(state.form.body || "").length;
+  state.imageInsertSelection = state.markdownEditor?.getSelectionRange?.() || { from: fallbackPosition, to: fallbackPosition };
+  state.imageInsertOpen = true;
+  state.openAdminMenu = "";
+  render();
+}
+
+function insertImageUrlAtCursor() {
+  const url = document.getElementById("markdown-image-url")?.value || "";
+  const alt = document.getElementById("markdown-image-url-alt")?.value || "";
+  const normalizedUrl = normalizeMarkdownImageUrl(url);
+  if (!normalizedUrl) {
+    setStatus("Use a public HTTPS image URL.");
+    return;
+  }
+  insertMarkdownImageAtCursor({ alt, src: normalizedUrl });
+  setStatus("Image URL inserted at the cursor.");
+}
+
+async function insertUploadedImageAtCursor(file) {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    setStatus("Choose a valid image file.");
+    return;
+  }
+  const alt = document.getElementById("markdown-image-upload-alt")?.value || file.name.replace(/\.[^.]+$/u, "");
+  const asset = await createImageAsset(file);
+  state.assets = [asset, ...state.assets];
+  markShellBackupStale();
+  await persistLocalShellNow();
+  insertMarkdownImageAtCursor({ alt, src: `/assets/${asset.fileName}` });
+  setStatus(`Uploaded and inserted ${asset.name}. Save the post to keep the Markdown placement.`);
+}
+
+function insertMarkdownImageAtCursor({ alt, src }) {
+  const markdown = `![${escapeMarkdownImageAlt(alt || "image")}](${src})`;
+  const snippet = { text: markdown, cursorOffset: markdown.length, selectionLength: 0 };
+  const range = normalizeMarkdownSelection(state.imageInsertSelection);
+  if (state.markdownEditor?.insertSnippetAt) {
+    state.markdownEditor.insertSnippetAt(snippet, range);
+    syncMarkdownEditorToForm();
+  } else {
+    const body = String(state.form.body || "");
+    state.form.body = `${body.slice(0, range.from)}${markdown}${body.slice(range.to)}`;
+  }
+  state.imageInsertOpen = false;
+  state.imageInsertSelection = null;
   render();
 }
 
@@ -861,8 +934,10 @@ async function deleteImage(id) {
   state.posts = state.posts.map((post) => ({
     ...post,
     imageIds: post.imageIds.filter((imageId) => imageId !== id),
+    body: removeAssetMarkdownReferences(post.body, asset),
   }));
   state.form.imageIds = state.form.imageIds.filter((imageId) => imageId !== id);
+  state.form.body = removeAssetMarkdownReferences(state.form.body, asset);
   if (state.previewImageId === id) state.previewImageId = "";
   markShellBackupStale();
   await persistLocalShellNow();
@@ -1522,6 +1597,7 @@ function render() {
     </section>
     ${state.launchGuideOpen ? renderLaunchGuideDrawer() : ""}
     ${state.previewImageId ? renderImagePreviewDialog() : ""}
+    ${state.imageInsertOpen ? renderImageInsertDialog() : ""}
     ${state.readingPreviewOpen ? renderReadingPreviewDialog() : ""}
     ${renderAppFooter()}
   `;
@@ -1904,7 +1980,6 @@ function renderContentPosts() {
 }
 
 function renderContentEditor() {
-  const attached = state.form.imageIds.map((id) => state.assets.find((asset) => asset.id === id)).filter(Boolean);
   return `
     <div class="writer-workbench">
       <form id="post-form" class="panel-box fields writer-editor">
@@ -1951,14 +2026,7 @@ function renderContentEditor() {
           <span>Excerpt</span>
           <textarea class="compact" data-post-field="excerpt" placeholder="Optional public summary">${escapeHtml(state.form.excerpt || "")}</textarea>
         </label>
-        <label class="field">
-          <span>Images</span>
-          <input id="image-upload" type="file" accept="image/*" multiple>
-        </label>
-        <div class="asset-list">
-          ${attached.map(renderAttachedAsset).join("") || `<div class="empty-state"><span>No images attached</span><p>Choose local images to include them in the exported static bundle.</p></div>`}
-        </div>
-        <p class="help">PostSnail stores selected images locally and copies them into the generated ZIP. Browser APIs do not remove original image metadata.</p>
+        <p class="help">Use the Image button in the Markdown tools to insert an image at the cursor from a URL or upload. Uploaded images stay inside the encrypted Shell and are copied into the public Website ZIP.</p>
       </aside>
     </div>
   `;
@@ -1991,7 +2059,11 @@ function renderMarkdownToolbar() {
         <p class="help">The editor keeps Markdown symbols visible while lightly styling headings, lists, quotes, code, links, and rules as you write.</p>
       </div>
       <div class="toolbar-buttons">
-        ${helpers.map(([id, label]) => `<button class="btn small md-tool-${escapeAttr(id)}" type="button" data-action="md-helper" data-md="${id}" title="Insert ${escapeAttr(label)} Markdown">${escapeHtml(label)}</button>`).join("")}
+        ${helpers.map(([id, label]) => {
+          const action = id === "image" ? "open-image-insert" : "md-helper";
+          const mdAttr = id === "image" ? "" : ` data-md="${id}"`;
+          return `<button class="btn small md-tool-${escapeAttr(id)}" type="button" data-action="${action}"${mdAttr} title="Insert ${escapeAttr(label)} Markdown">${escapeHtml(label)}</button>`;
+        }).join("")}
       </div>
     </div>
   `;
@@ -2048,10 +2120,10 @@ function renderContentImages() {
           <h3>Shell image assets</h3>
         </div>
         <span class="status-badge ${unused.length ? "draft" : ""}">Unused ${unused.length}</span>
-        <label class="btn small" for="image-upload">Add images</label>
+        <label class="btn small" for="asset-upload">Add images</label>
         <button class="btn small danger" type="button" data-action="delete-unused-images" ${unused.length ? "" : "disabled"}>Delete unused</button>
       </div>
-      <input id="image-upload" type="file" accept="image/*" multiple hidden>
+      <input id="asset-upload" type="file" accept="image/*" multiple hidden>
       <div class="asset-list image-grid">
         ${state.assets.map(renderAssetSummary).join("") || `<div class="empty-state"><span>No images</span><p>Images are imported only from files you select.</p></div>`}
       </div>
@@ -2075,6 +2147,47 @@ function renderImagePreviewDialog() {
           <button class="btn small" type="button" data-action="close-image-preview">Close</button>
         </div>
         <img class="image-preview-full" src="${assetSrc(asset)}" alt="${escapeAttr(asset.name)}">
+      </aside>
+    </div>
+  `;
+}
+
+function renderImageInsertDialog() {
+  return `
+    <div class="image-insert-backdrop" role="presentation" data-action="close-image-insert">
+      <aside class="image-insert-dialog" role="dialog" aria-modal="true" aria-labelledby="image-insert-title" data-action="noop">
+        <div class="image-preview-head">
+          <div>
+            <p class="kicker">Markdown image</p>
+            <h2 id="image-insert-title">Insert image at cursor</h2>
+            <p class="help">Use a public HTTPS image URL or upload a local image into this Shell. Uploaded images are inserted as Markdown and exported with the Website ZIP.</p>
+          </div>
+          <button class="btn small" type="button" data-action="close-image-insert">Close</button>
+        </div>
+        <div class="grid-2 image-insert-grid">
+          <section class="panel-box fields">
+            <h3>From URL</h3>
+            <label class="field">
+              <span>Image URL</span>
+              <input id="markdown-image-url" type="url" placeholder="https://example.com/image.webp">
+            </label>
+            <label class="field">
+              <span>Alt text</span>
+              <input id="markdown-image-url-alt" placeholder="Short image description">
+            </label>
+            <button class="btn primary" type="button" data-action="insert-image-url">Insert URL image</button>
+          </section>
+          <section class="panel-box fields">
+            <h3>Upload</h3>
+            <label class="field">
+              <span>Alt text</span>
+              <input id="markdown-image-upload-alt" placeholder="Short image description">
+            </label>
+            <label class="btn primary" for="markdown-image-upload">Choose image and insert</label>
+            <input id="markdown-image-upload" type="file" accept="image/*" hidden>
+            <p class="help">Original image metadata may remain. Strip EXIF/GPS metadata before uploading if that matters for your threat model.</p>
+          </section>
+        </div>
       </aside>
     </div>
   `;
@@ -2122,9 +2235,37 @@ function unusedAssets() {
 }
 
 function imageReferenceCount(id) {
+  const asset = state.assets.find((item) => item.id === id);
+  const textTokens = assetTextReferenceTokens(asset);
   const postReferences = state.posts.reduce((count, post) => count + post.imageIds.filter((imageId) => imageId === id).length, 0);
   const editorReferences = state.form.imageIds.filter((imageId) => imageId === id).length;
-  return postReferences + editorReferences;
+  const postBodyReferences = state.posts.reduce((count, post) => count + (textReferencesAsset(post.body, textTokens) ? 1 : 0), 0);
+  const editorBodyReferences = textReferencesAsset(state.form.body, textTokens) ? 1 : 0;
+  return postReferences + editorReferences + postBodyReferences + editorBodyReferences;
+}
+
+function assetTextReferenceTokens(asset) {
+  if (!asset) return [];
+  return [asset.id, asset.name, asset.fileName, asset.fileName ? `/assets/${asset.fileName}` : ""]
+    .map((token) => String(token || "").toLowerCase())
+    .filter((token) => token.length >= 3);
+}
+
+function textReferencesAsset(value, tokens) {
+  const text = String(value || "").toLowerCase();
+  return tokens.some((token) => text.includes(token));
+}
+
+function removeAssetMarkdownReferences(value, asset) {
+  const source = String(value || "");
+  const tokens = assetTextReferenceTokens(asset);
+  if (!tokens.length) return source;
+  const pattern = new RegExp(`!?\\[[^\\]\\n]*\\]\\((?:${tokens.map(escapeRegExp).join("|")})\\)\\n?`, "giu");
+  return source.replace(pattern, "").trim();
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function normalizedContentSection() {
@@ -3480,6 +3621,8 @@ function applyLoadedState(loaded) {
   state.openAdminMenu = "";
   state.launchGuideOpen = false;
   state.previewImageId = "";
+  state.imageInsertOpen = false;
+  state.imageInsertSelection = null;
   state.readingPreviewOpen = false;
 }
 
@@ -3514,6 +3657,8 @@ function resetEditableState() {
   state.openAdminMenu = "";
   state.launchGuideOpen = false;
   state.previewImageId = "";
+  state.imageInsertOpen = false;
+  state.imageInsertSelection = null;
   state.readingPreviewOpen = false;
 }
 
@@ -4414,6 +4559,50 @@ async function copyText(value) {
 
 function assetSrc(asset) {
   return `data:${asset.type || "image/png"};base64,${asset.dataBase64}`;
+}
+
+function uniqueAssetFileName(file) {
+  const used = new Set(state.assets.map((asset) => String(asset.fileName || "").toLowerCase()).filter(Boolean));
+  const extension = extensionForImageFile(file);
+  const base = slugify(file.name?.replace(/\.[^.]+$/u, "") || "image") || "image";
+  let candidate = `${base}${extension}`;
+  let counter = 2;
+  while (used.has(candidate.toLowerCase())) {
+    candidate = `${base}-${counter}${extension}`;
+    counter += 1;
+  }
+  return candidate;
+}
+
+function extensionForImageFile(file) {
+  const fromName = /\.[a-z0-9]{2,5}$/iu.exec(file.name || "")?.[0]?.toLowerCase();
+  if (fromName) return fromName;
+  if (file.type === "image/jpeg") return ".jpg";
+  if (file.type === "image/webp") return ".webp";
+  if (file.type === "image/gif") return ".gif";
+  if (file.type === "image/svg+xml") return ".svg";
+  return ".png";
+}
+
+function normalizeMarkdownImageUrl(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    if (url.protocol !== "https:") return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeMarkdownSelection(selection) {
+  const body = String(state.form.body || "");
+  const from = Math.max(0, Math.min(body.length, Number(selection?.from) || 0));
+  const to = Math.max(from, Math.min(body.length, Number(selection?.to) || from));
+  return { from, to };
+}
+
+function escapeMarkdownImageAlt(value) {
+  return String(value || "image").replace(/[\r\n]+/gu, " ").replaceAll("]", "\\]").trim() || "image";
 }
 
 function formatDateTime(value) {

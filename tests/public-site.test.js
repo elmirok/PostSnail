@@ -108,6 +108,10 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
     appJs.indexOf("async function submitSiteMove()"),
     appJs.indexOf("async function generateSiteZip()"),
   );
+  const contentEditorSource = appJs.slice(
+    appJs.indexOf("function renderContentEditor()"),
+    appJs.indexOf("function renderMarkdownToolbar()"),
+  );
 
   assert.match(appJs, /renderShellGate/);
   assert.match(appJs, /Open Existing Shell/);
@@ -166,7 +170,14 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /renderMarkdown\(state\.form\.body/);
   assert.match(appJs, /openAdminMenu/);
   assert.match(appJs, /data-admin-menu/);
-  assert.match(appJs, /data-action="md-helper"/);
+  assert.match(appJs, /id === "image" \? "open-image-insert" : "md-helper"/);
+  assert.match(appJs, /if \(action === "open-image-insert"\)/);
+  assert.match(appJs, /renderImageInsertDialog/);
+  assert.match(appJs, /data-action="insert-image-url"/);
+  assert.match(appJs, /markdown-image-upload/);
+  assert.match(appJs, /insertUploadedImageAtCursor/);
+  assert.doesNotMatch(contentEditorSource, /id="image-upload"/);
+  assert.doesNotMatch(contentEditorSource, /No images attached/);
   assert.match(appJs, /createPostSnailMarkdownEditor/);
   assert.match(appJs, /renderMarkdownEditorMount/);
   assert.match(appJs, /mountMarkdownEditor/);
@@ -376,6 +387,9 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.image-preview-dialog/);
   assert.match(css, /\.image-preview-full/);
+  assert.match(css, /\.image-insert-backdrop/);
+  assert.match(css, /\.image-insert-dialog/);
+  assert.match(css, /\.image-insert-grid/);
   assert.match(css, /\.reading-preview-backdrop/);
   assert.match(css, /\.reading-preview-dialog/);
   assert.match(css, /\.reading-preview-page/);

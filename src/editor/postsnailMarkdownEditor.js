@@ -105,22 +105,45 @@ export function createPostSnailMarkdownEditor({ parent, value = "", onChange = (
       if (current === markdown) return;
       view.dispatch({ changes: { from: 0, to: current.length, insert: markdown || "" } });
     },
+    getSelectionRange() {
+      const selection = view.state.selection.main;
+      return { from: selection.from, to: selection.to };
+    },
     insertSnippet(snippet) {
       const selection = view.state.selection.main;
-      const selected = view.state.sliceDoc(selection.from, selection.to);
-      const prepared = typeof snippet === "function" ? snippet(selected) : { text: String(snippet || "") };
-      const text = prepared.text || "";
-      view.dispatch({
-        changes: { from: selection.from, to: selection.to, insert: text },
-        selection: {
-          anchor: selection.from + (prepared.cursorOffset ?? text.length),
-          head: selection.from + (prepared.cursorOffset ?? text.length) + (prepared.selectionLength ?? 0),
-        },
-        scrollIntoView: true,
-      });
-      view.focus();
+      insertSnippetAtSelection(view, selection, snippet);
+    },
+    insertSnippetAt(snippet, range) {
+      const docLength = view.state.doc.length;
+      const from = clampNumber(range?.from, 0, docLength);
+      const to = clampNumber(range?.to, from, docLength);
+      insertSnippetAtSelection(view, { from, to }, snippet);
     },
   };
+}
+
+function insertSnippetAtSelection(view, selection, snippet) {
+  const selected = view.state.sliceDoc(selection.from, selection.to);
+  const prepared = typeof snippet === "function"
+    ? snippet(selected)
+    : typeof snippet === "object" && snippet
+      ? snippet
+      : { text: String(snippet || "") };
+  const text = prepared.text || "";
+  view.dispatch({
+    changes: { from: selection.from, to: selection.to, insert: text },
+    selection: {
+      anchor: selection.from + (prepared.cursorOffset ?? text.length),
+      head: selection.from + (prepared.cursorOffset ?? text.length) + (prepared.selectionLength ?? 0),
+    },
+    scrollIntoView: true,
+  });
+  view.focus();
+}
+
+function clampNumber(value, min, max) {
+  const number = Number.isFinite(value) ? value : min;
+  return Math.max(min, Math.min(max, number));
 }
 
 function buildLineDecorations(view) {

@@ -1535,7 +1535,8 @@ textarea:disabled {
   justify-self: start;
 }
 
-.image-preview-backdrop {
+.image-preview-backdrop,
+.image-insert-backdrop {
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -1545,7 +1546,8 @@ textarea:disabled {
   background: rgba(8, 10, 47, 0.42);
 }
 
-.image-preview-dialog {
+.image-preview-dialog,
+.image-insert-dialog {
   width: min(880px, 94vw);
   max-height: 92dvh;
   overflow: auto;
@@ -1553,6 +1555,14 @@ textarea:disabled {
   background: var(--page);
   padding: 14px;
   box-shadow: var(--shadow);
+}
+
+.image-insert-dialog {
+  width: min(960px, 94vw);
+}
+
+.image-insert-grid {
+  margin-top: 12px;
 }
 
 .image-preview-head {
