@@ -15,6 +15,7 @@ No proprietary third-party code was found in the shipped vendored dependency set
 | `fflate` | `0.8.3` | MIT | Copyright 2026 Arjun Barrett | `vendor/fflate/LICENSE` |
 | `marked` | `18.0.5` | MIT plus bundled Markdown notice | Copyright 2018+ MarkedJS; Copyright 2011-2018 Christopher Jeffrey; Markdown notice by John Gruber | `vendor/marked/LICENSE` |
 | `dompurify` | `3.4.8` | Apache-2.0 or MPL-2.0 | DOMPurify project contributors | `vendor/dompurify/LICENSE`, `vendor/dompurify/LICENSE-MPL` |
+| CodeMirror editor bundle | CodeMirror 6 / Lezer packages pinned by `package-lock.json` | MIT | Marijn Haverbeke and contributors | `vendor/postsnail-editor/LICENSES.md`; shipped bundle at `vendor/postsnail-editor/editor.bundle.js` |
 
 ## Development Dependencies
 

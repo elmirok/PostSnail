@@ -675,98 +675,91 @@ textarea:disabled {
   line-height: 1.58;
 }
 
-.markdown-source-editor {
-  box-sizing: border-box;
-  display: block;
-  width: 100%;
+.markdown-editor-mount {
   min-height: min(48dvh, 540px);
-  overflow: auto;
+}
+
+.markdown-editor-mount .cm-editor {
+  min-height: min(48dvh, 540px);
   border: 2px solid var(--line);
   background: #fff;
   color: var(--ink);
-  caret-color: var(--ink);
-  outline: none;
-  padding: 14px;
-  font: 500 0.98rem/1.58 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  letter-spacing: 0;
-  white-space: pre-wrap;
-  tab-size: 2;
+  font-size: 0.98rem;
 }
 
-.markdown-source-editor:focus {
+.markdown-editor-mount .cm-editor.cm-focused {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(239, 64, 86, 0.14);
 }
 
-.markdown-source-editor:empty::before {
-  content: attr(data-placeholder);
+.markdown-editor-mount .cm-placeholder {
   color: var(--muted);
 }
 
-.markdown-source-editor::selection,
-.markdown-source-editor *::selection {
-  background: rgba(239, 64, 86, 0.2);
-  color: var(--ink);
-}
-
-.md-line {
-  display: inline;
-}
-
-.md-heading {
+.markdown-editor-mount .ps-md-heading-line {
   color: var(--brand);
   background: rgba(239, 64, 86, 0.1);
-  font-size: 1.22em;
   font-weight: 900;
 }
 
-.md-quote {
+.markdown-editor-mount .ps-md-heading1-line {
+  font-size: 1.55rem;
+  line-height: 1.35;
+}
+
+.markdown-editor-mount .ps-md-heading2-line {
+  font-size: 1.32rem;
+  line-height: 1.38;
+}
+
+.markdown-editor-mount .ps-md-heading3-line {
+  font-size: 1.15rem;
+  line-height: 1.42;
+}
+
+.markdown-editor-mount .ps-md-quote-line {
+  border-left: 4px solid var(--success);
   background: rgba(47, 122, 85, 0.08);
   color: #2f7a55;
   font-style: italic;
+  padding-left: 10px;
 }
 
-.md-list {
+.markdown-editor-mount .ps-md-list-line {
   background: rgba(22, 22, 60, 0.05);
   color: #1b315f;
+  padding-left: 14px;
 }
 
-.md-code-block,
-.md-code-fence,
-.md-code-inline {
+.markdown-editor-mount .ps-md-codeblock-line,
+.markdown-editor-mount .ps-md-code-token {
   color: #cf1e3d;
   background: rgba(239, 64, 86, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-.md-table {
+.markdown-editor-mount .ps-md-table-line {
   color: #4f356e;
 }
 
-.md-rule {
+.markdown-editor-mount .ps-md-rule-line,
+.markdown-editor-mount .ps-md-rule-token {
   color: var(--brand);
   font-weight: 900;
 }
 
-.md-bold-token {
+.markdown-editor-mount .ps-md-strong-token {
   font-weight: 900;
 }
 
-.md-italic-token {
+.markdown-editor-mount .ps-md-emphasis-token {
   font-style: italic;
 }
 
-.md-strike-token {
-  text-decoration: line-through;
-}
-
-.md-link-token {
+.markdown-editor-mount .ps-md-link-token {
   color: #2f7a55;
   text-decoration: underline;
   text-decoration-thickness: 2px;
-}
-
-.md-placeholder {
-  color: var(--muted);
 }
 
 .markdown-toolbar {

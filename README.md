@@ -173,7 +173,7 @@ More detail: [workspace vaults](docs/workspace-vault.md), [Surge publish guide](
 
 PostSnail is licensed under Apache-2.0. Redistributed copies, forks, and derivative works must preserve the Apache-2.0 license and the `NOTICE` attribution to Boaz Alhadeff and the original PostSnail project.
 
-The shipped browser dependencies are open-source and listed in [third-party notices](THIRD_PARTY_NOTICES.md). No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 2 review. The supplied/generated logo assets are assumed to be owned or cleared by Boaz Alhadeff.
+The shipped browser dependencies are open-source and listed in [third-party notices](THIRD_PARTY_NOTICES.md). No proprietary third-party code was found in the shipped vendored dependency set during the Alpha 2 review. The admin vendors CodeMirror/Lezer for the local Markdown editor under MIT licenses. The supplied/generated logo assets are assumed to be owned or cleared by Boaz Alhadeff.
 
 ## Forest Cost Notes
 

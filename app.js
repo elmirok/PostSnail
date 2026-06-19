@@ -50,6 +50,7 @@ import {
 } from "./src/core/index.js";
 import { createPagesItem, normalizePagesState } from "./src/pages/plugin.js";
 import { badgeDataUriForClaim, importBadgeClaim, normalizeBadgesState } from "./src/badges/plugin.js";
+import { createPostSnailMarkdownEditor } from "./vendor/postsnail-editor/editor.bundle.js";
 import {
   announceForestAfterLiveVerification,
   createDeploymentLogEntry,
@@ -115,6 +116,7 @@ const state = {
   openAdminMenu: "",
   launchGuideOpen: false,
   previewImageId: "",
+  markdownEditor: null,
   identitySection: "signature",
   generateSection: "profile",
   pagesSection: "pages",
@@ -188,46 +190,10 @@ app.addEventListener("submit", async (event) => {
   await saveCurrentPost();
 });
 
-app.addEventListener("beforeinput", (event) => {
-  const editor = event.target.closest?.("#markdown-body");
-  if (!editor?.isContentEditable) return;
-  if (event.inputType === "insertParagraph" || event.inputType === "insertLineBreak") {
-    event.preventDefault();
-    insertMarkdownAtSelection("\n");
-    return;
-  }
-  if (event.inputType === "insertText" && typeof event.data === "string") {
-    event.preventDefault();
-    insertMarkdownAtSelection(event.data);
-  }
-});
-
-app.addEventListener("keydown", (event) => {
-  const editor = event.target.closest?.("#markdown-body");
-  if (!editor?.isContentEditable) return;
-  if (event.key === "Enter") {
-    event.preventDefault();
-    insertMarkdownAtSelection("\n");
-  }
-});
-
-app.addEventListener("paste", (event) => {
-  const editor = event.target.closest?.("#markdown-body");
-  if (!editor?.isContentEditable) return;
-  const text = event.clipboardData?.getData("text/plain") || "";
-  if (!text) return;
-  event.preventDefault();
-  insertMarkdownAtSelection(text);
-});
-
 app.addEventListener("input", (event) => {
-  const input = event.target.closest?.("[data-post-field]");
+  const input = event.target;
   if (input) {
-    if (input.id === "markdown-body" && input.isContentEditable) {
-      syncMarkdownSourceEditor(input);
-    } else {
-      state.form[input.dataset.postField] = input.value;
-    }
+    if (input.matches("[data-post-field]")) state.form[input.dataset.postField] = input.value;
   }
   if (event.target.matches("[data-profile-field]")) {
     const input = event.target;
@@ -244,13 +210,9 @@ app.addEventListener("input", (event) => {
 });
 
 app.addEventListener("change", async (event) => {
-  const input = event.target.closest?.("[data-post-field]") || event.target;
+  const input = event.target;
   if (input.matches("[data-post-field]")) {
-    if (input.id === "markdown-body" && input.isContentEditable) {
-      syncMarkdownSourceEditor(input);
-    } else {
-      state.form[input.dataset.postField] = input.value;
-    }
+    state.form[input.dataset.postField] = input.value;
   }
   if (input.matches("[data-settings-field]")) {
     updateSettingFromInput(input);
@@ -781,6 +743,7 @@ async function closeShell() {
 }
 
 async function saveCurrentPost() {
+  syncMarkdownEditorToForm();
   const existingSlugs = new Set(state.posts.filter((post) => post.id !== state.form.id).map((post) => post.slug));
   const post = normalizePost({
     ...state.form,
@@ -1511,6 +1474,7 @@ function restoreImportedState(nextState) {
 }
 
 function render() {
+  destroyMarkdownEditor();
   app.classList.toggle("shell-locked", state.shellMode === "locked");
   if (state.shellMode === "locked") {
     app.innerHTML = `
@@ -1543,6 +1507,7 @@ function render() {
     ${state.previewImageId ? renderImagePreviewDialog() : ""}
     ${renderAppFooter()}
   `;
+  mountMarkdownEditor();
 }
 
 function renderHeader() {
@@ -1943,7 +1908,7 @@ function renderContentEditor() {
         ${renderMarkdownToolbar()}
         <label class="field">
           <span>Markdown body</span>
-          ${renderMarkdownSourceEditor(state.form.body)}
+          ${renderMarkdownEditorMount()}
         </label>
       </form>
       <aside class="panel-box fields writer-sidebar">
@@ -2013,10 +1978,34 @@ function renderMarkdownToolbar() {
   `;
 }
 
-function renderMarkdownSourceEditor(body) {
+function renderMarkdownEditorMount() {
   return `
-    <div id="markdown-body" class="writer-body markdown-source-editor" data-post-field="body" data-markdown-editor contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-placeholder="Write with Markdown. Use the toolbar when you want symbols inserted for you.">${renderMarkdownSourceMarkup(body || "")}</div>
+    <div id="markdown-body" class="writer-body markdown-editor-mount" data-markdown-editor aria-label="Markdown body"></div>
   `;
+}
+
+function mountMarkdownEditor() {
+  if (state.activeTab !== "content" || state.contentSection !== "editor") return;
+  const parent = document.getElementById("markdown-body");
+  if (!parent || state.markdownEditor) return;
+  state.markdownEditor = createPostSnailMarkdownEditor({
+    parent,
+    value: state.form.body || "",
+    onChange(markdown) {
+      state.form.body = markdown;
+    },
+  });
+}
+
+function destroyMarkdownEditor() {
+  if (!state.markdownEditor) return;
+  state.form.body = state.markdownEditor.getMarkdown();
+  state.markdownEditor.destroy();
+  state.markdownEditor = null;
+}
+
+function syncMarkdownEditorToForm() {
+  if (state.markdownEditor) state.form.body = state.markdownEditor.getMarkdown();
 }
 
 function renderWriterStateBar() {
@@ -3317,43 +3306,13 @@ function renderVerifyResult(result) {
 }
 
 function applyMarkdownHelper(type) {
-  const current = markdownEditorCurrentText();
-  const selection = markdownEditorCurrentSelection(current.length);
-  const selected = current.slice(selection.start, selection.end);
-  const snippet = markdownHelperSnippet(type, selected);
-  insertMarkdownAtSelection(snippet.text, {
-    current,
-    selection,
-    cursorOffset: snippet.cursorOffset,
-    selectionLength: snippet.selectionLength,
-  });
-  setStatus("Markdown helper inserted.");
-}
-
-function insertMarkdownAtSelection(text, options = {}) {
-  const editor = document.getElementById("markdown-body");
-  const current = options.current ?? markdownEditorCurrentText();
-  const selection = options.selection ?? markdownEditorCurrentSelection(current.length);
-  const start = selection.start;
-  const end = selection.end;
-  const next = `${current.slice(0, start)}${text}${current.slice(end)}`;
-  state.form.body = next;
-  if (editor?.isContentEditable) {
-    renderMarkdownSourceEditorValue(editor, next);
-    editor.focus();
-    const cursor = start + (options.cursorOffset ?? text.length);
-    setSourceEditorSelection(editor, cursor, cursor + (options.selectionLength ?? 0));
+  if (state.markdownEditor) {
+    state.markdownEditor.insertSnippet((selected) => markdownHelperSnippet(type, selected));
+  } else {
+    const snippet = markdownHelperSnippet(type, "");
+    state.form.body = `${state.form.body || ""}${snippet.text}`;
   }
-}
-
-function markdownEditorCurrentText() {
-  const editor = document.getElementById("markdown-body");
-  return editor?.isContentEditable ? markdownTextFromEditor(editor) : state.form.body ?? "";
-}
-
-function markdownEditorCurrentSelection(fallbackOffset = 0) {
-  const editor = document.getElementById("markdown-body");
-  return editor?.isContentEditable ? sourceEditorSelection(editor) : { start: fallbackOffset, end: fallbackOffset };
+  setStatus("Markdown helper inserted.");
 }
 
 function markdownHelperSnippet(type, selected) {
@@ -3379,101 +3338,6 @@ function markdownHelperSnippet(type, selected) {
     footnote: { text: `${text || "note"}[^1]\n\n[^1]: Footnote text`, cursorOffset: text ? text.length + 4 : 0, selectionLength: text ? 0 : 4 },
   };
   return snippets[type] || snippets.bold;
-}
-
-function syncMarkdownSourceEditor(editor) {
-  const selection = sourceEditorSelection(editor);
-  const markdown = markdownTextFromEditor(editor);
-  state.form.body = markdown;
-  renderMarkdownSourceEditorValue(editor, markdown);
-  setSourceEditorSelection(editor, selection.start, selection.end);
-}
-
-function markdownTextFromEditor(editor) {
-  return (editor?.innerText || editor?.textContent || "").replace(/\u00a0/gu, " ");
-}
-
-function renderMarkdownSourceEditorValue(editor, markdown) {
-  editor.innerHTML = renderMarkdownSourceMarkup(markdown);
-}
-
-function renderMarkdownSourceMarkup(markdown) {
-  const source = markdown || "";
-  if (!source) return "";
-  let inFence = false;
-  return source.split("\n").map((line) => {
-    if (/^\s*```/u.test(line)) {
-      inFence = !inFence;
-      return `<span class="md-line md-code-fence">${escapeHtml(line)}</span>`;
-    }
-    if (inFence) return `<span class="md-line md-code-block">${escapeHtml(line)}</span>`;
-    if (/^\s*#{1,6}\s+/u.test(line)) return `<span class="md-line md-heading">${styleInlineMarkdown(line)}</span>`;
-    if (/^\s*>/u.test(line)) return `<span class="md-line md-quote">${styleInlineMarkdown(line)}</span>`;
-    if (/^\s*(?:[-*+]|\d+\.)\s+(?:\[.\]\s+)?/u.test(line)) return `<span class="md-line md-list">${styleInlineMarkdown(line)}</span>`;
-    if (/^\s*\|.+\|\s*$/u.test(line)) return `<span class="md-line md-table">${styleInlineMarkdown(line)}</span>`;
-    if (/^\s*-{3,}\s*$/u.test(line)) return `<span class="md-line md-rule">${escapeHtml(line)}</span>`;
-    return `<span class="md-line">${styleInlineMarkdown(line)}</span>`;
-  }).join("\n");
-}
-
-function sourceEditorSelection(editor) {
-  const fallback = markdownTextFromEditor(editor).length;
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !editor.contains(selection.anchorNode)) {
-    return { start: fallback, end: fallback };
-  }
-  const range = selection.getRangeAt(0);
-  return {
-    start: sourceEditorOffset(editor, range.startContainer, range.startOffset),
-    end: sourceEditorOffset(editor, range.endContainer, range.endOffset),
-  };
-}
-
-function sourceEditorOffset(editor, container, offset) {
-  const range = document.createRange();
-  range.selectNodeContents(editor);
-  try {
-    range.setEnd(container, offset);
-  } catch {
-    return markdownTextFromEditor(editor).length;
-  }
-  return range.toString().length;
-}
-
-function setSourceEditorSelection(editor, start, end = start) {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  const startPoint = sourceEditorTextPoint(editor, start);
-  const endPoint = sourceEditorTextPoint(editor, end);
-  range.setStart(startPoint.node, startPoint.offset);
-  range.setEnd(endPoint.node, endPoint.offset);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-function sourceEditorTextPoint(editor, offset) {
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-  let currentOffset = 0;
-  let node = walker.nextNode();
-  while (node) {
-    const nextOffset = currentOffset + node.nodeValue.length;
-    if (offset <= nextOffset) return { node, offset: Math.max(0, offset - currentOffset) };
-    currentOffset = nextOffset;
-    node = walker.nextNode();
-  }
-  const text = document.createTextNode("");
-  editor.appendChild(text);
-  return { node: text, offset: 0 };
-}
-
-function styleInlineMarkdown(line) {
-  return escapeHtml(line)
-    .replace(/(`[^`]+`)/gu, `<span class="md-code-inline">$1</span>`)
-    .replace(/(\*\*[^*]+\*\*)/gu, `<span class="md-bold-token">$1</span>`)
-    .replace(/(~~[^~]+~~)/gu, `<span class="md-strike-token">$1</span>`)
-    .replace(/(!?\[[^\]]+\]\([^)]+\))/gu, `<span class="md-link-token">$1</span>`)
-    .replace(/(^|\s)(\*[^*\n]+\*)/gu, `$1<span class="md-italic-token">$2</span>`);
 }
 
 function emptyPostForm() {

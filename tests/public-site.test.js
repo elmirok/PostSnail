@@ -162,16 +162,19 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(appJs, /openAdminMenu/);
   assert.match(appJs, /data-admin-menu/);
   assert.match(appJs, /data-action="md-helper"/);
-  assert.match(appJs, /renderMarkdownSourceEditor/);
-  assert.match(appJs, /renderMarkdownSourceMarkup/);
-  assert.match(appJs, /insertMarkdownAtSelection\("\\n"\)/);
-  assert.match(appJs, /beforeinput/);
-  assert.match(appJs, /insertText/);
-  assert.match(appJs, /insertFromPaste|paste/);
-  assert.match(appJs, /syncMarkdownSourceEditor/);
-  assert.match(appJs, /contenteditable="true"/);
-  assert.match(appJs, /markdown-source-editor/);
-  assert.match(appJs, /md-heading/);
+  assert.match(appJs, /createPostSnailMarkdownEditor/);
+  assert.match(appJs, /renderMarkdownEditorMount/);
+  assert.match(appJs, /mountMarkdownEditor/);
+  assert.match(appJs, /syncMarkdownEditorToForm/);
+  assert.match(appJs, /state\.form\.body = state\.markdownEditor\.getMarkdown\(\)/);
+  assert.match(appJs, /markdown-editor-mount/);
+  assert.match(appJs, /vendor\/postsnail-editor\/editor\.bundle\.js/);
+  assert.doesNotMatch(appJs, /renderMarkdownSourceEditor/);
+  assert.doesNotMatch(appJs, /renderMarkdownSourceMarkup/);
+  assert.doesNotMatch(appJs, /syncMarkdownSourceEditor/);
+  assert.doesNotMatch(appJs, /contenteditable="true"/);
+  assert.doesNotMatch(appJs, /markdown-source-editor/);
+  assert.doesNotMatch(appJs, /md-heading/);
   assert.doesNotMatch(appJs, /markdown-style-layer/);
   assert.match(appJs, /\["h1", "H1"\]/);
   assert.match(appJs, /\["table", "Table"\]/);
@@ -342,7 +345,13 @@ test("admin app uses the PostSnail brand skin and compact legal footer", () => {
   assert.match(css, /\.writer-body/);
   assert.match(css, /\.tab-menu\.open \.tab-submenu/);
   assert.doesNotMatch(css, /\.tab-menu\.active \.tab-submenu/);
-  assert.match(css, /\.markdown-source-editor/);
+  assert.match(css, /\.markdown-editor-mount \.cm-editor/);
+  assert.match(css, /\.markdown-editor-mount \.ps-md-heading-line/);
+  assert.match(css, /\.markdown-editor-mount \.ps-md-quote-line/);
+  assert.match(css, /\.markdown-editor-mount \.ps-md-list-line/);
+  assert.match(css, /\.markdown-editor-mount \.ps-md-code-token/);
+  assert.match(css, /\.markdown-editor-mount \.ps-md-link-token/);
+  assert.doesNotMatch(css, /\.markdown-source-editor/);
   assert.doesNotMatch(css, /\.markdown-editor-shell/);
   assert.doesNotMatch(css, /\.markdown-style-layer/);
   assert.doesNotMatch(css, /\.markdown-body-input/);
@@ -541,9 +550,10 @@ test("license, attribution notice, and third-party notices are present", () => {
   assert.match(license, /Version 2\.0, January 2004/);
   assert.match(notice, /Boaz Alhadeff/);
   assert.match(notice, /PostSnail/);
-  for (const name of ["@noble/post-quantum", "@noble/hashes", "fflate", "marked", "dompurify"]) {
+  for (const name of ["@noble/post-quantum", "@noble/hashes", "fflate", "marked", "dompurify", "CodeMirror", "Lezer"]) {
     assert.match(thirdParty, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.ok(existsSync(join(root, "vendor/postsnail-editor/LICENSES.md")));
   assert.match(readme, /Apache-2\.0/);
   assert.match(readme, /NOTICE/);
 });
