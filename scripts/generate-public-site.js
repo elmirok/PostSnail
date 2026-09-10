@@ -25,9 +25,9 @@ const defaultNav = [
 const pages = [
   {
     path: "index.html",
-    title: "PostSnail Alpha 2 - Creator-Owned Microblogs",
+    title: "PostSnail — Publish Creator-Owned Static Microblogs",
     description:
-      "PostSnail Alpha 2 helps creators publish static microblogs they own, sign, verify, host for free, and index through PostSnail Forest.",
+      "Create a creator-owned static microblog in your browser, export signed proof files, publish on any static host, and make it discoverable in PostSnail Forest.",
     canonical: "https://postsnail.org/",
     ogTitle: "PostSnail Alpha 2",
     ogDescription: "Creator-owned static microblogs with post-quantum signed fingerprints and open Forest discovery.",
@@ -711,6 +711,9 @@ export function generatePublicSite() {
   for (const page of pages) {
     writePage(page);
   }
+  const urls = pages.map((page) => `  <url><loc>${page.canonical}</loc></url>`).join("\n");
+  writeFileSync(join(rootDir, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`, "utf8");
+  writeFileSync(join(rootDir, "robots.txt"), "User-agent: *\nAllow: /\nSitemap: https://postsnail.org/sitemap.xml\n", "utf8");
 }
 
 function writePage(page) {
